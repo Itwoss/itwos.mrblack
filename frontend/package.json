@@ -3,10 +3,15 @@
   "private": true,
   "version": "1.0.0",
   "type": "module",
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "scripts": {
     "dev": "node --max-old-space-size=8192 --optimize-for-size node_modules/.bin/vite",
     "dev:memory": "node --max-old-space-size=8192 --optimize-for-size --expose-gc node_modules/.bin/vite",
     "build": "vite build",
+    "build:vercel": "vite build",
+    "start": "vite preview --port 3000",
     "lint": "eslint . --ext js,jsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview"
   },
