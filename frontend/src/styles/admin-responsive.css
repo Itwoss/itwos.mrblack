@@ -1,0 +1,302 @@
+/* Admin Dashboard Responsive Styles */
+
+/* Mobile-first responsive table styles */
+.admin-table-responsive {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: #d9d9d9 #f0f0f0;
+}
+
+.admin-table-responsive::-webkit-scrollbar {
+  height: 6px;
+}
+
+.admin-table-responsive::-webkit-scrollbar-track {
+  background: #f0f0f0;
+  border-radius: 3px;
+}
+
+.admin-table-responsive::-webkit-scrollbar-thumb {
+  background: #d9d9d9;
+  border-radius: 3px;
+}
+
+.admin-table-responsive::-webkit-scrollbar-thumb:hover {
+  background: #bfbfbf;
+}
+
+/* Responsive table container */
+.admin-table-container {
+  position: relative;
+  overflow: hidden;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Mobile-specific table styles */
+@media (max-width: 768px) {
+  .admin-table-responsive .ant-table-thead > tr > th {
+    padding: 8px 4px;
+    font-size: 12px;
+    white-space: nowrap;
+  }
+  
+  .admin-table-responsive .ant-table-tbody > tr > td {
+    padding: 8px 4px;
+    font-size: 12px;
+  }
+  
+  /* Make action buttons smaller on mobile */
+  .admin-table-responsive .ant-btn-sm {
+    padding: 2px 6px;
+    font-size: 11px;
+    height: 24px;
+    min-width: 24px;
+  }
+  
+  /* Stack action buttons vertically on very small screens */
+  @media (max-width: 480px) {
+    .admin-table-responsive .ant-space-vertical {
+      flex-direction: column;
+      gap: 4px;
+    }
+    
+    .admin-table-responsive .ant-btn-sm {
+      width: 100%;
+      margin-bottom: 2px;
+    }
+  }
+}
+
+/* Tablet styles */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .admin-table-responsive .ant-table-thead > tr > th {
+    padding: 10px 6px;
+    font-size: 13px;
+  }
+  
+  .admin-table-responsive .ant-table-tbody > tr > td {
+    padding: 10px 6px;
+    font-size: 13px;
+  }
+}
+
+/* Desktop styles */
+@media (min-width: 1025px) {
+  .admin-table-responsive .ant-table-thead > tr > th {
+    padding: 12px 8px;
+    font-size: 14px;
+  }
+  
+  .admin-table-responsive .ant-table-tbody > tr > td {
+    padding: 12px 8px;
+    font-size: 14px;
+  }
+}
+
+/* Action buttons responsive styles */
+.admin-action-buttons {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+@media (max-width: 480px) {
+  .admin-action-buttons {
+    flex-direction: column;
+    gap: 2px;
+  }
+  
+  .admin-action-buttons .ant-btn {
+    width: 100%;
+    margin-bottom: 2px;
+  }
+}
+
+/* User info responsive styles */
+.admin-user-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.admin-user-info .ant-avatar {
+  flex-shrink: 0;
+}
+
+.admin-user-info .user-details {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.admin-user-info .user-name {
+  font-weight: 600;
+  font-size: 14px;
+  line-height: 1.2;
+  margin-bottom: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.admin-user-info .user-email {
+  font-size: 12px;
+  color: #666;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (max-width: 768px) {
+  .admin-user-info .user-name {
+    font-size: 13px;
+  }
+  
+  .admin-user-info .user-email {
+    font-size: 11px;
+  }
+}
+
+/* Status tags responsive */
+.admin-status-tag {
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+@media (max-width: 768px) {
+  .admin-status-tag {
+    font-size: 10px;
+    padding: 1px 4px;
+  }
+}
+
+/* Role tags responsive */
+.admin-role-tag {
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+@media (max-width: 768px) {
+  .admin-role-tag {
+    font-size: 10px;
+    padding: 1px 4px;
+  }
+}
+
+/* Card responsive styles */
+.admin-card-responsive {
+  margin-bottom: 16px;
+}
+
+@media (max-width: 768px) {
+  .admin-card-responsive {
+    margin-bottom: 12px;
+  }
+  
+  .admin-card-responsive .ant-card-head {
+    padding: 12px 16px;
+  }
+  
+  .admin-card-responsive .ant-card-body {
+    padding: 12px;
+  }
+}
+
+/* Table scroll indicators */
+.admin-table-scroll-indicator {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  background: linear-gradient(to right, transparent, rgba(0, 0, 0, 0.1));
+  width: 20px;
+  height: 100%;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Loading states */
+.admin-table-loading {
+  position: relative;
+}
+
+.admin-table-loading::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+}
+
+/* Empty state responsive */
+.admin-empty-state {
+  text-align: center;
+  padding: 40px 20px;
+}
+
+@media (max-width: 768px) {
+  .admin-empty-state {
+    padding: 20px 10px;
+  }
+  
+  .admin-empty-state .ant-empty-description {
+    font-size: 14px;
+  }
+}
+
+/* Touch-friendly button styles */
+@media (hover: none) and (pointer: coarse) {
+  .admin-action-buttons .ant-btn {
+    min-height: 44px;
+    min-width: 44px;
+    padding: 8px 12px;
+  }
+  
+  .admin-table-responsive .ant-btn-sm {
+    min-height: 36px;
+    min-width: 36px;
+    padding: 6px 10px;
+  }
+}
+
+/* Focus states for accessibility */
+.admin-action-buttons .ant-btn:focus {
+  outline: 2px solid #1890ff;
+  outline-offset: 2px;
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .admin-table-responsive {
+    border: 2px solid;
+  }
+  
+  .admin-action-buttons .ant-btn {
+    border: 2px solid;
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .admin-table-responsive {
+    scroll-behavior: auto;
+  }
+  
+  .admin-action-buttons .ant-btn {
+    transition: none;
+  }
+}

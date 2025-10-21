@@ -1,0 +1,676 @@
+/* ========================================
+   MOBILE PROFILE STYLES - ITWOS AI
+   Apple-inspired mobile design for profile page
+   ======================================== */
+
+/* ========================================
+   MOBILE PROFILE CONTAINER
+   ======================================== */
+
+.mobile-profile-container {
+  min-height: 100vh;
+  background: #f9fafb;
+  padding: clamp(16px, 4vw, 24px);
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+.mobile-profile-header {
+  background: #ffffff;
+  border-radius: 16px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  padding: clamp(24px, 6vw, 32px);
+  margin-bottom: clamp(16px, 4vw, 24px);
+  text-align: center;
+  overflow: hidden;
+}
+
+.mobile-profile-avatar-container {
+  position: relative;
+  display: inline-block;
+  margin-bottom: clamp(16px, 4vw, 24px);
+}
+
+.mobile-profile-avatar {
+  width: clamp(120px, 30vw, 140px);
+  height: clamp(120px, 30vw, 140px);
+  border-radius: 50%;
+  border: 4px solid #e5e7eb;
+  object-fit: cover;
+  transition: all 0.3s ease;
+}
+
+.mobile-profile-avatar:hover {
+  border-color: #3b82f6;
+  box-shadow: 0 8px 24px rgba(59, 130, 246, 0.3);
+}
+
+.mobile-profile-upload-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(8px, 2vw, 12px);
+  align-items: center;
+  margin-top: clamp(12px, 3vw, 16px);
+}
+
+.mobile-profile-upload-button {
+  min-height: 44px;
+  min-width: 44px;
+  padding: clamp(8px, 2vw, 12px) clamp(16px, 4vw, 24px);
+  font-size: clamp(14px, 3.5vw, 16px);
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(6px, 1.5vw, 8px);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.mobile-profile-upload-button:active {
+  transform: scale(0.98);
+}
+
+.mobile-profile-upload-button.primary {
+  background: #3b82f6;
+  color: white;
+}
+
+.mobile-profile-upload-button.primary:active {
+  background: #2563eb;
+}
+
+.mobile-profile-upload-button.danger {
+  background: #ef4444;
+  color: white;
+}
+
+.mobile-profile-upload-button.danger:active {
+  background: #dc2626;
+}
+
+.mobile-profile-title {
+  font-size: clamp(24px, 6vw, 32px);
+  font-weight: 700;
+  color: #111827;
+  margin: 0 0 clamp(8px, 2vw, 12px) 0;
+  line-height: 1.2;
+}
+
+.mobile-profile-email {
+  font-size: clamp(16px, 4vw, 18px);
+  color: #6b7280;
+  margin: 0 0 clamp(16px, 4vw, 24px) 0;
+  line-height: 1.5;
+}
+
+.mobile-profile-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: clamp(8px, 2vw, 12px);
+  justify-content: center;
+  margin-bottom: clamp(16px, 4vw, 24px);
+}
+
+.mobile-profile-stat {
+  background: #f3f4f6;
+  color: #374151;
+  padding: clamp(4px, 1vw, 6px) clamp(8px, 2vw, 12px);
+  border-radius: 20px;
+  font-size: clamp(12px, 3vw, 14px);
+  font-weight: 500;
+}
+
+.mobile-profile-stat.verified {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.mobile-profile-actions {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(8px, 2vw, 12px);
+  align-items: center;
+}
+
+.mobile-profile-action-button {
+  min-height: 44px;
+  min-width: 44px;
+  padding: clamp(8px, 2vw, 12px) clamp(16px, 4vw, 24px);
+  font-size: clamp(14px, 3.5vw, 16px);
+  font-weight: 500;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(6px, 1.5vw, 8px);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.mobile-profile-action-button:active {
+  transform: scale(0.98);
+}
+
+.mobile-profile-action-button.primary {
+  background: #3b82f6;
+  color: white;
+}
+
+.mobile-profile-action-button.primary:active {
+  background: #2563eb;
+}
+
+.mobile-profile-action-button.secondary {
+  background: #f3f4f6;
+  color: #374151;
+  border: 1px solid #d1d5db;
+}
+
+.mobile-profile-action-button.secondary:active {
+  background: #e5e7eb;
+}
+
+/* ========================================
+   MOBILE PROFILE TABS
+   ======================================== */
+
+.mobile-profile-tabs {
+  background: #ffffff;
+  border-radius: 16px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  margin-bottom: clamp(16px, 4vw, 24px);
+}
+
+.mobile-profile-tab-list {
+  display: flex;
+  border-bottom: 1px solid #e5e7eb;
+  background: #f9fafb;
+}
+
+.mobile-profile-tab {
+  flex: 1;
+  padding: clamp(12px, 3vw, 16px);
+  text-align: center;
+  font-size: clamp(14px, 3.5vw, 16px);
+  font-weight: 500;
+  color: #6b7280;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border-bottom: 2px solid transparent;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.mobile-profile-tab.active {
+  color: #3b82f6;
+  border-bottom-color: #3b82f6;
+  background: #ffffff;
+}
+
+.mobile-profile-tab:active {
+  background: #f3f4f6;
+}
+
+.mobile-profile-tab-content {
+  padding: clamp(16px, 4vw, 24px);
+}
+
+/* ========================================
+   MOBILE PROFILE FORM
+   ======================================== */
+
+.mobile-profile-form {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+.mobile-profile-form-row {
+  margin-bottom: clamp(16px, 4vw, 24px);
+}
+
+.mobile-profile-form-item {
+  margin-bottom: clamp(16px, 4vw, 20px);
+}
+
+.mobile-profile-form-label {
+  display: block;
+  font-size: clamp(14px, 3.5vw, 16px);
+  font-weight: 500;
+  color: #374151;
+  margin-bottom: clamp(6px, 1.5vw, 8px);
+}
+
+.mobile-profile-form-input {
+  width: 100%;
+  min-height: 44px;
+  padding: clamp(8px, 2vw, 12px) clamp(12px, 3vw, 16px);
+  font-size: clamp(14px, 3.5vw, 16px);
+  color: #111827;
+  background-color: #ffffff;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  box-sizing: border-box;
+}
+
+.mobile-profile-form-input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.mobile-profile-form-textarea {
+  min-height: 120px;
+  resize: vertical;
+  font-family: inherit;
+}
+
+.mobile-profile-form-select {
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e");
+  background-position: right 12px center;
+  background-repeat: no-repeat;
+  background-size: 16px;
+  padding-right: 40px;
+}
+
+.mobile-profile-form-button {
+  min-height: 44px;
+  min-width: 44px;
+  padding: clamp(8px, 2vw, 12px) clamp(16px, 4vw, 24px);
+  font-size: clamp(14px, 3.5vw, 16px);
+  font-weight: 500;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(6px, 1.5vw, 8px);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.mobile-profile-form-button:active {
+  transform: scale(0.98);
+}
+
+.mobile-profile-form-button.primary {
+  background: #3b82f6;
+  color: white;
+}
+
+.mobile-profile-form-button.primary:active {
+  background: #2563eb;
+}
+
+.mobile-profile-form-button.secondary {
+  background: #f3f4f6;
+  color: #374151;
+  border: 1px solid #d1d5db;
+}
+
+.mobile-profile-form-button.secondary:active {
+  background: #e5e7eb;
+}
+
+/* ========================================
+   MOBILE PROFILE SECURITY
+   ======================================== */
+
+.mobile-profile-security-card {
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  padding: clamp(16px, 4vw, 24px);
+  margin-bottom: clamp(16px, 4vw, 24px);
+  border: 1px solid #e5e7eb;
+}
+
+.mobile-profile-security-title {
+  font-size: clamp(16px, 4vw, 18px);
+  font-weight: 600;
+  color: #111827;
+  margin: 0 0 clamp(8px, 2vw, 12px) 0;
+}
+
+.mobile-profile-security-description {
+  font-size: clamp(14px, 3.5vw, 16px);
+  color: #6b7280;
+  margin: 0 0 clamp(16px, 4vw, 20px) 0;
+  line-height: 1.5;
+}
+
+.mobile-profile-security-button {
+  min-height: 44px;
+  min-width: 44px;
+  padding: clamp(8px, 2vw, 12px) clamp(16px, 4vw, 24px);
+  font-size: clamp(14px, 3.5vw, 16px);
+  font-weight: 500;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(6px, 1.5vw, 8px);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.mobile-profile-security-button:active {
+  transform: scale(0.98);
+}
+
+.mobile-profile-security-button.primary {
+  background: #3b82f6;
+  color: white;
+}
+
+.mobile-profile-security-button.primary:active {
+  background: #2563eb;
+}
+
+.mobile-profile-security-button.danger {
+  background: #ef4444;
+  color: white;
+}
+
+.mobile-profile-security-button.danger:active {
+  background: #dc2626;
+}
+
+/* ========================================
+   MOBILE PROFILE MODAL
+   ======================================== */
+
+.mobile-profile-modal {
+  max-width: 100%;
+  margin: 0 clamp(16px, 4vw, 24px);
+}
+
+.mobile-profile-modal-header {
+  padding: clamp(16px, 4vw, 24px) clamp(16px, 4vw, 24px) 0;
+  border-bottom: 1px solid #e5e7eb;
+  margin-bottom: clamp(16px, 4vw, 24px);
+}
+
+.mobile-profile-modal-title {
+  font-size: clamp(18px, 4.5vw, 20px);
+  font-weight: 600;
+  color: #111827;
+  margin: 0 0 clamp(8px, 2vw, 12px) 0;
+}
+
+.mobile-profile-modal-body {
+  padding: 0 clamp(16px, 4vw, 24px);
+}
+
+.mobile-profile-modal-footer {
+  padding: clamp(16px, 4vw, 24px);
+  border-top: 1px solid #e5e7eb;
+  display: flex;
+  flex-direction: column;
+  gap: clamp(8px, 2vw, 12px);
+}
+
+.mobile-profile-modal-actions {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(8px, 2vw, 12px);
+}
+
+.mobile-profile-modal-button {
+  min-height: 44px;
+  min-width: 44px;
+  padding: clamp(8px, 2vw, 12px) clamp(16px, 4vw, 24px);
+  font-size: clamp(14px, 3.5vw, 16px);
+  font-weight: 500;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(6px, 1.5vw, 8px);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.mobile-profile-modal-button:active {
+  transform: scale(0.98);
+}
+
+.mobile-profile-modal-button.primary {
+  background: #3b82f6;
+  color: white;
+}
+
+.mobile-profile-modal-button.primary:active {
+  background: #2563eb;
+}
+
+.mobile-profile-modal-button.secondary {
+  background: #f3f4f6;
+  color: #374151;
+  border: 1px solid #d1d5db;
+}
+
+.mobile-profile-modal-button.secondary:active {
+  background: #e5e7eb;
+}
+
+.mobile-profile-modal-button.danger {
+  background: #ef4444;
+  color: white;
+}
+
+.mobile-profile-modal-button.danger:active {
+  background: #dc2626;
+}
+
+/* ========================================
+   MOBILE PROFILE RESPONSIVE BREAKPOINTS
+   ======================================== */
+
+/* Mobile Small (320px - 374px) */
+@media (max-width: 374px) {
+  .mobile-profile-container {
+    padding: 12px;
+  }
+  
+  .mobile-profile-header {
+    padding: 16px;
+  }
+  
+  .mobile-profile-avatar {
+    width: 100px;
+    height: 100px;
+  }
+  
+  .mobile-profile-title {
+    font-size: 20px;
+  }
+  
+  .mobile-profile-email {
+    font-size: 14px;
+  }
+}
+
+/* Mobile Medium (375px - 390px) */
+@media (min-width: 375px) and (max-width: 390px) {
+  .mobile-profile-container {
+    padding: 16px;
+  }
+  
+  .mobile-profile-header {
+    padding: 20px;
+  }
+}
+
+/* Mobile Large (391px - 428px) */
+@media (min-width: 391px) and (max-width: 428px) {
+  .mobile-profile-container {
+    padding: 20px;
+  }
+  
+  .mobile-profile-header {
+    padding: 24px;
+  }
+}
+
+/* Mobile Extra Large (429px - 768px) */
+@media (min-width: 429px) and (max-width: 768px) {
+  .mobile-profile-container {
+    padding: 24px;
+  }
+  
+  .mobile-profile-header {
+    padding: 28px;
+  }
+  
+  .mobile-profile-upload-buttons {
+    flex-direction: row;
+    justify-content: center;
+  }
+  
+  .mobile-profile-actions {
+    flex-direction: row;
+    justify-content: center;
+  }
+  
+  .mobile-profile-modal-actions {
+    flex-direction: row;
+    justify-content: center;
+  }
+}
+
+/* Tablet and Desktop (769px+) */
+@media (min-width: 769px) {
+  .mobile-profile-container {
+    padding: 32px;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+  
+  .mobile-profile-header {
+    padding: 32px;
+  }
+  
+  .mobile-profile-avatar {
+    width: 140px;
+    height: 140px;
+  }
+  
+  .mobile-profile-upload-buttons {
+    flex-direction: row;
+    justify-content: center;
+  }
+  
+  .mobile-profile-actions {
+    flex-direction: row;
+    justify-content: center;
+  }
+  
+  .mobile-profile-modal-actions {
+    flex-direction: row;
+    justify-content: center;
+  }
+}
+
+/* ========================================
+   MOBILE PROFILE ANIMATIONS
+   ======================================== */
+
+@keyframes mobile-profile-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes mobile-profile-slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes mobile-profile-scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.mobile-profile-animate-fade-in {
+  animation: mobile-profile-fade-in 0.3s ease-out;
+}
+
+.mobile-profile-animate-slide-up {
+  animation: mobile-profile-slide-up 0.4s ease-out;
+}
+
+.mobile-profile-animate-scale-in {
+  animation: mobile-profile-scale-in 0.3s ease-out;
+}
+
+/* ========================================
+   MOBILE PROFILE ACCESSIBILITY
+   ======================================== */
+
+/* Focus styles for mobile */
+.mobile-profile-form-input:focus,
+.mobile-profile-upload-button:focus,
+.mobile-profile-action-button:focus,
+.mobile-profile-security-button:focus,
+.mobile-profile-modal-button:focus {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .mobile-profile-avatar,
+  .mobile-profile-upload-button,
+  .mobile-profile-action-button,
+  .mobile-profile-security-button,
+  .mobile-profile-modal-button {
+    transition: none;
+  }
+  
+  .mobile-profile-animate-fade-in,
+  .mobile-profile-animate-slide-up,
+  .mobile-profile-animate-scale-in {
+    animation: none;
+  }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .mobile-profile-header,
+  .mobile-profile-tabs,
+  .mobile-profile-security-card {
+    border: 2px solid currentColor;
+  }
+  
+  .mobile-profile-form-input {
+    border: 2px solid currentColor;
+  }
+}

@@ -1,0 +1,660 @@
+/* ========================================
+   MOBILE PRODUCTS FIX - ITWOS AI
+   Critical fixes for mobile products display
+   ======================================== */
+
+/* ========================================
+   MOBILE PRODUCTS CONTAINER FIXES
+   ======================================== */
+
+.mobile-products-container {
+  min-height: 100vh !important;
+  background: #f9fafb !important;
+  padding: clamp(16px, 4vw, 24px) !important;
+  max-width: 100% !important;
+  overflow-x: hidden !important;
+  box-sizing: border-box !important;
+}
+
+/* ========================================
+   MOBILE PRODUCTS GRID FIXES
+   ======================================== */
+
+.mobile-products-grid {
+  display: grid !important;
+  grid-template-columns: 1fr !important;
+  gap: clamp(16px, 4vw, 24px) !important;
+  margin-bottom: clamp(24px, 6vw, 32px) !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  overflow-x: hidden !important;
+}
+
+@media (min-width: 640px) {
+  .mobile-products-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+}
+
+@media (min-width: 1024px) {
+  .mobile-products-grid {
+    grid-template-columns: repeat(3, 1fr) !important;
+  }
+}
+
+@media (min-width: 1280px) {
+  .mobile-products-grid {
+    grid-template-columns: repeat(4, 1fr) !important;
+  }
+}
+
+/* ========================================
+   MOBILE PRODUCTS CARD FIXES
+   ======================================== */
+
+.mobile-products-card {
+  background: #ffffff !important;
+  border-radius: 16px !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important;
+  overflow: hidden !important;
+  transition: all 0.3s ease !important;
+  border: 1px solid #e5e7eb !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  display: block !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+.mobile-products-card:hover {
+  transform: translateY(-4px) !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15) !important;
+}
+
+.mobile-products-card-image-container {
+  position: relative !important;
+  width: 100% !important;
+  height: clamp(200px, 50vw, 250px) !important;
+  overflow: hidden !important;
+  display: block !important;
+}
+
+.mobile-products-card-image {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+  transition: transform 0.3s ease !important;
+  display: block !important;
+}
+
+.mobile-products-card-content {
+  padding: clamp(16px, 4vw, 24px) !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  overflow-x: hidden !important;
+  box-sizing: border-box !important;
+}
+
+.mobile-products-card-title {
+  font-size: clamp(16px, 4vw, 18px) !important;
+  font-weight: 600 !important;
+  color: #111827 !important;
+  margin: 0 0 clamp(8px, 2vw, 12px) 0 !important;
+  line-height: 1.3 !important;
+  flex: 1 !important;
+  min-width: 0 !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  display: -webkit-box !important;
+  -webkit-line-clamp: 2 !important;
+  -webkit-box-orient: vertical !important;
+}
+
+.mobile-products-card-description {
+  font-size: clamp(14px, 3.5vw, 16px) !important;
+  color: #6b7280 !important;
+  margin: 0 0 clamp(12px, 3vw, 16px) 0 !important;
+  line-height: 1.5 !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  display: -webkit-box !important;
+  -webkit-line-clamp: 2 !important;
+  -webkit-box-orient: vertical !important;
+}
+
+.mobile-products-card-price {
+  font-size: clamp(18px, 4.5vw, 20px) !important;
+  font-weight: 700 !important;
+  color: #3b82f6 !important;
+  margin: 0 0 clamp(12px, 3vw, 16px) 0 !important;
+}
+
+.mobile-products-card-actions {
+  display: flex !important;
+  gap: clamp(8px, 2vw, 12px) !important;
+  margin-top: clamp(12px, 3vw, 16px) !important;
+  width: 100% !important;
+}
+
+.mobile-products-card-action {
+  flex: 1 !important;
+  min-height: 40px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: clamp(4px, 1vw, 6px) !important;
+  font-size: clamp(12px, 3vw, 14px) !important;
+  font-weight: 500 !important;
+  border-radius: 8px !important;
+  border: none !important;
+  cursor: pointer !important;
+  transition: all 0.2s ease !important;
+  text-decoration: none !important;
+  -webkit-tap-highlight-color: transparent !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+.mobile-products-card-action:active {
+  transform: scale(0.98) !important;
+}
+
+.mobile-products-card-action.primary {
+  background: #3b82f6 !important;
+  color: white !important;
+}
+
+.mobile-products-card-action.primary:active {
+  background: #2563eb !important;
+}
+
+.mobile-products-card-action.secondary {
+  background: #f3f4f6 !important;
+  color: #374151 !important;
+  border: 1px solid #d1d5db !important;
+}
+
+.mobile-products-card-action.secondary:active {
+  background: #e5e7eb !important;
+}
+
+.mobile-products-card-action.favorite {
+  background: #fef2f2 !important;
+  color: #dc2626 !important;
+  border: 1px solid #fecaca !important;
+}
+
+.mobile-products-card-action.favorite:active {
+  background: #fee2e2 !important;
+}
+
+/* ========================================
+   MOBILE PRODUCTS FILTERS FIXES
+   ======================================== */
+
+.mobile-products-filters {
+  background: #ffffff !important;
+  border-radius: 16px !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important;
+  padding: clamp(16px, 4vw, 24px) !important;
+  margin-bottom: clamp(16px, 4vw, 24px) !important;
+  overflow: hidden !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+.mobile-products-filters-row {
+  display: grid !important;
+  grid-template-columns: 1fr !important;
+  gap: clamp(12px, 3vw, 16px) !important;
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
+@media (min-width: 640px) {
+  .mobile-products-filters-row {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+}
+
+@media (min-width: 1024px) {
+  .mobile-products-filters-row {
+    grid-template-columns: repeat(4, 1fr) !important;
+  }
+}
+
+.mobile-products-filter-group {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: clamp(8px, 2vw, 12px) !important;
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
+.mobile-products-filter-input,
+.mobile-products-filter-select {
+  width: 100% !important;
+  min-height: 44px !important;
+  padding: clamp(8px, 2vw, 12px) clamp(12px, 3vw, 16px) !important;
+  font-size: clamp(14px, 3.5vw, 16px) !important;
+  border: 1px solid #d1d5db !important;
+  border-radius: 8px !important;
+  background: #ffffff !important;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease !important;
+  box-sizing: border-box !important;
+  max-width: 100% !important;
+}
+
+.mobile-products-filter-input:focus,
+.mobile-products-filter-select:focus {
+  outline: none !important;
+  border-color: #3b82f6 !important;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1) !important;
+}
+
+.mobile-products-filter-button {
+  min-height: 44px !important;
+  min-width: 44px !important;
+  padding: clamp(8px, 2vw, 12px) clamp(16px, 4vw, 24px) !important;
+  font-size: clamp(14px, 3.5vw, 16px) !important;
+  font-weight: 500 !important;
+  border-radius: 8px !important;
+  border: 1px solid #d1d5db !important;
+  background: #ffffff !important;
+  color: #374151 !important;
+  cursor: pointer !important;
+  transition: all 0.2s ease !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: clamp(6px, 1.5vw, 8px) !important;
+  -webkit-tap-highlight-color: transparent !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+.mobile-products-filter-button:active {
+  transform: scale(0.98) !important;
+  background: #f3f4f6 !important;
+}
+
+/* ========================================
+   MOBILE PRODUCTS HEADER FIXES
+   ======================================== */
+
+.mobile-products-header {
+  text-align: center !important;
+  margin-bottom: clamp(24px, 6vw, 32px) !important;
+  padding: clamp(20px, 5vw, 32px) !important;
+  background: #ffffff !important;
+  border-radius: 16px !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  overflow-x: hidden !important;
+  box-sizing: border-box !important;
+}
+
+.mobile-products-title {
+  font-size: clamp(24px, 6vw, 32px) !important;
+  font-weight: 700 !important;
+  color: #111827 !important;
+  margin: 0 0 clamp(8px, 2vw, 12px) 0 !important;
+  line-height: 1.2 !important;
+}
+
+.mobile-products-subtitle {
+  font-size: clamp(16px, 4vw, 18px) !important;
+  color: #6b7280 !important;
+  margin: 0 !important;
+  line-height: 1.5 !important;
+}
+
+/* ========================================
+   MOBILE PRODUCTS EMPTY STATE FIXES
+   ======================================== */
+
+.mobile-products-empty {
+  text-align: center !important;
+  padding: clamp(48px, 12vw, 64px) clamp(16px, 4vw, 24px) !important;
+  background: #ffffff !important;
+  border-radius: 16px !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  overflow-x: hidden !important;
+  box-sizing: border-box !important;
+}
+
+.mobile-products-empty-title {
+  font-size: clamp(18px, 4.5vw, 20px) !important;
+  font-weight: 600 !important;
+  color: #111827 !important;
+  margin: 0 0 clamp(8px, 2vw, 12px) 0 !important;
+}
+
+.mobile-products-empty-description {
+  font-size: clamp(14px, 3.5vw, 16px) !important;
+  color: #6b7280 !important;
+  margin: 0 0 clamp(16px, 4vw, 24px) 0 !important;
+  line-height: 1.5 !important;
+}
+
+.mobile-products-empty-action {
+  min-height: 44px !important;
+  min-width: 44px !important;
+  padding: clamp(8px, 2vw, 12px) clamp(16px, 4vw, 24px) !important;
+  font-size: clamp(14px, 3.5vw, 16px) !important;
+  font-weight: 500 !important;
+  border-radius: 8px !important;
+  border: none !important;
+  cursor: pointer !important;
+  transition: all 0.2s ease !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: clamp(6px, 1.5vw, 8px) !important;
+  -webkit-tap-highlight-color: transparent !important;
+}
+
+.mobile-products-empty-action:active {
+  transform: scale(0.98) !important;
+}
+
+.mobile-products-empty-action.primary {
+  background: #3b82f6 !important;
+  color: white !important;
+}
+
+.mobile-products-empty-action.primary:active {
+  background: #2563eb !important;
+}
+
+/* ========================================
+   MOBILE PRODUCTS PAGINATION FIXES
+   ======================================== */
+
+.mobile-products-pagination {
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+  margin-top: clamp(24px, 6vw, 32px) !important;
+  padding: clamp(16px, 4vw, 24px) !important;
+  background: #ffffff !important;
+  border-radius: 16px !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  overflow-x: hidden !important;
+  box-sizing: border-box !important;
+  flex-wrap: wrap !important;
+  gap: clamp(8px, 2vw, 12px) !important;
+}
+
+.mobile-products-pagination-button {
+  min-height: 44px !important;
+  min-width: 44px !important;
+  padding: clamp(8px, 2vw, 12px) clamp(16px, 4vw, 24px) !important;
+  font-size: clamp(14px, 3.5vw, 16px) !important;
+  font-weight: 500 !important;
+  border-radius: 8px !important;
+  border: 1px solid #d1d5db !important;
+  background: #ffffff !important;
+  color: #374151 !important;
+  cursor: pointer !important;
+  transition: all 0.2s ease !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: clamp(6px, 1.5vw, 8px) !important;
+  -webkit-tap-highlight-color: transparent !important;
+  margin: 0 clamp(4px, 1vw, 6px) !important;
+  box-sizing: border-box !important;
+}
+
+.mobile-products-pagination-button:active {
+  transform: scale(0.98) !important;
+  background: #f3f4f6 !important;
+}
+
+.mobile-products-pagination-button.active {
+  background: #3b82f6 !important;
+  color: white !important;
+  border-color: #3b82f6 !important;
+}
+
+.mobile-products-pagination-button.active:active {
+  background: #2563eb !important;
+}
+
+.mobile-products-pagination-button:disabled {
+  opacity: 0.5 !important;
+  cursor: not-allowed !important;
+}
+
+.mobile-products-pagination-button:disabled:active {
+  transform: none !important;
+}
+
+/* ========================================
+   MOBILE RESPONSIVE BREAKPOINTS FIXES
+   ======================================== */
+
+/* Mobile Small (320px - 374px) */
+@media (max-width: 374px) {
+  .mobile-products-container {
+    padding: 12px !important;
+  }
+  
+  .mobile-products-header {
+    padding: 16px !important;
+  }
+  
+  .mobile-products-filters {
+    padding: 12px !important;
+  }
+  
+  .mobile-products-card {
+    border-radius: 12px !important;
+  }
+  
+  .mobile-products-card-content {
+    padding: 12px !important;
+  }
+}
+
+/* Mobile Medium (375px - 390px) */
+@media (min-width: 375px) and (max-width: 390px) {
+  .mobile-products-container {
+    padding: 16px !important;
+  }
+  
+  .mobile-products-header {
+    padding: 20px !important;
+  }
+  
+  .mobile-products-filters {
+    padding: 16px !important;
+  }
+}
+
+/* Mobile Large (391px - 428px) */
+@media (min-width: 391px) and (max-width: 428px) {
+  .mobile-products-container {
+    padding: 20px !important;
+  }
+  
+  .mobile-products-header {
+    padding: 24px !important;
+  }
+  
+  .mobile-products-filters {
+    padding: 20px !important;
+  }
+}
+
+/* Mobile Extra Large (429px - 768px) */
+@media (min-width: 429px) and (max-width: 768px) {
+  .mobile-products-container {
+    padding: 24px !important;
+  }
+  
+  .mobile-products-header {
+    padding: 28px !important;
+  }
+  
+  .mobile-products-filters {
+    padding: 24px !important;
+  }
+  
+  .mobile-products-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+}
+
+/* Tablet and Desktop (769px+) */
+@media (min-width: 769px) {
+  .mobile-products-container {
+    padding: 32px !important;
+    max-width: 1200px !important;
+    margin: 0 auto !important;
+  }
+  
+  .mobile-products-header {
+    padding: 32px !important;
+  }
+  
+  .mobile-products-filters {
+    padding: 32px !important;
+  }
+  
+  .mobile-products-grid {
+    grid-template-columns: repeat(3, 1fr) !important;
+  }
+}
+
+/* ========================================
+   CRITICAL MOBILE FIXES
+   ======================================== */
+
+/* Force mobile display */
+@media (max-width: 768px) {
+  .mobile-products-grid {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 16px !important;
+  }
+  
+  .mobile-products-card {
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  
+  .mobile-products-card-image-container {
+    display: block !important;
+    width: 100% !important;
+    height: 200px !important;
+  }
+  
+  .mobile-products-card-image {
+    display: block !important;
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover !important;
+  }
+  
+  .mobile-products-card-content {
+    display: block !important;
+    width: 100% !important;
+    padding: 16px !important;
+  }
+  
+  .mobile-products-card-actions {
+    display: flex !important;
+    gap: 8px !important;
+    width: 100% !important;
+  }
+  
+  .mobile-products-card-action {
+    display: flex !important;
+    width: 100% !important;
+    min-height: 40px !important;
+  }
+}
+
+/* ========================================
+   OVERRIDE ANT DESIGN STYLES
+   ======================================== */
+
+/* Override Ant Design Card styles */
+.ant-card {
+  border-radius: 16px !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important;
+  border: 1px solid #e5e7eb !important;
+  overflow: hidden !important;
+}
+
+.ant-card-body {
+  padding: clamp(16px, 4vw, 24px) !important;
+}
+
+.ant-card-cover {
+  height: clamp(200px, 50vw, 250px) !important;
+  overflow: hidden !important;
+}
+
+.ant-card-cover img {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+}
+
+/* Override Ant Design Grid styles */
+.ant-row {
+  margin: 0 !important;
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
+.ant-col {
+  padding: 0 !important;
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
+/* Override Ant Design Spin styles */
+.ant-spin-container {
+  width: 100% !important;
+  max-width: 100% !important;
+  overflow-x: hidden !important;
+}
+
+/* ========================================
+   DEBUGGING STYLES
+   ======================================== */
+
+/* Add visible borders for debugging */
+.mobile-products-container {
+  border: 2px solid red !important;
+}
+
+.mobile-products-grid {
+  border: 2px solid blue !important;
+}
+
+.mobile-products-card {
+  border: 2px solid green !important;
+}
+
+/* Remove debugging borders in production */
+@media (min-width: 769px) {
+  .mobile-products-container,
+  .mobile-products-grid,
+  .mobile-products-card {
+    border: none !important;
+  }
+}

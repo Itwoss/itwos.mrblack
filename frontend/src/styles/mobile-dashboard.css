@@ -1,0 +1,660 @@
+/* ========================================
+   MOBILE DASHBOARD STYLES - ITWOS AI
+   Apple-inspired mobile design for dashboard pages
+   ======================================== */
+
+/* ========================================
+   MOBILE DASHBOARD CONTAINER
+   ======================================== */
+
+.mobile-dashboard-container {
+  min-height: 100vh;
+  background: #f9fafb;
+  padding: clamp(16px, 4vw, 24px);
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+.mobile-dashboard-header {
+  background: #ffffff;
+  border-radius: 16px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  padding: clamp(20px, 5vw, 32px);
+  margin-bottom: clamp(16px, 4vw, 24px);
+  text-align: center;
+  overflow: hidden;
+}
+
+.mobile-dashboard-title {
+  font-size: clamp(24px, 6vw, 32px);
+  font-weight: 700;
+  color: #111827;
+  margin: 0 0 clamp(8px, 2vw, 12px) 0;
+  line-height: 1.2;
+}
+
+.mobile-dashboard-subtitle {
+  font-size: clamp(16px, 4vw, 18px);
+  color: #6b7280;
+  margin: 0 0 clamp(16px, 4vw, 24px) 0;
+  line-height: 1.5;
+}
+
+.mobile-dashboard-stats {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: clamp(12px, 3vw, 16px);
+  margin-bottom: clamp(16px, 4vw, 24px);
+}
+
+@media (min-width: 640px) {
+  .mobile-dashboard-stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 1024px) {
+  .mobile-dashboard-stats {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+.mobile-dashboard-stat {
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  padding: clamp(16px, 4vw, 24px);
+  text-align: center;
+  border: 1px solid #e5e7eb;
+  transition: all 0.2s ease;
+}
+
+.mobile-dashboard-stat:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.mobile-dashboard-stat-icon {
+  width: clamp(32px, 8vw, 40px);
+  height: clamp(32px, 8vw, 40px);
+  margin: 0 auto clamp(8px, 2vw, 12px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f3f4f6;
+  border-radius: 8px;
+  color: #6b7280;
+}
+
+.mobile-dashboard-stat-value {
+  font-size: clamp(20px, 5vw, 24px);
+  font-weight: 700;
+  color: #111827;
+  margin: 0 0 clamp(4px, 1vw, 6px) 0;
+  line-height: 1.2;
+}
+
+.mobile-dashboard-stat-label {
+  font-size: clamp(12px, 3vw, 14px);
+  color: #6b7280;
+  margin: 0;
+  font-weight: 500;
+}
+
+/* ========================================
+   MOBILE DASHBOARD SECTIONS
+   ======================================== */
+
+.mobile-dashboard-section {
+  background: #ffffff;
+  border-radius: 16px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  padding: clamp(20px, 5vw, 32px);
+  margin-bottom: clamp(16px, 4vw, 24px);
+  overflow: hidden;
+}
+
+.mobile-dashboard-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: clamp(16px, 4vw, 24px);
+  padding-bottom: clamp(12px, 3vw, 16px);
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.mobile-dashboard-section-title {
+  font-size: clamp(18px, 4.5vw, 20px);
+  font-weight: 600;
+  color: #111827;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: clamp(8px, 2vw, 12px);
+}
+
+.mobile-dashboard-section-icon {
+  width: clamp(20px, 5vw, 24px);
+  height: clamp(20px, 5vw, 24px);
+  color: #3b82f6;
+}
+
+.mobile-dashboard-section-action {
+  min-height: 36px;
+  min-width: 36px;
+  padding: clamp(6px, 1.5vw, 8px) clamp(12px, 3vw, 16px);
+  font-size: clamp(12px, 3vw, 14px);
+  font-weight: 500;
+  border-radius: 6px;
+  border: 1px solid #d1d5db;
+  background: #ffffff;
+  color: #374151;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(4px, 1vw, 6px);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.mobile-dashboard-section-action:active {
+  transform: scale(0.98);
+  background: #f3f4f6;
+}
+
+.mobile-dashboard-section-content {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+/* ========================================
+   MOBILE DASHBOARD CARDS
+   ======================================== */
+
+.mobile-dashboard-cards {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: clamp(12px, 3vw, 16px);
+}
+
+@media (min-width: 640px) {
+  .mobile-dashboard-cards {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 1024px) {
+  .mobile-dashboard-cards {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.mobile-dashboard-card {
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  padding: clamp(16px, 4vw, 24px);
+  border: 1px solid #e5e7eb;
+  transition: all 0.2s ease;
+  overflow: hidden;
+}
+
+.mobile-dashboard-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  transform: translateY(-2px);
+}
+
+.mobile-dashboard-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: clamp(12px, 3vw, 16px);
+}
+
+.mobile-dashboard-card-title {
+  font-size: clamp(16px, 4vw, 18px);
+  font-weight: 600;
+  color: #111827;
+  margin: 0;
+  flex: 1;
+}
+
+.mobile-dashboard-card-badge {
+  background: #3b82f6;
+  color: white;
+  font-size: clamp(10px, 2.5vw, 12px);
+  font-weight: 600;
+  padding: clamp(2px, 0.5vw, 4px) clamp(6px, 1.5vw, 8px);
+  border-radius: 12px;
+  min-width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mobile-dashboard-card-body {
+  margin-bottom: clamp(12px, 3vw, 16px);
+}
+
+.mobile-dashboard-card-description {
+  font-size: clamp(14px, 3.5vw, 16px);
+  color: #6b7280;
+  margin: 0 0 clamp(8px, 2vw, 12px) 0;
+  line-height: 1.5;
+}
+
+.mobile-dashboard-card-meta {
+  display: flex;
+  align-items: center;
+  gap: clamp(8px, 2vw, 12px);
+  margin-bottom: clamp(8px, 2vw, 12px);
+}
+
+.mobile-dashboard-card-meta-item {
+  font-size: clamp(12px, 3vw, 14px);
+  color: #6b7280;
+  display: flex;
+  align-items: center;
+  gap: clamp(4px, 1vw, 6px);
+}
+
+.mobile-dashboard-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: clamp(8px, 2vw, 12px);
+  padding-top: clamp(12px, 3vw, 16px);
+  border-top: 1px solid #e5e7eb;
+}
+
+.mobile-dashboard-card-action {
+  flex: 1;
+  min-height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: clamp(14px, 3.5vw, 16px);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.mobile-dashboard-card-action:active {
+  transform: scale(0.98);
+  background: #2563eb;
+}
+
+.mobile-dashboard-card-action.secondary {
+  background: #f3f4f6;
+  color: #374151;
+  border: 1px solid #d1d5db;
+}
+
+.mobile-dashboard-card-action.secondary:active {
+  background: #e5e7eb;
+}
+
+/* ========================================
+   MOBILE DASHBOARD LISTS
+   ======================================== */
+
+.mobile-dashboard-list {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+.mobile-dashboard-list-item {
+  display: flex;
+  align-items: center;
+  padding: clamp(12px, 3vw, 16px);
+  border-bottom: 1px solid #f3f4f6;
+  transition: background-color 0.2s ease;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.mobile-dashboard-list-item:last-child {
+  border-bottom: none;
+}
+
+.mobile-dashboard-list-item:active {
+  background: #f9fafb;
+}
+
+.mobile-dashboard-list-item-icon {
+  width: clamp(32px, 8vw, 40px);
+  height: clamp(32px, 8vw, 40px);
+  margin-right: clamp(12px, 3vw, 16px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f3f4f6;
+  border-radius: 8px;
+  color: #6b7280;
+  flex-shrink: 0;
+}
+
+.mobile-dashboard-list-item-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.mobile-dashboard-list-item-title {
+  font-size: clamp(14px, 3.5vw, 16px);
+  font-weight: 500;
+  color: #111827;
+  margin: 0 0 clamp(2px, 0.5vw, 4px) 0;
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mobile-dashboard-list-item-description {
+  font-size: clamp(12px, 3vw, 14px);
+  color: #6b7280;
+  margin: 0;
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mobile-dashboard-list-item-meta {
+  display: flex;
+  align-items: center;
+  gap: clamp(4px, 1vw, 6px);
+  margin-left: clamp(8px, 2vw, 12px);
+  flex-shrink: 0;
+}
+
+.mobile-dashboard-list-item-badge {
+  background: #f3f4f6;
+  color: #374151;
+  font-size: clamp(10px, 2.5vw, 12px);
+  font-weight: 500;
+  padding: clamp(2px, 0.5vw, 4px) clamp(6px, 1.5vw, 8px);
+  border-radius: 12px;
+}
+
+.mobile-dashboard-list-item-badge.success {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.mobile-dashboard-list-item-badge.warning {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.mobile-dashboard-list-item-badge.error {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+/* ========================================
+   MOBILE DASHBOARD EMPTY STATES
+   ======================================== */
+
+.mobile-dashboard-empty {
+  text-align: center;
+  padding: clamp(32px, 8vw, 48px) clamp(16px, 4vw, 24px);
+}
+
+.mobile-dashboard-empty-icon {
+  width: clamp(48px, 12vw, 64px);
+  height: clamp(48px, 12vw, 64px);
+  margin: 0 auto clamp(16px, 4vw, 24px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f3f4f6;
+  border-radius: 50%;
+  color: #9ca3af;
+}
+
+.mobile-dashboard-empty-title {
+  font-size: clamp(16px, 4vw, 18px);
+  font-weight: 600;
+  color: #111827;
+  margin: 0 0 clamp(8px, 2vw, 12px) 0;
+}
+
+.mobile-dashboard-empty-description {
+  font-size: clamp(14px, 3.5vw, 16px);
+  color: #6b7280;
+  margin: 0 0 clamp(16px, 4vw, 24px) 0;
+  line-height: 1.5;
+}
+
+.mobile-dashboard-empty-action {
+  min-height: 44px;
+  min-width: 44px;
+  padding: clamp(8px, 2vw, 12px) clamp(16px, 4vw, 24px);
+  font-size: clamp(14px, 3.5vw, 16px);
+  font-weight: 500;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(6px, 1.5vw, 8px);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.mobile-dashboard-empty-action:active {
+  transform: scale(0.98);
+}
+
+.mobile-dashboard-empty-action.primary {
+  background: #3b82f6;
+  color: white;
+}
+
+.mobile-dashboard-empty-action.primary:active {
+  background: #2563eb;
+}
+
+/* ========================================
+   MOBILE DASHBOARD RESPONSIVE BREAKPOINTS
+   ======================================== */
+
+/* Mobile Small (320px - 374px) */
+@media (max-width: 374px) {
+  .mobile-dashboard-container {
+    padding: 12px;
+  }
+  
+  .mobile-dashboard-header {
+    padding: 16px;
+  }
+  
+  .mobile-dashboard-section {
+    padding: 16px;
+  }
+  
+  .mobile-dashboard-card {
+    padding: 12px;
+  }
+}
+
+/* Mobile Medium (375px - 390px) */
+@media (min-width: 375px) and (max-width: 390px) {
+  .mobile-dashboard-container {
+    padding: 16px;
+  }
+  
+  .mobile-dashboard-header {
+    padding: 20px;
+  }
+  
+  .mobile-dashboard-section {
+    padding: 20px;
+  }
+}
+
+/* Mobile Large (391px - 428px) */
+@media (min-width: 391px) and (max-width: 428px) {
+  .mobile-dashboard-container {
+    padding: 20px;
+  }
+  
+  .mobile-dashboard-header {
+    padding: 24px;
+  }
+  
+  .mobile-dashboard-section {
+    padding: 24px;
+  }
+}
+
+/* Mobile Extra Large (429px - 768px) */
+@media (min-width: 429px) and (max-width: 768px) {
+  .mobile-dashboard-container {
+    padding: 24px;
+  }
+  
+  .mobile-dashboard-header {
+    padding: 28px;
+  }
+  
+  .mobile-dashboard-section {
+    padding: 28px;
+  }
+  
+  .mobile-dashboard-stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .mobile-dashboard-cards {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* Tablet and Desktop (769px+) */
+@media (min-width: 769px) {
+  .mobile-dashboard-container {
+    padding: 32px;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+  
+  .mobile-dashboard-header {
+    padding: 32px;
+  }
+  
+  .mobile-dashboard-section {
+    padding: 32px;
+  }
+  
+  .mobile-dashboard-stats {
+    grid-template-columns: repeat(4, 1fr);
+  }
+  
+  .mobile-dashboard-cards {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* ========================================
+   MOBILE DASHBOARD ANIMATIONS
+   ======================================== */
+
+@keyframes mobile-dashboard-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes mobile-dashboard-slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes mobile-dashboard-scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.mobile-dashboard-animate-fade-in {
+  animation: mobile-dashboard-fade-in 0.3s ease-out;
+}
+
+.mobile-dashboard-animate-slide-up {
+  animation: mobile-dashboard-slide-up 0.4s ease-out;
+}
+
+.mobile-dashboard-animate-scale-in {
+  animation: mobile-dashboard-scale-in 0.3s ease-out;
+}
+
+/* ========================================
+   MOBILE DASHBOARD ACCESSIBILITY
+   ======================================== */
+
+/* Focus styles for mobile */
+.mobile-dashboard-section-action:focus,
+.mobile-dashboard-card-action:focus,
+.mobile-dashboard-list-item:focus,
+.mobile-dashboard-empty-action:focus {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .mobile-dashboard-card,
+  .mobile-dashboard-list-item,
+  .mobile-dashboard-section-action,
+  .mobile-dashboard-card-action,
+  .mobile-dashboard-empty-action {
+    transition: none;
+  }
+  
+  .mobile-dashboard-animate-fade-in,
+  .mobile-dashboard-animate-slide-up,
+  .mobile-dashboard-animate-scale-in {
+    animation: none;
+  }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .mobile-dashboard-section,
+  .mobile-dashboard-card {
+    border: 2px solid currentColor;
+  }
+  
+  .mobile-dashboard-section-action,
+  .mobile-dashboard-card-action,
+  .mobile-dashboard-empty-action {
+    border: 2px solid currentColor;
+  }
+}
