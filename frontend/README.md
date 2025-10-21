@@ -369,3 +369,4 @@ VITE_CLOUDINARY_CLOUD_NAME=your-production-cloud-name
 ## 📄 License
 
 This project is licensed under the MIT License.
+# Force deployment Tue Oct 21 18:36:50 IST 2025
