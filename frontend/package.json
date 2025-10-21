@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "node --max-old-space-size=8192 --optimize-for-size node_modules/.bin/vite",
     "dev:memory": "node --max-old-space-size=8192 --optimize-for-size --expose-gc node_modules/.bin/vite",
-    "build": "node --max-old-space-size=8192 vite build",
+    "build": "vite build",
     "lint": "eslint . --ext js,jsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview"
   },
