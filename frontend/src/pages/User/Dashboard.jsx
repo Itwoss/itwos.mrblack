@@ -13,7 +13,7 @@ import {
   BarChartOutlined,
   DatabaseOutlined,
   CodeOutlined,
-  ShoppingBagOutlined,
+  ShoppingOutlined,
   ToolOutlined,
   EditOutlined,
   FileTextOutlined,
@@ -330,7 +330,7 @@ const Dashboard = () => {
     },
     {
       key: 'commerce',
-      icon: <ShoppingBagOutlined />,
+      icon: <ShoppingOutlined />,
       label: 'Commerce',
     },
     {
