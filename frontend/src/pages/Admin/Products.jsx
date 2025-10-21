@@ -201,17 +201,19 @@ const ProductsEnhanced = () => {
           previewSavedProducts: previewSaved,
           totalRevenue: revenue
         })
-        console.log('Products fetched successfully:', response.data.data.products?.length || 0)
+        console.log('Products fetched successfully:', response.data.products?.length || 0)
       } else {
         console.log('Admin products API returned unsuccessful response')
         // Try fallback to public products API
         try {
           const fallbackResponse = await productAPI.getProducts({ limit: 10 })
           if (fallbackResponse.data.success) {
-            setProducts(fallbackResponse.data.data.products || [])
+            // Public products API has nested data structure
+            const products = fallbackResponse.data.data?.products || []
+            setProducts(products)
             setStats(prev => ({
               ...prev,
-              totalProducts: fallbackResponse.data.data.pagination?.total || 0
+              totalProducts: fallbackResponse.data.data?.pagination?.total || products.length
             }))
             console.log('Fallback to public products successful')
           }
@@ -230,10 +232,12 @@ const ProductsEnhanced = () => {
         console.log('Attempting fallback to public products...')
         const fallbackResponse = await productAPI.getProducts({ limit: 20 })
         if (fallbackResponse.data.success) {
-          setProducts(fallbackResponse.data.data.products || [])
+          // Public products API has nested data structure
+          const products = fallbackResponse.data.data?.products || []
+          setProducts(products)
           setStats(prev => ({
             ...prev,
-            totalProducts: fallbackResponse.data.data.pagination?.total || 0
+            totalProducts: fallbackResponse.data.data?.pagination?.total || products.length
           }))
           console.log('Fallback to public products successful')
           message.warning('Using public products as fallback. Admin authentication may be required.')
