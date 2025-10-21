@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # ITWOS AI Platform
 
 A modern web application for AI-powered services with user management, product catalog, and payment processing.
@@ -132,3 +133,6 @@ This project is licensed under the MIT License.
 ## 🆘 Support
 
 For support, email support@itwos.ai or create an issue in the repository.
+=======
+# itwos.mrblack
+>>>>>>> a993da20bf02719b6f73b05e3c944e680c6f9c63
