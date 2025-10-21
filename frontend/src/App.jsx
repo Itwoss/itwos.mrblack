@@ -5,6 +5,8 @@ import { AuthProvider } from './contexts/AuthContextOptimized'
 import './styles/mobile-responsive.css'
 import Layout from './components/Layout'
 import DashboardLayout from './components/DashboardLayout'
+import AdminLayout from './components/AdminLayout'
+import UserLayout from './components/UserLayout'
 import ProtectedRoute from './components/ProtectedRoute'
 import HomePage from './pages/HomePage'
 import LoginPage from './pages/Auth/LoginPage'
@@ -84,7 +86,7 @@ function App() {
                   {/* User Routes - Protected */}
                   <Route path="/dashboard" element={
                     <ProtectedRoute requiredRole="user">
-                      <Dashboard />
+                      <UserLayout><Dashboard /></UserLayout>
                     </ProtectedRoute>
                   } />
                   <Route path="/profile" element={
@@ -134,7 +136,7 @@ function App() {
                   } />
                   <Route path="/user/dashboard" element={
                     <ProtectedRoute requiredRole="user">
-                      <Dashboard />
+                      <UserLayout><Dashboard /></UserLayout>
                     </ProtectedRoute>
                   } />
                   <Route path="/favorites" element={
@@ -200,78 +202,78 @@ function App() {
                   <Route path="/admin/login" element={<AdminLoginPage />} />
                   <Route path="/admin/dashboard" element={
                     <ProtectedRoute requiredRole="admin">
-                      <AdminDashboard />
+                      <AdminLayout><AdminDashboard /></AdminLayout>
                     </ProtectedRoute>
                   } />
                   <Route path="/admin" element={
                     <ProtectedRoute requiredRole="admin">
-                      <AdminDashboard />
+                      <AdminLayout><AdminDashboard /></AdminLayout>
                     </ProtectedRoute>
                   } />
                   <Route path="/admin/api-test" element={<AdminAPITest />} />
                   <Route path="/admin/users" element={
                     <ProtectedRoute requiredRole="admin">
-                      <UserManagement />
+                      <AdminLayout><UserManagement /></AdminLayout>
                     </ProtectedRoute>
                   } />
                   <Route path="/admin/orders" element={
                     <ProtectedRoute requiredRole="admin">
-                      <OrdersSales />
+                      <AdminLayout><OrdersSales /></AdminLayout>
                     </ProtectedRoute>
                   } />
                   <Route path="/admin/analytics" element={
                     <ProtectedRoute requiredRole="admin">
-                      <Analytics />
+                      <AdminLayout><Analytics /></AdminLayout>
                     </ProtectedRoute>
                   } />
                   <Route path="/admin/content" element={
                     <ProtectedRoute requiredRole="admin">
-                      <ContentManagement />
+                      <AdminLayout><ContentManagement /></AdminLayout>
                     </ProtectedRoute>
                   } />
                   <Route path="/admin/sessions" element={
                     <ProtectedRoute requiredRole="admin">
-                      <LiveSessions />
+                      <AdminLayout><LiveSessions /></AdminLayout>
                     </ProtectedRoute>
                   } />
                   <Route path="/admin/chat" element={
                     <ProtectedRoute requiredRole="admin">
-                      <ChatModeration />
+                      <AdminLayout><ChatModeration /></AdminLayout>
                     </ProtectedRoute>
                   } />
                   <Route path="/admin/notifications" element={
                     <ProtectedRoute requiredRole="admin">
-                      <AdminNotifications />
+                      <AdminLayout><AdminNotifications /></AdminLayout>
                     </ProtectedRoute>
                   } />
                   <Route path="/admin/settings" element={
                     <ProtectedRoute requiredRole="admin">
-                      <AdminSettings />
+                      <AdminLayout><AdminSettings /></AdminLayout>
                     </ProtectedRoute>
                   } />
                   <Route path="/admin/products" element={
                     <ProtectedRoute requiredRole="admin">
-                      <Products />
+                      <AdminLayout><Products /></AdminLayout>
                     </ProtectedRoute>
                   } />
                   <Route path="/admin/prebooks" element={
                     <ProtectedRoute requiredRole="admin">
-                      <PrebookManagement />
+                      <AdminLayout><PrebookManagement /></AdminLayout>
                     </ProtectedRoute>
                   } />
                   <Route path="/admin/payments" element={
                     <ProtectedRoute requiredRole="admin">
-                      <PaymentTracking />
+                      <AdminLayout><PaymentTracking /></AdminLayout>
                     </ProtectedRoute>
                   } />
                   <Route path="/admin/user-activities" element={
                     <ProtectedRoute requiredRole="admin">
-                      <UserActivities />
+                      <AdminLayout><UserActivities /></AdminLayout>
                     </ProtectedRoute>
                   } />
                   <Route path="/admin/products/new" element={
                     <ProtectedRoute requiredRole="admin">
-                      <AddProduct />
+                      <AdminLayout><AddProduct /></AdminLayout>
                     </ProtectedRoute>
                   } />
                   
