@@ -1,215 +1,269 @@
-import React, { useState } from 'react'
-import { Layout, Menu, Button, Drawer, Space, Typography, Avatar, Dropdown, Badge } from 'antd'
+import React, { useState, useEffect, useCallback } from 'react'
+import { Layout, Menu, Drawer, Button, Space, Typography } from 'antd'
 import { 
-  MenuOutlined, 
   UserOutlined, 
-  LogoutOutlined, 
+  ShoppingCartOutlined, 
   BellOutlined,
-  HomeOutlined,
-  ShoppingCartOutlined,
-  HeartOutlined,
+  SettingOutlined,
+  LogoutOutlined,
+  MenuOutlined,
+  BookOutlined,
+  VideoCameraOutlined,
   MessageOutlined,
-  CompassOutlined,
+  SearchOutlined,
   TeamOutlined,
-  SettingOutlined
+  HeartOutlined,
+  UsergroupAddOutlined
 } from '@ant-design/icons'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { useAuth } from '../contexts/AuthContextOptimized'
+import { useAuth } from "../contexts/AuthContextOptimized"
 import NotificationBell from './NotificationBell'
-import { getUserAvatarUrl, getUserInitials } from '../utils/avatarUtils'
 
-const { Header, Sider, Content } = Layout
 const { Title } = Typography
+const { Sider, Content } = Layout
 
 const UserLayout = ({ children }) => {
+  const [mobileMenuVisible, setMobileMenuVisible] = useState(false)
+  const { user, logout } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
-  const { user, logout } = useAuth()
-  const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false)
+
+  // Get current path to determine active menu item
+  const getCurrentMenuKey = () => {
+    const path = location.pathname
+    if (path === '/dashboard' || path === '/user/dashboard') return 'dashboard'
+    if (path.includes('/products')) return 'products'
+    if (path.includes('/purchases')) return 'purchases'
+    if (path.includes('/favorites')) return 'favorites'
+    if (path.includes('/courses')) return 'courses'
+    if (path.includes('/sessions')) return 'sessions'
+    if (path.includes('/chat')) return 'chat'
+    if (path.includes('/discover')) return 'discover'
+    if (path.includes('/new-users')) return 'new-users'
+    if (path.includes('/network')) return 'network'
+    if (path.includes('/notifications')) return 'notifications'
+    if (path.includes('/settings')) return 'settings'
+    return 'dashboard'
+  }
+
+  const [selectedMenu, setSelectedMenu] = useState(getCurrentMenuKey())
+
+  // Update selected menu when route changes
+  useEffect(() => {
+    setSelectedMenu(getCurrentMenuKey())
+  }, [location.pathname])
 
   const handleLogout = async () => {
     try {
       await logout()
-      navigate('/login')
+      navigate('/')
     } catch (error) {
       console.error('Logout error:', error)
     }
   }
 
-  const userMenuItems = [
+  const sidebarItems = [
     {
-      key: '/dashboard',
-      icon: <HomeOutlined />,
+      key: 'dashboard',
+      icon: <UserOutlined />,
       label: 'Dashboard',
     },
     {
-      key: '/profile',
-      icon: <UserOutlined />,
-      label: 'Profile',
-    },
-    {
-      key: '/purchases',
+      key: 'products',
       icon: <ShoppingCartOutlined />,
-      label: 'Purchases',
+      label: 'Products',
     },
     {
-      key: '/favorites',
+      key: 'purchases',
+      icon: <ShoppingCartOutlined />,
+      label: 'My Purchases',
+    },
+    {
+      key: 'favorites',
       icon: <HeartOutlined />,
       label: 'Favorites',
     },
     {
-      key: '/chat',
+      key: 'courses',
+      icon: <BookOutlined />,
+      label: 'My Courses',
+    },
+    {
+      key: 'sessions',
+      icon: <VideoCameraOutlined />,
+      label: 'Live Sessions',
+    },
+    {
+      key: 'chat',
       icon: <MessageOutlined />,
       label: 'Chat',
     },
     {
-      key: '/discover',
-      icon: <CompassOutlined />,
-      label: 'Discover',
+      key: 'discover',
+      icon: <SearchOutlined />,
+      label: 'Discover Users',
     },
     {
-      key: '/network',
+      key: 'new-users',
+      icon: <UsergroupAddOutlined />,
+      label: 'New Users',
+    },
+    {
+      key: 'network',
       icon: <TeamOutlined />,
-      label: 'Network',
+      label: 'My Network',
     },
     {
-      key: '/notifications',
+      key: 'notifications',
       icon: <BellOutlined />,
       label: 'Notifications',
     },
     {
-      key: '/settings',
+      key: 'settings',
       icon: <SettingOutlined />,
       label: 'Settings',
     },
   ]
 
   const handleMenuClick = ({ key }) => {
-    navigate(key)
-    setMobileDrawerOpen(false)
+    setSelectedMenu(key)
+    switch (key) {
+      case 'dashboard':
+        navigate('/dashboard')
+        break
+      case 'products':
+        navigate('/products')
+        break
+      case 'purchases':
+        navigate('/purchases')
+        break
+      case 'favorites':
+        navigate('/favorites')
+        break
+      case 'courses':
+        navigate('/user/courses')
+        break
+      case 'sessions':
+        navigate('/user/sessions')
+        break
+      case 'chat':
+        navigate('/chat')
+        break
+      case 'discover':
+        navigate('/discover')
+        break
+      case 'new-users':
+        navigate('/new-users')
+        break
+      case 'network':
+        navigate('/network')
+        break
+      case 'notifications':
+        navigate('/notifications')
+        break
+      case 'settings':
+        navigate('/settings')
+        break
+      default:
+        navigate('/dashboard')
+    }
   }
 
-  const userDropdownItems = [
-    {
-      key: 'profile',
-      icon: <UserOutlined />,
-      label: 'Profile',
-      onClick: () => navigate('/profile')
-    },
-    {
-      key: 'settings',
-      icon: <SettingOutlined />,
-      label: 'Settings',
-      onClick: () => navigate('/settings')
-    },
-    {
-      type: 'divider',
-    },
-    {
-      key: 'logout',
-      icon: <LogoutOutlined />,
-      label: 'Logout',
-      onClick: handleLogout
-    },
-  ]
-
-  const selectedKeys = [location.pathname]
-
   return (
-    <Layout style={{ minHeight: '100vh' }}>
+    <div style={{ 
+      background: '#f5f5f5', 
+      minHeight: '100vh'
+    }}>
       {/* Header */}
-      <Header style={{ 
-        background: '#fff', 
-        padding: '0 24px', 
+      <div style={{ 
         display: 'flex', 
+        justifyContent: 'space-between', 
         alignItems: 'center', 
-        justifyContent: 'space-between',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-        zIndex: 1000
+        padding: '1rem 2rem',
+        borderBottom: '1px solid #e8e8e8',
+        background: '#fff',
+        boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
       }}>
         <div style={{ display: 'flex', alignItems: 'center' }}>
-          <Button
-            type="text"
-            icon={<MenuOutlined />}
-            onClick={() => setMobileDrawerOpen(true)}
-            style={{ display: 'block', marginRight: '16px' }}
-            className="md:hidden"
-          />
-          <Title level={3} style={{ margin: 0, color: '#1890ff' }}>
+          <Title level={3} style={{ color: '#1890ff', margin: 0, marginRight: '2rem' }}>
             ITWOS AI
           </Title>
         </div>
-        
         <Space>
           <NotificationBell />
           <UserOutlined style={{ fontSize: '18px', color: '#666' }} />
-          <span style={{ color: '#666' }}>{user?.name || 'User'}</span>
+          <span style={{ color: '#666' }}>{user?.name || 'user123'}</span>
           <Button type="text" onClick={handleLogout} icon={<LogoutOutlined />}>
             Logout
           </Button>
         </Space>
-      </Header>
+        <Button 
+          type="text" 
+          icon={<MenuOutlined />}
+          onClick={() => setMobileMenuVisible(true)}
+          style={{ display: window.innerWidth < 768 ? 'block' : 'none' }}
+        />
+      </div>
 
-      <Layout>
-        {/* Desktop Sidebar */}
-        <Sider
-          width={280}
-          style={{
-            background: '#fff',
-            boxShadow: '2px 0 8px rgba(0,0,0,0.1)',
-            position: 'sticky',
-            top: 0,
-            height: 'calc(100vh - 64px)',
-            overflow: 'auto'
+      <Layout style={{ background: '#f5f5f5' }}>
+        {/* Sidebar */}
+        <Sider 
+          width={250} 
+          style={{ 
+            background: '#fff', 
+            borderRight: '1px solid #e8e8e8',
+            padding: '2rem 0',
+            display: window.innerWidth < 768 ? 'none' : 'block'
           }}
-          className="hidden md:block"
-        >
-          <div style={{ padding: '24px 16px' }}>
-            <Title level={4} style={{ textAlign: 'center', marginBottom: '24px' }}>
-              User Menu
-            </Title>
-            <Menu
-              mode="inline"
-              selectedKeys={selectedKeys}
-              items={userMenuItems}
-              onClick={handleMenuClick}
-              style={{ border: 'none' }}
-            />
-          </div>
-        </Sider>
-
-        {/* Mobile Drawer */}
-        <Drawer
-          title="User Menu"
-          placement="left"
-          onClose={() => setMobileDrawerOpen(false)}
-          open={mobileDrawerOpen}
-          width={280}
-          className="md:hidden"
         >
           <Menu
-            mode="inline"
-            selectedKeys={selectedKeys}
-            items={userMenuItems}
+            mode="vertical"
+            items={sidebarItems}
+            selectedKeys={[selectedMenu]}
             onClick={handleMenuClick}
-            style={{ border: 'none' }}
+            style={{ 
+              background: 'transparent', 
+              border: 'none'
+            }}
           />
-        </Drawer>
+        </Sider>
 
         {/* Main Content */}
-        <Layout style={{ padding: '24px' }}>
-          <Content style={{ 
-            background: '#fff', 
-            padding: '24px',
-            borderRadius: '8px',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-            minHeight: 'calc(100vh - 112px)'
-          }}>
-            {children}
-          </Content>
-        </Layout>
+        <Content style={{ 
+          padding: window.innerWidth < 768 ? '1rem' : '2rem', 
+          background: '#f5f5f5',
+          minHeight: 'calc(100vh - 80px)',
+          overflow: 'visible',
+          height: 'auto'
+        }}>
+          {children}
+        </Content>
       </Layout>
-    </Layout>
+
+      {/* Mobile Drawer */}
+      <Drawer
+        title="Navigation"
+        placement="right"
+        closable={true}
+        onClose={() => setMobileMenuVisible(false)}
+        open={mobileMenuVisible}
+        styles={{ body: { padding: 0 } }}
+      >
+        <Menu
+          mode="vertical"
+          items={sidebarItems}
+          selectedKeys={[selectedMenu]}
+          onClick={({ key }) => {
+            handleMenuClick({ key })
+            setMobileMenuVisible(false)
+          }}
+          style={{ 
+            background: 'transparent', 
+            border: 'none'
+          }}
+        />
+      </Drawer>
+    </div>
   )
 }
 

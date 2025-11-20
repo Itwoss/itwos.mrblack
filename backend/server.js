@@ -30,10 +30,32 @@ const io = new Server(server, {
 app.set('io', io)
 
 // Socket.IO connection handling
-io.on('connection', (socket) => {
+io.on('connection', async (socket) => {
   console.log('🔌 Client connected:', socket.id)
   console.log('🔌 Client origin:', socket.handshake.headers.origin)
   console.log('🔌 Client user-agent:', socket.handshake.headers['user-agent'])
+
+  let currentUserId = null
+
+  // Handle user room joining (for notifications)
+  socket.on('join-user-room', async (userId) => {
+    if (userId) {
+      currentUserId = userId
+      socket.join(`user:${userId}`)
+      console.log(`🔌 Client ${socket.id} joined user room: user:${userId}`)
+      socket.emit('user-room-joined', { userId, success: true })
+      
+      // Update user online status
+      const User = require('./src/models/User')
+      await User.findByIdAndUpdate(userId, {
+        isOnline: true,
+        lastSeen: new Date()
+      })
+      
+      // Notify other users that this user is now online
+      socket.broadcast.emit('user_online', { userId })
+    }
+  })
 
   // Handle room joining
   socket.on('join-room', (room) => {
@@ -61,9 +83,168 @@ io.on('connection', (socket) => {
     socket.emit('pong', { timestamp: Date.now() })
   })
 
+  // Real-time messaging handlers
+  socket.on('send_message', async (data) => {
+    try {
+      const { threadId, senderId, text, ciphertext, iv, messageType = 'text' } = data
+      
+      if (!threadId || !senderId) {
+        socket.emit('message_error', { error: 'threadId and senderId are required' })
+        return
+      }
+      
+      const ChatRoom = require('./src/models/ChatRoom')
+      const Message = require('./src/models/Message')
+      
+      // Check if user has access to this thread
+      const thread = await ChatRoom.findById(threadId)
+      if (!thread || !thread.isParticipant(senderId)) {
+        socket.emit('message_error', { error: 'Access denied' })
+        return
+      }
+      
+      // Create message
+      const message = new Message({
+        chatRoom: threadId,
+        sender: senderId,
+        text: text || '',
+        ciphertext: ciphertext || text || '',
+        iv: iv || '',
+        messageType: messageType,
+        status: 'sent'
+      })
+      
+      await message.save()
+      
+      // Update thread's last message
+      thread.lastMessage = message._id
+      thread.lastMessageAt = message.createdAt
+      thread.lastMessageText = text || ''
+      await thread.save()
+      
+      // Increment unread counts for all participants except sender
+      const otherParticipants = thread.participants.filter(
+        p => p.toString() !== senderId
+      )
+      
+      for (const participantId of otherParticipants) {
+        await thread.incrementUnread(participantId)
+      }
+      
+      // Populate sender
+      await message.populate('sender', 'name username email avatarUrl profilePic')
+      
+      // Emit to all participants in the thread
+      io.to(threadId).emit('new_message', {
+        threadId: threadId,
+        message: {
+          ...message.toObject(),
+          isRead: false
+        }
+      })
+    } catch (error) {
+      console.error('Send message via socket error:', error)
+      socket.emit('message_error', { error: error.message })
+    }
+  })
+
+  // Handle read receipts
+  socket.on('mark_read', async (data) => {
+    try {
+      const { threadId, userId, messageIds } = data
+      
+      if (!threadId || !userId) {
+        socket.emit('read_error', { error: 'threadId and userId are required' })
+        return
+      }
+      
+      const ChatRoom = require('./src/models/ChatRoom')
+      const Message = require('./src/models/Message')
+      
+      // Check if user has access to this thread
+      const thread = await ChatRoom.findById(threadId)
+      if (!thread || !thread.isParticipant(userId)) {
+        socket.emit('read_error', { error: 'Access denied' })
+        return
+      }
+      
+      // Mark messages as read
+      if (messageIds && Array.isArray(messageIds) && messageIds.length > 0) {
+        await Message.updateMany(
+          { 
+            _id: { $in: messageIds },
+            chatRoom: threadId,
+            'readBy.userId': { $ne: userId }
+          },
+          { $push: { readBy: { userId: userId, readAt: new Date() } } }
+        )
+      } else {
+        // Mark all unread messages in thread as read
+        await Message.updateMany(
+          {
+            chatRoom: threadId,
+            sender: { $ne: userId },
+            'readBy.userId': { $ne: userId }
+          },
+          { $push: { readBy: { userId: userId, readAt: new Date() } } }
+        )
+      }
+      
+      // Reset unread count for this thread
+      await thread.resetUnread(userId)
+      
+      // Emit read receipt to other participants
+      io.to(threadId).emit('messages_read', {
+        threadId: threadId,
+        userId: userId,
+        messageIds: messageIds || null
+      })
+    } catch (error) {
+      console.error('Mark read via socket error:', error)
+      socket.emit('read_error', { error: error.message })
+    }
+  })
+
+  // Handle typing indicators
+  socket.on('typing_start', async (data) => {
+    const { threadId, userId } = data
+    if (threadId && userId) {
+      // Emit to all participants except the sender
+      socket.to(threadId).emit('user_typing', {
+        threadId,
+        userId,
+        isTyping: true
+      })
+    }
+  })
+
+  socket.on('typing_stop', async (data) => {
+    const { threadId, userId } = data
+    if (threadId && userId) {
+      // Emit to all participants except the sender
+      socket.to(threadId).emit('user_typing', {
+        threadId,
+        userId,
+        isTyping: false
+      })
+    }
+  })
+
   // Handle disconnection
-  socket.on('disconnect', (reason) => {
+  socket.on('disconnect', async (reason) => {
     console.log('🔌 Client disconnected:', socket.id, 'Reason:', reason)
+    
+    // Update user offline status
+    if (currentUserId) {
+      const User = require('./src/models/User')
+      await User.findByIdAndUpdate(currentUserId, {
+        isOnline: false,
+        lastSeen: new Date()
+      })
+      
+      // Notify other users that this user is now offline
+      socket.broadcast.emit('user_offline', { userId: currentUserId })
+    }
   })
 
   // Handle connection errors
@@ -86,9 +267,11 @@ app.use(cors({
     
     const allowedOrigins = [
       'http://localhost:5173',
+      'http://localhost:5175',
       'http://localhost:5174',
       'http://localhost:3000',
       'http://127.0.0.1:5173',
+      'http://127.0.0.1:5175',
       'http://127.0.0.1:5174',
       'http://127.0.0.1:3000',
       process.env.FRONTEND_URL
@@ -119,12 +302,19 @@ app.use(cors({
 // Rate limiting completely removed as requested
 console.log('🔓 Rate limiting completely disabled')
 
-// Handle preflight requests
+// Handle preflight requests - must be before routes
 app.options('*', (req, res) => {
-  res.header('Access-Control-Allow-Origin', req.headers.origin)
-  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
-  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With')
+  const origin = req.headers.origin
+  if (origin) {
+    res.header('Access-Control-Allow-Origin', origin)
+    res.header('Vary', 'Origin')
+  } else {
+    res.header('Access-Control-Allow-Origin', '*')
+  }
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH')
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin, Access-Control-Request-Method, Access-Control-Request-Headers')
   res.header('Access-Control-Allow-Credentials', 'true')
+  res.header('Access-Control-Max-Age', '86400') // 24 hours
   res.sendStatus(200)
 })
 
@@ -153,11 +343,14 @@ app.use('/uploads', (req, res, next) => {
 // Routes
 app.use('/api/auth', require('./src/routes/auth'))
 app.use('/api/users', require('./src/routes/users'))
+app.use('/api/users-list', require('./src/routes/usersList')) // New endpoint for listing all users
 app.use('/api/products', require('./src/routes/products'))
 app.use('/api/payments', require('./src/routes/payments'))
 app.use('/api/prebook', require('./src/routes/prebook'))
 app.use('/api/upload', require('./src/routes/upload'))
 app.use('/api/notifications', require('./src/routes/notifications'))
+app.use('/api/follow', require('./src/routes/followNew')) // New follow/unfollow endpoints
+app.use('/api/threads', require('./src/routes/threads')) // Thread and messaging endpoints
 
 // Admin routes
 app.use('/api/admin', require('./src/routes/admin'))
@@ -200,9 +393,18 @@ app.use((err, req, res, next) => {
 
 // 404 handler
 app.use('*', (req, res) => {
+  console.log('❌ 404 - Route not found:', {
+    method: req.method,
+    url: req.url,
+    path: req.path,
+    originalUrl: req.originalUrl,
+    baseUrl: req.baseUrl
+  })
   res.status(404).json({
     success: false,
-    message: 'Route not found'
+    message: 'Route not found',
+    method: req.method,
+    path: req.path
   })
 })
 

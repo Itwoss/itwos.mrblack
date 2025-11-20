@@ -26,6 +26,13 @@ router.get('/me', authenticateToken, async (req, res) => {
 // Update current user profile
 router.put('/me', authenticateToken, validateUserProfileUpdate, async (req, res) => {
   try {
+    console.log('📝 Profile update request received:', {
+      userId: req.user._id,
+      bodyKeys: Object.keys(req.body),
+      hasName: !!req.body.name,
+      hasAvatarUrl: !!req.body.avatarUrl
+    });
+
     const { 
       name, 
       phone, 
@@ -38,25 +45,57 @@ router.put('/me', authenticateToken, validateUserProfileUpdate, async (req, res)
       website, 
       interests, 
       skills, 
-      socialLinks 
+      socialLinks,
+      isPrivate
     } = req.body;
-    const user = req.user;
+    
+    // Fetch fresh user from database to ensure we have the latest data
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
 
-    // Update allowed fields
-    if (name !== undefined) user.name = name;
-    if (phone !== undefined) user.phone = phone;
-    if (bio !== undefined) user.bio = bio;
-    if (avatarUrl !== undefined) user.avatarUrl = avatarUrl;
-    if (location !== undefined) user.location = location;
-    if (dateOfBirth !== undefined) user.dateOfBirth = dateOfBirth;
-    if (company !== undefined) user.company = company;
-    if (jobTitle !== undefined) user.jobTitle = jobTitle;
-    if (website !== undefined) user.website = website;
-    if (interests !== undefined) user.interests = interests;
-    if (skills !== undefined) user.skills = skills;
-    if (socialLinks !== undefined) user.socialLinks = socialLinks;
+    // Update allowed fields (only update if value is provided)
+    if (name !== undefined && name !== null) user.name = name.trim();
+    if (phone !== undefined && phone !== null) user.phone = phone.trim();
+    if (bio !== undefined && bio !== null) user.bio = bio.trim();
+    if (avatarUrl !== undefined) user.avatarUrl = avatarUrl || null; // Allow empty string to clear avatar
+    if (location !== undefined && location !== null) user.location = location.trim();
+    if (dateOfBirth !== undefined) user.dateOfBirth = dateOfBirth || null;
+    if (company !== undefined && company !== null) user.company = company.trim();
+    if (jobTitle !== undefined && jobTitle !== null) user.jobTitle = jobTitle.trim();
+    if (website !== undefined && website !== null) user.website = website.trim();
+    if (interests !== undefined) user.interests = Array.isArray(interests) ? interests : [];
+    if (skills !== undefined) user.skills = Array.isArray(skills) ? skills : [];
+    if (socialLinks !== undefined) {
+      // Ensure socialLinks is an object
+      user.socialLinks = typeof socialLinks === 'object' && socialLinks !== null ? socialLinks : {};
+    }
+    if (isPrivate !== undefined) {
+      user.isPrivate = Boolean(isPrivate);
+      console.log('🔒 Privacy setting updated:', { userId: user._id, isPrivate: user.isPrivate });
+    }
+
+    // Validate before saving
+    const validationError = user.validateSync();
+    if (validationError) {
+      console.error('❌ User validation error:', validationError);
+      return res.status(400).json({
+        success: false,
+        message: 'Validation failed',
+        errors: Object.values(validationError.errors).map(err => ({
+          field: err.path,
+          message: err.message
+        }))
+      });
+    }
 
     await user.save();
+
+    console.log('✅ Profile updated successfully for user:', user._id);
 
     res.json({
       success: true,
@@ -64,7 +103,25 @@ router.put('/me', authenticateToken, validateUserProfileUpdate, async (req, res)
       user: user.getFullProfile()
     });
   } catch (error) {
-    console.error('Update profile error:', error);
+    console.error('❌ Update profile error:', error);
+    console.error('❌ Error details:', {
+      message: error.message,
+      name: error.name,
+      stack: error.stack
+    });
+    
+    // Handle Mongoose validation errors
+    if (error.name === 'ValidationError') {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation failed',
+        errors: Object.values(error.errors).map(err => ({
+          field: err.path,
+          message: err.message
+        }))
+      });
+    }
+    
     res.status(500).json({
       success: false,
       message: 'Failed to update profile',
@@ -73,7 +130,7 @@ router.put('/me', authenticateToken, validateUserProfileUpdate, async (req, res)
   }
 });
 
-// Get user by ID (public profile)
+// Get user by ID (public profile) - with privacy check
 router.get('/:id', validateObjectId('id'), async (req, res) => {
   try {
     const user = await User.findById(req.params.id);
@@ -85,9 +142,41 @@ router.get('/:id', validateObjectId('id'), async (req, res) => {
       });
     }
 
+    // Check if viewer is authenticated
+    const viewerId = req.user?._id;
+    const isViewingOwnProfile = viewerId && viewerId.toString() === user._id.toString();
+    
+    // If user is private and viewer is not the owner
+    if (user.isPrivate && !isViewingOwnProfile) {
+      // Check if viewer is following this user
+      const Follow = require('../models/Follow');
+      const isFollowing = viewerId ? await Follow.findOne({
+        followerId: viewerId,
+        followeeId: user._id,
+        status: 'accepted'
+      }) : false;
+      
+      if (!isFollowing) {
+        // Return limited profile for private accounts
+        return res.json({
+          success: true,
+          user: {
+            _id: user._id,
+            name: user.name,
+            avatarUrl: user.avatarUrl,
+            isPrivate: true,
+            requiresFollow: true
+          },
+          message: 'This account is private. Follow to see their content.'
+        });
+      }
+    }
+
+    // Return full public profile if public or if viewer is following
     res.json({
       success: true,
-      user: user.getPublicProfile()
+      user: user.getPublicProfile(),
+      isPrivate: user.isPrivate
     });
   } catch (error) {
     console.error('Get user error:', error);

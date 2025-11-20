@@ -13,13 +13,14 @@ import {
   UploadOutlined, 
   CameraOutlined,
   EditOutlined,
-  LogoutOutlined
+  LogoutOutlined,
+  CheckCircleOutlined
 } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from "../../contexts/AuthContextOptimized"
 import api from '../../services/api'
 
-const { Title, Paragraph } = Typography
+const { Title, Paragraph, Text } = Typography
 const { Option } = Select
 const { TextArea } = Input
 // const { TabPane } = Tabs // Not needed, using items prop
@@ -43,6 +44,13 @@ const Settings = () => {
     location: '',
     website: ''
   })
+  const [isPrivate, setIsPrivate] = useState(false)
+  const [isActiveStatusVisible, setIsActiveStatusVisible] = useState(true)
+
+  // Debug: Log when component renders
+  useEffect(() => {
+    console.log('🔍 Settings: Component rendered, isActiveStatusVisible:', isActiveStatusVisible)
+  }, [isActiveStatusVisible])
 
   // Update profile data when user changes
   useEffect(() => {
@@ -67,6 +75,7 @@ const Settings = () => {
       
       console.log('🖼️ Settings: Setting new profile data:', newProfileData)
       setProfileData(newProfileData)
+      setIsPrivate(user.isPrivate || false)
     }
   }, [user])
 
@@ -96,38 +105,95 @@ const Settings = () => {
             console.log('📝 Settings: Fetching user profile from backend')
           }
           const response = await api.get('/users/me')
-          if (response.data.success) {
+          
+          // Check if response and data exist
+          if (response && response.data && response.data.success && response.data.data) {
             const userData = response.data.data
             
-            // Update profileData with real user data
-            const avatarUrl = userData.avatarUrl || userData.avatar || ''
+            // Safely get avatar URL with fallbacks
+            const avatarUrl = (userData && (userData.avatarUrl || userData.avatar)) || ''
             const fullAvatarUrl = avatarUrl && !avatarUrl.startsWith('http') 
               ? `http://localhost:7000${avatarUrl}` 
               : avatarUrl
             
             const newProfileData = {
-              name: userData.name || '',
-              email: userData.email || '',
-              phone: userData.phone || '',
+              name: (userData && userData.name) || '',
+              email: (userData && userData.email) || '',
+              phone: (userData && userData.phone) || '',
               avatar: fullAvatarUrl,
-              bio: userData.bio || '',
-              location: userData.location || '',
-              website: userData.website || ''
+              bio: (userData && userData.bio) || '',
+              location: (userData && userData.location) || '',
+              website: (userData && userData.website) || ''
             }
             
             if (import.meta.env.MODE === 'development') {
               console.log('📝 Settings: Setting real user profile data:', newProfileData)
             }
             setProfileData(newProfileData)
+            
+            // Set active status visibility from user data (default to true if not set)
+            const activeStatus = userData && userData.activeStatusVisible !== false
+            setIsActiveStatusVisible(activeStatus)
+            
+            // Also update user context immediately
+            if (updateUser) {
+              updateUser({ activeStatusVisible: activeStatus })
+            }
+          } else {
+            // Fallback to user data from context if API response is invalid
+            console.warn('📝 Settings: Invalid API response, using user context data')
+            if (user) {
+              const avatarUrl = user.avatarUrl || user.avatar || ''
+              const fullAvatarUrl = avatarUrl && !avatarUrl.startsWith('http') 
+                ? `http://localhost:7000${avatarUrl}` 
+                : avatarUrl
+              
+              setProfileData({
+                name: user.name || '',
+                email: user.email || '',
+                phone: user.phone || '',
+                avatar: fullAvatarUrl,
+                bio: user.bio || '',
+                location: user.location || '',
+                website: user.website || ''
+              })
+              
+              if (user.activeStatusVisible !== undefined) {
+                setIsActiveStatusVisible(user.activeStatusVisible !== false)
+              }
+            }
           }
         } catch (error) {
           console.error('📝 Settings: Error fetching user profile:', error)
+          
+          // Fallback to user data from context on error
+          if (user) {
+            console.log('📝 Settings: Using user context data as fallback')
+            const avatarUrl = user.avatarUrl || user.avatar || ''
+            const fullAvatarUrl = avatarUrl && !avatarUrl.startsWith('http') 
+              ? `http://localhost:7000${avatarUrl}` 
+              : avatarUrl
+            
+            setProfileData({
+              name: user.name || '',
+              email: user.email || '',
+              phone: user.phone || '',
+              avatar: fullAvatarUrl,
+              bio: user.bio || '',
+              location: user.location || '',
+              website: user.website || ''
+            })
+            
+            if (user.activeStatusVisible !== undefined) {
+              setIsActiveStatusVisible(user.activeStatusVisible !== false)
+            }
+          }
         }
       }
     }
     
     fetchUserProfile()
-  }, [user])
+  }, [user, updateUser])
 
   const [securitySettings, setSecuritySettings] = useState({
     twoFactorAuth: false,
@@ -220,9 +286,17 @@ const Settings = () => {
 
   const handleAvatarUpload = async (info) => {
     console.log('Avatar upload info:', info) // Debug log
-    if (info.file.status === 'done') {
-      const uploadedUrl = info.file.response?.url || info.file.response?.data?.url
-      console.log('Uploaded URL:', uploadedUrl) // Debug log
+    if (info.file.status === 'uploading') {
+      // Upload in progress
+      return
+    } else if (info.file.status === 'done') {
+      // Try multiple ways to get the uploaded URL
+      const uploadedUrl = info.file.response?.url || 
+                         info.file.response?.data?.url || 
+                         (typeof info.file.response === 'string' ? info.file.response : null)
+      
+      console.log('📤 Uploaded URL:', uploadedUrl, 'Response:', info.file.response) // Debug log
+      
       if (uploadedUrl) {
         // Construct full URL for display
         const fullAvatarUrl = uploadedUrl.startsWith('http') 
@@ -236,7 +310,7 @@ const Settings = () => {
         
         // Save avatar URL to backend
         try {
-          console.log('Saving avatar URL to backend:', fullAvatarUrl)
+          console.log('💾 Saving avatar URL to backend:', fullAvatarUrl)
           
           const response = await api.put('/users/me', { avatarUrl: fullAvatarUrl })
           console.log('🖼️ Settings: Backend response:', response.data)
@@ -249,20 +323,26 @@ const Settings = () => {
               const updatedUser = { ...user, avatarUrl: fullAvatarUrl }
               console.log('🖼️ Settings: Updating user context with:', updatedUser)
               updateUser(updatedUser)
-              console.log('Updated user with new avatar:', updatedUser)
+              console.log('✅ Updated user with new avatar:', updatedUser)
             }
           } else {
-            message.error('Failed to save avatar to profile')
+            message.error(response.data.message || 'Failed to save avatar to profile')
           }
         } catch (error) {
-          console.error('Failed to save avatar:', error)
-          message.error('Failed to save avatar to profile')
+          console.error('❌ Failed to save avatar:', error)
+          const errorMsg = error.response?.data?.message || error.message || 'Failed to save avatar to profile'
+          message.error(errorMsg)
         }
       } else {
-        message.error('Failed to get uploaded image URL')
+        console.error('❌ No uploaded URL found in response:', info.file.response)
+        message.error('Failed to get uploaded image URL. Please try again.')
       }
     } else if (info.file.status === 'error') {
-      message.error('Avatar upload failed')
+      const errorMsg = info.file.error?.message || 
+                       info.file.response?.message || 
+                       'Failed to upload profile picture'
+      console.error('❌ Avatar upload error:', info.file.error, info.file.response)
+      message.error(errorMsg)
     }
   }
 
@@ -359,33 +439,52 @@ const Settings = () => {
                               onChange={handleAvatarUpload}
                               customRequest={async ({ file, onSuccess, onError, onProgress }) => {
                                 try {
-                                  console.log('Starting avatar upload:', file.name)
+                                  console.log('📤 Starting avatar upload:', file.name, 'Size:', file.size)
                                   const formData = new FormData()
                                   formData.append('avatar', file)
                                   
                                   // Simulate progress
                                   onProgress({ percent: 10 })
                                   
+                                  const token = localStorage.getItem('token') || localStorage.getItem('accessToken')
+                                  if (!token) {
+                                    throw new Error('Authentication required. Please login again.')
+                                  }
+                                  
                                   const response = await fetch('http://localhost:7000/api/upload/avatar', {
                                     method: 'POST',
                                     body: formData,
                                     headers: {
-                                      'Authorization': `Bearer ${localStorage.getItem('token') || localStorage.getItem('accessToken')}`
+                                      'Authorization': `Bearer ${token}`
                                     }
                                   })
                                   
+                                  if (!response.ok) {
+                                    const errorData = await response.json().catch(() => ({ message: 'Upload failed' }))
+                                    throw new Error(errorData.message || `Upload failed: ${response.statusText}`)
+                                  }
+                                  
                                   const data = await response.json()
-                                  console.log('Upload response:', data)
+                                  console.log('📤 Upload response:', data)
                                   
                                   if (data.success) {
+                                    const uploadedUrl = data.url || data.data?.url
+                                    console.log('✅ Upload successful, URL:', uploadedUrl)
                                     onProgress({ percent: 100 })
-                                    onSuccess({ url: data.url })
+                                    onSuccess({ url: uploadedUrl }, data)
                                   } else {
-                                    onError(new Error(data.message || 'Upload failed'))
+                                    const errorMsg = data.message || 'Upload failed'
+                                    console.error('❌ Upload failed:', errorMsg)
+                                    onError(new Error(errorMsg))
                                   }
                                 } catch (error) {
-                                  console.error('Upload error:', error)
-                                  onError(error)
+                                  console.error('❌ Upload error:', error)
+                                  console.error('❌ Error details:', {
+                                    message: error.message,
+                                    name: error.name
+                                  })
+                                  const errorMsg = error.message || 'Failed to upload avatar. Please check your connection and try again.'
+                                  onError(new Error(errorMsg))
                                 }
                               }}
                             >
@@ -455,6 +554,120 @@ const Settings = () => {
                             label="Bio"
                           >
                             <TextArea rows={3} placeholder="Tell us about yourself" />
+                          </Form.Item>
+
+                          <Divider />
+
+                          <Form.Item
+                            label={
+                              <Space>
+                                <LockOutlined />
+                                <span>Account Privacy</span>
+                              </Space>
+                            }
+                            help={
+                              isPrivate 
+                                ? "Your profile is private. Users need to request to follow you to see your content."
+                                : "Your profile is public. Anyone can see your content."
+                            }
+                          >
+                            <Space direction="vertical" style={{ width: '100%' }}>
+                              <Switch
+                                checked={isPrivate}
+                                onChange={async (checked) => {
+                                  setIsPrivate(checked)
+                                  try {
+                                    const response = await api.put('/users/me', { isPrivate: checked })
+                                    if (response.data.success) {
+                                      message.success(checked ? 'Account set to private' : 'Account set to public')
+                                      if (updateUser) {
+                                        updateUser({ ...user, isPrivate: checked })
+                                      }
+                                    } else {
+                                      message.error('Failed to update privacy settings')
+                                      setIsPrivate(!checked) // Revert on error
+                                    }
+                                  } catch (error) {
+                                    console.error('Privacy update error:', error)
+                                    message.error('Failed to update privacy settings')
+                                    setIsPrivate(!checked) // Revert on error
+                                  }
+                                }}
+                                checkedChildren="Private"
+                                unCheckedChildren="Public"
+                              />
+                              <Text type="secondary" style={{ fontSize: '12px' }}>
+                                {isPrivate 
+                                  ? "🔒 Only approved followers can see your posts and profile details"
+                                  : "🌐 Everyone can see your profile and posts"}
+                              </Text>
+                            </Space>
+                          </Form.Item>
+
+                          <Divider />
+
+                          <Form.Item
+                            label={
+                              <Space>
+                                <CheckCircleOutlined />
+                                <span>Activity Status</span>
+                              </Space>
+                            }
+                            help="Control whether others can see when you're online"
+                          >
+                            <Space direction="vertical" style={{ width: '100%' }}>
+                              <div style={{
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'center',
+                                padding: '12px',
+                                backgroundColor: '#fafafa',
+                                borderRadius: '6px',
+                                border: '1px solid #e8e8e8'
+                              }}>
+                                <div style={{ flex: 1 }}>
+                                  <Text strong style={{ display: 'block', marginBottom: '4px', fontSize: '14px' }}>
+                                    Show Active Status
+                                  </Text>
+                                  <Text type="secondary" style={{ fontSize: '12px', color: '#666' }}>
+                                    {isActiveStatusVisible 
+                                      ? 'Others can see when you\'re online' 
+                                      : 'Your activity status is hidden'}
+                                  </Text>
+                                </div>
+                              <Switch
+                                checked={isActiveStatusVisible}
+                                onChange={async (checked) => {
+                                  // Update UI immediately (0 delay)
+                                  setIsActiveStatusVisible(checked)
+                                  
+                                  // Update user context immediately
+                                  if (updateUser) {
+                                    updateUser({ activeStatusVisible: checked })
+                                  }
+                                  
+                                  // Save to backend (async, no blocking)
+                                  try {
+                                    await api.patch('/users/me', { 
+                                      activeStatusVisible: checked 
+                                    })
+                                    message.success(`Active status ${checked ? 'enabled' : 'disabled'}`)
+                                  } catch (error) {
+                                    console.error('Error updating active status:', error)
+                                    // Revert on error
+                                    setIsActiveStatusVisible(!checked)
+                                    if (updateUser) {
+                                      updateUser({ activeStatusVisible: !checked })
+                                    }
+                                    message.error('Failed to update active status')
+                                  }
+                                }}
+                                checkedChildren="ON"
+                                unCheckedChildren="OFF"
+                                style={{ minWidth: '50px', marginLeft: '16px' }}
+                              />
+                              </div>
+                            </Space>
                           </Form.Item>
 
                           <Form.Item>
@@ -676,16 +889,165 @@ const Settings = () => {
                   </span>
                 ),
                 children: (
-                  <Card title="Account Management" size="small" style={{ borderRadius: '8px' }}>
-                    <Row gutter={[24, 24]}>
-                      <Col xs={24} sm={12}>
-                        <h4>Account Information</h4>
-                        <div style={{ marginBottom: 16 }}>
-                          <p><strong>Account Type:</strong> Premium User</p>
-                          <p><strong>Member Since:</strong> January 2024</p>
-                          <p><strong>Last Login:</strong> Today, 10:30 AM</p>
-                          <p><strong>Account Status:</strong> <Tag color="green">Active</Tag></p>
+                  <div style={{ width: '100%' }}>
+                    {/* Activity Status Toggle - Prominent at Top */}
+                    <div style={{
+                      backgroundColor: '#e6f7ff',
+                      border: '3px solid #1890ff',
+                      borderRadius: '12px',
+                      padding: '20px',
+                      marginBottom: '24px',
+                      boxShadow: '0 4px 12px rgba(24, 144, 255, 0.15)',
+                      width: '100%',
+                      display: 'block'
+                    }}>
+                      <div style={{ 
+                        display: 'flex', 
+                        justifyContent: 'space-between', 
+                        alignItems: 'center',
+                        width: '100%'
+                      }}>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            gap: '12px',
+                            marginBottom: '8px'
+                          }}>
+                            <CheckCircleOutlined style={{
+                              color: isActiveStatusVisible ? '#52c41a' : '#999',
+                              fontSize: '24px',
+                              fontWeight: 'bold'
+                            }} />
+                            <Text strong style={{ fontSize: '18px', fontWeight: '700', color: '#1890ff' }}>
+                              Show Active Status
+                            </Text>
+                            <Tag color={isActiveStatusVisible ? 'green' : 'default'} style={{ margin: 0, fontSize: '13px', fontWeight: 'bold', padding: '4px 10px' }}>
+                              {isActiveStatusVisible ? 'ON' : 'OFF'}
+                            </Tag>
+                          </div>
+                          <Text type="secondary" style={{ fontSize: '14px', color: '#666', display: 'block', marginLeft: '36px' }}>
+                            {isActiveStatusVisible 
+                              ? 'Others can see when you\'re online' 
+                              : 'Your activity status is hidden'}
+                          </Text>
                         </div>
+                        <Switch
+                          checked={isActiveStatusVisible}
+                          onChange={async (checked) => {
+                            console.log('🔍 Toggle clicked:', checked)
+                            setIsActiveStatusVisible(checked)
+                            if (updateUser) {
+                              updateUser({ activeStatusVisible: checked })
+                            }
+                            try {
+                              await api.patch('/users/me', { activeStatusVisible: checked })
+                              message.success(`Active status ${checked ? 'enabled' : 'disabled'}`)
+                            } catch (error) {
+                              console.error('Error updating active status:', error)
+                              setIsActiveStatusVisible(!checked)
+                              if (updateUser) {
+                                updateUser({ activeStatusVisible: !checked })
+                              }
+                              message.error('Failed to update active status')
+                            }
+                          }}
+                          style={{ minWidth: '60px', marginLeft: '20px' }}
+                          checkedChildren="ON"
+                          unCheckedChildren="OFF"
+                        />
+                      </div>
+                    </div>
+
+                    <Card title="Account Management" size="small" style={{ borderRadius: '8px' }}>
+                      <Row gutter={[24, 24]}>
+                      <Col xs={24} sm={12}>
+                        <h4 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '16px' }}>Account Information</h4>
+                        <div style={{ marginBottom: '24px' }}>
+                          <p style={{ marginBottom: '8px' }}><strong>Account Type:</strong> Premium User</p>
+                          <p style={{ marginBottom: '8px' }}><strong>Member Since:</strong> January 2024</p>
+                          <p style={{ marginBottom: '8px' }}><strong>Last Login:</strong> Today, 10:30 AM</p>
+                          <p style={{ marginBottom: '8px' }}><strong>Account Status:</strong> <Tag color="green">Active</Tag></p>
+                        </div>
+                        
+                        <Divider style={{ margin: '24px 0' }} />
+                        
+                        <h4 style={{ marginTop: '24px', marginBottom: '16px', fontSize: '16px', fontWeight: '600', color: '#333' }}>Privacy Settings</h4>
+                        
+                        {/* Activity Status Toggle - Always Visible */}
+                        <Card 
+                          size="small"
+                          style={{ 
+                            borderRadius: '8px',
+                            backgroundColor: '#fafafa',
+                            border: '2px solid #e8e8e8',
+                            marginBottom: '16px',
+                            padding: '12px'
+                          }}
+                        >
+                          <div style={{ 
+                            display: 'flex', 
+                            justifyContent: 'space-between', 
+                            alignItems: 'center',
+                            width: '100%'
+                          }}>
+                            <div style={{ flex: 1 }}>
+                              <div style={{ 
+                                display: 'flex', 
+                                alignItems: 'center', 
+                                gap: '8px',
+                                marginBottom: '6px'
+                              }}>
+                                <CheckCircleOutlined style={{
+                                  color: isActiveStatusVisible ? '#52c41a' : '#999',
+                                  fontSize: '18px'
+                                }} />
+                                <Text strong style={{ fontSize: '15px', fontWeight: '600', color: '#333' }}>
+                                  Show Active Status
+                                </Text>
+                                <Tag color={isActiveStatusVisible ? 'green' : 'default'} style={{ margin: 0, fontSize: '11px', fontWeight: 'bold' }}>
+                                  {isActiveStatusVisible ? 'ON' : 'OFF'}
+                                </Tag>
+                              </div>
+                              <Text type="secondary" style={{ fontSize: '12px', color: '#666', display: 'block', marginLeft: '26px' }}>
+                                {isActiveStatusVisible 
+                                  ? 'Others can see when you\'re online' 
+                                  : 'Your activity status is hidden'}
+                              </Text>
+                            </div>
+                            <Switch
+                              checked={isActiveStatusVisible}
+                              onChange={async (checked) => {
+                                // Update UI immediately (0 delay)
+                                setIsActiveStatusVisible(checked)
+                                
+                                // Update user context immediately
+                                if (updateUser) {
+                                  updateUser({ activeStatusVisible: checked })
+                                }
+                                
+                                // Save to backend (async, no blocking)
+                                try {
+                                  await api.patch('/users/me', { 
+                                    activeStatusVisible: checked 
+                                  })
+                                  message.success(`Active status ${checked ? 'enabled' : 'disabled'}`)
+                                } catch (error) {
+                                  console.error('Error updating active status:', error)
+                                  // Revert on error
+                                  setIsActiveStatusVisible(!checked)
+                                  if (updateUser) {
+                                    updateUser({ activeStatusVisible: !checked })
+                                  }
+                                  message.error('Failed to update active status')
+                                }
+                              }}
+                              style={{ minWidth: '50px', marginLeft: '16px' }}
+                              checkedChildren="ON"
+                              unCheckedChildren="OFF"
+                            />
+                          </div>
+                        </Card>
                       </Col>
                       <Col xs={24} sm={12}>
                         <h4>Quick Actions</h4>
@@ -706,6 +1068,7 @@ const Settings = () => {
                       </Col>
                     </Row>
                   </Card>
+                  </div>
                 )
               }
             ]}

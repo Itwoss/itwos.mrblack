@@ -35,23 +35,105 @@ const LiveSessions = () => {
   const navigate = useNavigate()
 
   const [stats, setStats] = useState({
-    totalSessions: 24,
-    activeSessions: 3,
-    completedSessions: 18,
-    totalParticipants: 456
+    totalSessions: 0,
+    activeSessions: 0,
+    completedSessions: 0,
+    totalParticipants: 0
   })
 
   useEffect(() => {
     fetchSessions()
+    fetchStats()
   }, [])
+
+  const fetchStats = async () => {
+    try {
+      console.log('🔄 LiveSessions: Loading stats...')
+      
+      const token = localStorage.getItem('accessToken') || localStorage.getItem('token') || localStorage.getItem('adminToken')
+      const response = await fetch('http://localhost:7000/api/admin/dashboard', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        console.log('✅ LiveSessions: Dashboard data received:', data)
+        
+        if (data.success && data.data) {
+          const { users } = data.data
+          
+          setStats({
+            totalSessions: 24, // This would come from sessions API
+            activeSessions: 3, // This would come from sessions API
+            completedSessions: 18, // This would come from sessions API
+            totalParticipants: users?.totalUsers || 0
+          })
+          
+          console.log('✅ LiveSessions: Stats updated successfully')
+        } else {
+          console.log('❌ LiveSessions: API returned unsuccessful response, using demo data')
+          setStats({
+            totalSessions: 24,
+            activeSessions: 3,
+            completedSessions: 18,
+            totalParticipants: 456
+          })
+        }
+      } else {
+        console.error('❌ LiveSessions: Failed to fetch stats:', response.status)
+        setStats({
+          totalSessions: 24,
+          activeSessions: 3,
+          completedSessions: 18,
+          totalParticipants: 456
+        })
+      }
+    } catch (error) {
+      console.error('❌ LiveSessions: Error loading stats:', error)
+      setStats({
+        totalSessions: 24,
+        activeSessions: 3,
+        completedSessions: 18,
+        totalParticipants: 456
+      })
+    }
+  }
 
   const fetchSessions = async () => {
     setLoading(true)
     try {
-      // TODO: Replace with real API call
-      setSessions([])
+      console.log('🔄 LiveSessions: Loading sessions...')
+      
+      const token = localStorage.getItem('accessToken') || localStorage.getItem('token') || localStorage.getItem('adminToken')
+      const response = await fetch('http://localhost:7000/api/sessions?limit=100', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        console.log('✅ LiveSessions: Sessions data received:', data)
+        
+        if (data.success) {
+          setSessions(data.data?.sessions || [])
+          console.log('✅ LiveSessions: Sessions loaded successfully')
+        } else {
+          console.log('❌ LiveSessions: API returned unsuccessful response')
+          setSessions([])
+        }
+      } else {
+        console.error('❌ LiveSessions: Failed to fetch sessions:', response.status)
+        setSessions([])
+      }
     } catch (error) {
+      console.error('❌ LiveSessions: Error loading sessions:', error)
       message.error('Failed to fetch sessions')
+      setSessions([])
     } finally {
       setLoading(false)
     }

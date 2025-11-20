@@ -1,0 +1,118 @@
+/**
+ * Table Component Styles
+ * iOS-Inspired table design
+ */
+
+.table-container {
+  background-color: var(--bg-primary);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--elev-1);
+}
+
+.table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.table thead th {
+  background-color: var(--bg-secondary);
+  color: var(--text-secondary);
+  font-size: var(--type-small);
+  font-weight: var(--weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: var(--space-md) var(--space-lg);
+  border-bottom: 1px solid var(--border-subtle);
+  text-align: left;
+}
+
+.table tbody td {
+  padding: var(--space-md) var(--space-lg);
+  border-bottom: 1px solid var(--border-subtle);
+  color: var(--text-primary);
+  font-size: var(--type-body);
+  line-height: var(--line-normal);
+}
+
+.table tbody tr {
+  transition: background-color var(--transition-fast);
+}
+
+.table tbody tr:hover {
+  background-color: var(--bg-tertiary);
+}
+
+.table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* Ant Design Table Overrides */
+.ant-table-wrapper {
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.ant-table {
+  font-family: var(--font-family-base);
+}
+
+.ant-table-thead > tr > th {
+  background-color: var(--bg-secondary) !important;
+  color: var(--text-secondary) !important;
+  font-size: var(--type-small) !important;
+  font-weight: var(--weight-semibold) !important;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: var(--space-md) var(--space-lg) !important;
+  border-bottom: 1px solid var(--border-subtle) !important;
+}
+
+.ant-table-tbody > tr > td {
+  padding: var(--space-md) var(--space-lg) !important;
+  border-bottom: 1px solid var(--border-subtle) !important;
+  color: var(--text-primary) !important;
+  font-size: var(--type-body) !important;
+}
+
+.ant-table-tbody > tr:hover > td {
+  background-color: var(--bg-tertiary) !important;
+}
+
+.ant-table-tbody > tr:last-child > td {
+  border-bottom: none !important;
+}
+
+.ant-table-pagination {
+  margin: var(--space-lg) 0 !important;
+  padding: 0 var(--space-lg) !important;
+}
+
+.ant-table-pagination .ant-pagination-item {
+  min-width: var(--touch-target-min);
+  min-height: var(--touch-target-min);
+  border-radius: var(--radius-md);
+}
+
+.ant-table-pagination .ant-pagination-item-active {
+  background-color: var(--accent-primary);
+  border-color: var(--accent-primary);
+}
+
+.ant-table-pagination .ant-pagination-item-active a {
+  color: var(--text-inverse);
+}
+
+/* Compact Table Variant */
+.table-compact thead th,
+.table-compact tbody td {
+  padding: var(--space-sm) var(--space-md);
+}
+
+/* Comfortable Table Variant */
+.table-comfortable thead th,
+.table-comfortable tbody td {
+  padding: var(--space-lg) var(--space-xl);
+}
+

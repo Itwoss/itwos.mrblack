@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import axios from 'axios'
+import { notificationsAPI } from '../services/api'
 import notificationService from '../services/notificationService'
 
 const useNotifications = (userId, userRole = 'user') => {
@@ -8,64 +8,143 @@ const useNotifications = (userId, userRole = 'user') => {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
 
-  // API base URL
-  const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:7000/api'
-
-  // Get auth headers
-  const getAuthHeaders = () => {
-    const token = localStorage.getItem('accessToken') || localStorage.getItem('token')
-    return {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      }
-    }
-  }
-
   // Fetch notifications from API
   const fetchNotifications = useCallback(async () => {
     console.log('🔔 useNotifications fetchNotifications called:', {
       userId: userId,
-      userRole: userRole,
-      API_BASE_URL: API_BASE_URL
+      userRole: userRole
     })
     
-    if (!userId) {
-      console.log('🔔 No userId provided, skipping fetch')
+    if (!userId || userId === 'mock-user-id') {
+      console.log('🔔 No valid userId provided, skipping fetch')
+      setNotifications([])
+      setUnreadCount(0)
+      setLoading(false)
+      setError(null)
       return
     }
 
     setLoading(true)
     setError(null)
     
+    // Set a timeout to prevent infinite loading
+    let timeoutId
+    const timeoutPromise = new Promise((_, reject) => {
+      timeoutId = setTimeout(() => {
+        reject(new Error('Request timeout. Please try again.'))
+      }, 15000) // 15 second timeout
+    })
+    
     try {
-      const endpoint = userRole === 'admin' ? '/notifications/admin' : '/notifications'
-      const url = `${API_BASE_URL}${endpoint}`
-      const headers = getAuthHeaders()
-      
-      console.log('🔔 Fetching notifications:', {
-        url: url,
-        headers: headers,
-        endpoint: endpoint
+      console.log('🔔 Fetching notifications from API...', {
+        userId,
+        userRole,
+        apiUrl: import.meta.env.VITE_API_URL || 'http://localhost:7000/api'
       })
       
-      const response = await axios.get(url, headers)
+      // Race between API call and timeout
+      const response = await Promise.race([
+        notificationsAPI.getNotifications({ 
+          page: 1, 
+          limit: 50 
+        }),
+        timeoutPromise
+      ])
+      
+      clearTimeout(timeoutId) // Clear timeout on success
+      
+      console.log('🔔 API Response received:', {
+        status: response.status,
+        statusText: response.statusText,
+        hasData: !!response.data,
+        hasSuccess: !!response.data?.success,
+        responseKeys: Object.keys(response.data || {})
+      })
       
       console.log('🔔 Notifications response:', {
         success: response.data.success,
         data: response.data.data,
         notifications: response.data.data?.notifications,
-        unreadCount: response.data.data?.unreadCount
+        unreadCount: response.data.data?.unreadCount,
+        responseStatus: response.status
       })
       
-      if (response.data.success) {
-        setNotifications(response.data.data.notifications || [])
-        setUnreadCount(response.data.data.unreadCount || 0)
+      // Handle response - check multiple possible structures
+      let notificationsData = []
+      let unreadCountData = 0
+      
+      if (response.data) {
+        // Try response.data.data structure first
+        if (response.data.success && response.data.data) {
+          notificationsData = response.data.data.notifications || []
+          unreadCountData = response.data.data.unreadCount || 0
+        }
+        // Fallback to response.data structure
+        else if (response.data.notifications) {
+          notificationsData = response.data.notifications || []
+          unreadCountData = response.data.unreadCount || 0
+        }
+        // Fallback to direct response
+        else if (Array.isArray(response.data)) {
+          notificationsData = response.data
+          unreadCountData = response.data.filter(n => !n.read).length
+        }
       }
+      
+      // Ensure notifications is always an array
+      const validNotifications = Array.isArray(notificationsData) 
+        ? notificationsData.filter(notification => {
+            // Filter out invalid notifications
+            if (!notification) return false
+            // Must have an ID
+            if (!notification._id && !notification.id) return false
+            // Must have a message or title
+            if (!notification.message && !notification.title) return false
+            return true
+          })
+        : []
+      
+      console.log('🔔 Processed notifications:', {
+        count: validNotifications.length,
+        unreadCount: unreadCountData,
+        sample: validNotifications[0],
+        responseStructure: {
+          hasSuccess: !!response.data?.success,
+          hasData: !!response.data?.data,
+          hasNotifications: !!response.data?.data?.notifications,
+          notificationsType: Array.isArray(notificationsData) ? 'array' : typeof notificationsData,
+          rawResponse: response.data
+        }
+      })
+      
+      // Always set notifications to stop loading, even if empty
+      setNotifications(validNotifications)
+      setUnreadCount(typeof unreadCountData === 'number' ? unreadCountData : 0)
+      
+      // Clear any previous errors on success
+      setError(null)
     } catch (err) {
       console.error('🔔 Error fetching notifications:', err)
-      setError(err.response?.data?.message || 'Failed to fetch notifications')
+      console.error('🔔 Error details:', {
+        message: err.message,
+        response: err.response?.data,
+        status: err.response?.status,
+        statusText: err.response?.statusText
+      })
+      
+      const errorMessage = err.response?.data?.message || err.message || 'Failed to fetch notifications'
+      setError(errorMessage)
+      
+      // Always set empty arrays to stop loading state
+      setNotifications([])
+      setUnreadCount(0)
+      
+      // Don't show error for 404 or empty results - just show empty state
+      if (err.response?.status === 404) {
+        setError(null) // Clear error for 404
+      }
     } finally {
+      clearTimeout(timeoutId) // Clear timeout in finally
       setLoading(false)
     }
   }, [userId, userRole])
@@ -73,15 +152,11 @@ const useNotifications = (userId, userRole = 'user') => {
   // Mark notification as read
   const markAsRead = useCallback(async (notificationId) => {
     try {
-      await axios.put(
-        `${API_BASE_URL}/notifications/${notificationId}/read`,
-        {},
-        getAuthHeaders()
-      )
+      await notificationsAPI.markAsRead(notificationId)
 
       setNotifications(prev => 
         prev.map(notif => 
-          notif._id === notificationId 
+          (notif._id === notificationId || notif.id === notificationId)
             ? { ...notif, read: true, readAt: new Date() }
             : notif
         )
@@ -89,17 +164,22 @@ const useNotifications = (userId, userRole = 'user') => {
       setUnreadCount(prev => Math.max(0, prev - 1))
     } catch (err) {
       console.error('Error marking notification as read:', err)
+      // Still update UI optimistically
+      setNotifications(prev => 
+        prev.map(notif => 
+          (notif._id === notificationId || notif.id === notificationId)
+            ? { ...notif, read: true, readAt: new Date() }
+            : notif
+        )
+      )
+      setUnreadCount(prev => Math.max(0, prev - 1))
     }
   }, [])
 
   // Mark all notifications as read
   const markAllAsRead = useCallback(async () => {
     try {
-      await axios.put(
-        `${API_BASE_URL}/notifications/read-all`,
-        {},
-        getAuthHeaders()
-      )
+      await notificationsAPI.markAllAsRead()
 
       setNotifications(prev => 
         prev.map(notif => ({ ...notif, read: true, readAt: new Date() }))
@@ -107,6 +187,11 @@ const useNotifications = (userId, userRole = 'user') => {
       setUnreadCount(0)
     } catch (err) {
       console.error('Error marking all notifications as read:', err)
+      // Still update UI optimistically
+      setNotifications(prev => 
+        prev.map(notif => ({ ...notif, read: true, readAt: new Date() }))
+      )
+      setUnreadCount(0)
     }
   }, [])
 
@@ -129,8 +214,9 @@ const useNotifications = (userId, userRole = 'user') => {
 
   // Setup real-time listeners
   useEffect(() => {
-    if (!userId) {
-      console.warn('⚠️ useNotifications: No userId provided')
+    // Don't connect if userId is invalid or mock
+    if (!userId || userId === 'mock-user-id') {
+      console.warn('⚠️ useNotifications: No valid userId provided, skipping socket connection')
       return
     }
 
@@ -138,6 +224,11 @@ const useNotifications = (userId, userRole = 'user') => {
 
     // Connect to notification service with real user details
     const socket = notificationService.connect(userId, userRole)
+    
+    // If connection failed, return early
+    if (!socket) {
+      return
+    }
 
     // Listen for payment success notifications
     const handlePaymentSuccess = (data) => {
@@ -195,11 +286,44 @@ const useNotifications = (userId, userRole = 'user') => {
       })
     }
 
+    // Listen for new_notification events (follow requests, follow accepted, etc.)
+    const handleNewNotification = (data) => {
+      console.log('🔔 New notification event received:', data)
+      // Format notification based on type
+      let title = 'Notification'
+      if (data.type === 'follow_request') {
+        title = 'Follow Request'
+      } else if (data.type === 'follow') {
+        title = 'New Follower'
+      } else if (data.type === 'follow_accepted') {
+        title = 'Follow Request Accepted'
+      } else {
+        title = data.title || 'Notification'
+      }
+      
+      addNotification({
+        _id: data._id || `notif_${Date.now()}`,
+        type: data.type || 'general',
+        title: title,
+        message: data.message || 'You have a new notification.',
+        read: false, // New notifications are always unread
+        createdAt: new Date(data.createdAt || Date.now()),
+        data: data.metadata || data.data || {},
+        from: data.from || null
+      })
+      
+      // Refresh notifications from API to get the full notification data
+      setTimeout(() => {
+        fetchNotifications()
+      }, 500)
+    }
+
     // Subscribe to events
     notificationService.on('payment_success', handlePaymentSuccess)
     notificationService.on('new_paid_prebook', handleNewPaidPrebook)
     notificationService.on('prebook_status_update', handlePrebookStatusUpdate)
     notificationService.on('notification', handleGeneralNotification)
+    notificationService.on('new_notification', handleNewNotification)
 
     // Cleanup on unmount
     return () => {
@@ -207,18 +331,47 @@ const useNotifications = (userId, userRole = 'user') => {
       notificationService.off('new_paid_prebook', handleNewPaidPrebook)
       notificationService.off('prebook_status_update', handlePrebookStatusUpdate)
       notificationService.off('notification', handleGeneralNotification)
+      notificationService.off('new_notification', handleNewNotification)
     }
-  }, [userId, userRole, addNotification])
+  }, [userId, userRole, addNotification, fetchNotifications])
 
   // Initial fetch and periodic refresh
   useEffect(() => {
+    // Only fetch if we have a valid userId
+    if (!userId || userId === 'mock-user-id') {
+      setLoading(false)
+      setNotifications([])
+      setUnreadCount(0)
+      setError(null)
+      return
+    }
+    
     fetchNotifications()
     
     // Refresh every 30 seconds
-    const interval = setInterval(fetchNotifications, 30000)
+    const interval = setInterval(() => {
+      if (userId && userId !== 'mock-user-id') {
+        fetchNotifications()
+      }
+    }, 30000)
     
     return () => clearInterval(interval)
-  }, [fetchNotifications])
+  }, [fetchNotifications, userId])
+  
+  // Safety timeout - ensure loading stops after 20 seconds max
+  useEffect(() => {
+    if (loading) {
+      const safetyTimeout = setTimeout(() => {
+        console.warn('🔔 Safety timeout: Forcing loading to stop after 20 seconds')
+        setLoading(false)
+        if (notifications.length === 0 && !error) {
+          setError('Request timeout. Please refresh the page.')
+        }
+      }, 20000) // 20 second safety timeout
+      
+      return () => clearTimeout(safetyTimeout)
+    }
+  }, [loading, notifications.length, error])
 
   return {
     notifications,

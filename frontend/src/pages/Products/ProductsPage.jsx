@@ -322,8 +322,23 @@ const ProductsPage = () => {
       <Card
         hoverable
         className="product-card"
+        style={{
+          borderRadius: 'var(--radius-lg)',
+          boxShadow: 'var(--elev-1)',
+          overflow: 'hidden',
+          transition: 'all var(--transition-base)'
+        }}
         cover={
-          <div className="product-image-container">
+          <div 
+            className="product-image-container"
+            style={{
+              position: 'relative',
+              width: '100%',
+              paddingTop: '56.25%', /* 16:9 aspect ratio */
+              overflow: 'hidden',
+              backgroundColor: 'var(--bg-tertiary)'
+            }}
+          >
                 <img
                   alt={product.title}
                   src={product.thumbnailUrl ? `http://localhost:7000${product.thumbnailUrl}` : '/placeholder-image.svg'}
@@ -331,20 +346,59 @@ const ProductsPage = () => {
                     e.target.src = '/placeholder-image.svg'
                   }}
               className="product-image"
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: '100%',
+                height: '100%',
+                objectFit: 'cover'
+              }}
                 />
-            <div className="product-tags">
-                  {product.tags.slice(0, 2).map(tag => (
+            <div 
+              className="product-tags"
+              style={{
+                position: 'absolute',
+                top: 'var(--space-sm)',
+                left: 'var(--space-sm)',
+                display: 'flex',
+                gap: 'var(--space-xs)',
+                flexWrap: 'wrap'
+              }}
+            >
+              {product.tags?.slice(0, 2).map(tag => (
                 <Tag 
                   key={tag} 
                   color={getTagColor(tag)}
                   className="product-tag"
+                  style={{
+                    borderRadius: 'var(--radius-full)',
+                    fontSize: 'var(--type-small)',
+                    padding: 'var(--space-xs) var(--space-sm)',
+                    margin: 0
+                  }}
                 >
                       {tag}
                 </Tag>
                   ))}
                 </div>
-            <div className="product-views">
-              <EyeOutlined /> {product.views}
+            <div 
+              className="product-views"
+              style={{
+                position: 'absolute',
+                bottom: 'var(--space-sm)',
+                right: 'var(--space-sm)',
+                backgroundColor: 'var(--bg-overlay)',
+                color: 'var(--text-inverse)',
+                padding: 'var(--space-xs) var(--space-sm)',
+                borderRadius: 'var(--radius-full)',
+                fontSize: 'var(--type-small)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 'var(--space-xs)'
+              }}
+            >
+              <EyeOutlined /> {product.views || 0}
                 </div>
               </div>
         }
@@ -353,6 +407,12 @@ const ProductsPage = () => {
             key="favorite"
                     icon={<HeartOutlined />} 
             className="product-action favorite"
+            style={{
+              minHeight: 'var(--touch-target-min)',
+              width: '100%',
+              border: 'none',
+              borderRadius: 0
+            }}
                   >
                     Save
           </Button>,
@@ -360,39 +420,98 @@ const ProductsPage = () => {
                   <Button 
                     icon={<ShoppingCartOutlined />} 
               className="product-action primary"
+              type="primary"
+              style={{
+                minHeight: 'var(--touch-target-min)',
+                width: '100%',
+                borderRadius: 0
+              }}
                     >
                       Prebook
                     </Button>
                   </Link>
         ]}
+        bodyStyle={{
+          padding: 'var(--space-md)'
+        }}
       >
         <Card.Meta
           title={
-            <div className="product-title">
-              <Text strong style={{ fontSize: '16px' }}>{product.title}</Text>
-              <Tag color="blue" style={{ fontSize: '12px' }}>{product.category}</Tag>
+            <div 
+              className="product-title"
+              style={{
+                marginBottom: 'var(--space-sm)',
+                display: 'flex',
+                alignItems: 'flex-start',
+                justifyContent: 'space-between',
+                gap: 'var(--space-xs)'
+              }}
+            >
+              <Text 
+                strong 
+                style={{ 
+                  fontSize: 'var(--type-body)',
+                  fontWeight: 'var(--weight-semibold)',
+                  color: 'var(--text-primary)',
+                  flex: 1
+                }}
+              >
+                {product.title}
+              </Text>
+              {product.category && (
+                <Tag 
+                  color="blue" 
+                  style={{ 
+                    fontSize: 'var(--type-small)',
+                    borderRadius: 'var(--radius-full)',
+                    margin: 0
+                  }}
+                >
+                  {product.category}
+                </Tag>
+              )}
             </div>
           }
           description={
             <div>
               <Paragraph 
-                style={{ color: '#666', margin: '8px 0', fontSize: '14px' }}
+                style={{ 
+                  color: 'var(--text-secondary)', 
+                  margin: '0 0 var(--space-sm) 0', 
+                  fontSize: 'var(--type-small)',
+                  lineHeight: 'var(--line-relaxed)'
+                }}
                 ellipsis={{ rows: 2 }}
               >
-                {product.description?.short || product.description}
+                {product.description?.short || product.description || 'No description available'}
               </Paragraph>
-              <div className="product-rating">
-                <StarOutlined style={{ color: '#faad14' }} />
-                <Text style={{ marginLeft: '4px', fontSize: '14px' }}>
+              <div 
+                className="product-rating"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 'var(--space-xs)',
+                  marginBottom: 'var(--space-sm)'
+                }}
+              >
+                <StarOutlined style={{ color: 'var(--warning)' }} />
+                <Text style={{ fontSize: 'var(--type-small)' }}>
                   {product.rating?.average?.toFixed(1) || '4.5'}
                 </Text>
-                <Text type="secondary" style={{ marginLeft: '4px', fontSize: '12px' }}>
+                <Text style={{ color: 'var(--text-tertiary)', fontSize: 'var(--type-caption)' }}>
                   ({product.rating?.count || 0})
                 </Text>
               </div>
-              <div className="product-price">
-                <Text strong style={{ color: '#52c41a', fontSize: '18px' }}>
-                  ${product.price?.toLocaleString() || '0'}
+              <div 
+                className="product-price"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between'
+                }}
+              >
+                <Text strong style={{ color: 'var(--success)', fontSize: 'var(--type-h3)' }}>
+                  Prebook: ${product.prebookAmount?.toLocaleString() || '0'}
                 </Text>
                 </div>
               <div className="product-meta">
@@ -437,28 +556,51 @@ const ProductsPage = () => {
         {/* Main Content */}
         <Content className="products-content">
           {/* Search Bar */}
-          <div className="search-section">
+          <div 
+            className="search-section"
+            style={{
+              marginBottom: 'var(--space-lg)',
+              padding: '0 var(--container-padding-mobile)'
+            }}
+          >
             <Search
               placeholder="Search products..."
               allowClear
               onSearch={handleSearch}
               size="large"
-              style={{ maxWidth: '400px' }}
+              style={{ 
+                maxWidth: '400px',
+                width: '100%'
+              }}
             />
         </div>
 
           {/* Tags Filter */}
-          <div className="tags-section">
+          <div 
+            className="tags-section"
+            style={{
+              marginBottom: 'var(--space-lg)',
+              padding: '0 var(--container-padding-mobile)'
+            }}
+          >
             <TagsFilter />
             </div>
 
           {/* Products Grid */}
-          <div className="products-section">
+          <div 
+            className="products-section"
+            style={{
+              padding: '0 var(--container-padding-mobile)'
+            }}
+          >
             <Spin spinning={loading}>
               {products.length === 0 ? (
                 <Empty 
                   description="No products found"
-                  style={{ padding: '3rem' }}
+                  style={{ 
+                    padding: 'var(--space-xxl)',
+                    color: 'var(--text-secondary)'
+                  }}
                 >
             <Button 
               onClick={() => {
@@ -472,6 +614,7 @@ const ProductsPage = () => {
                       setSelectedCategory('')
                       setSelectedTag('')
               }}
+                    style={{ minHeight: 'var(--touch-target-min)' }}
             >
               Clear Filters
             </Button>

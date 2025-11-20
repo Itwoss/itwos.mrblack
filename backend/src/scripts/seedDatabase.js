@@ -5,6 +5,7 @@ require('dotenv').config();
 // Import models
 const User = require('../models/User');
 const Product = require('../models/Product');
+const Purchase = require('../models/Purchase');
 const Notification = require('../models/Notification');
 
 // Connect to MongoDB
@@ -23,6 +24,7 @@ const clearDatabase = async () => {
   try {
     await User.deleteMany({});
     await Product.deleteMany({});
+    await Purchase.deleteMany({});
     await Notification.deleteMany({});
     console.log('🗑️  Cleared existing data');
   } catch (error) {
@@ -95,138 +97,72 @@ const createDemoUsers = async () => {
   }
 };
 
-// Create sample products
+// Create sample products (only with prebook amounts, no demo products)
 const createSampleProducts = async () => {
   try {
-    const products = [
+    const sampleProducts = [
       {
-        title: 'AI-Powered Task Manager',
-        slug: 'ai-powered-task-manager',
-        websiteUrl: 'https://example.com/task-manager',
-        websiteTitle: 'TaskMaster Pro',
-        websiteLink: 'https://example.com/task-manager',
-        thumbnailUrl: '/uploads/products/thumbnail-1760585707225-57191184.JPEG',
-        descriptionAuto: 'An intelligent task management application powered by AI to help you organize and prioritize your daily tasks efficiently.',
-        descriptionManual: 'Revolutionary task management with AI insights and smart scheduling.',
-        price: 29.99,
+        title: 'AI Task Manager Pro',
+        slug: 'ai-task-manager-pro',
+        websiteUrl: 'https://aitaskmanager.example.com',
+        websiteTitle: 'AI Task Manager Pro - Intelligent Task Management',
+        websiteLink: 'https://aitaskmanager.example.com',
+        thumbnailUrl: 'https://via.placeholder.com/400x300/1890ff/ffffff?text=AI+Task+Manager',
+        descriptionManual: 'Advanced AI-powered task management system with intelligent scheduling and priority optimization.',
+        category: 'AI Tools',
+        prebookAmount: 99.99,
         currency: 'USD',
-        trending: true,
-        tags: ['AI', 'Productivity', 'Task Management', 'Automation'],
-        categories: ['Productivity', 'AI Tools'],
-        developerName: 'TechCorp Solutions',
-        techStack: ['React', 'Node.js', 'MongoDB', 'AI/ML'],
         status: 'published',
-        meta: {
-          title: 'AI Task Manager - Boost Your Productivity',
-          description: 'Smart task management with AI-powered insights',
-          keywords: ['task management', 'AI', 'productivity', 'automation']
-        }
+        trending: true,
+        stock: 50,
+        images: ['https://via.placeholder.com/400x300/1890ff/ffffff?text=AI+Task+Manager'],
+        features: ['AI Scheduling', 'Priority Optimization', 'Team Collaboration'],
+        tags: ['AI', 'Productivity', 'Management']
       },
       {
-        title: 'E-Commerce Analytics Dashboard',
-        slug: 'ecommerce-analytics-dashboard',
-        websiteUrl: 'https://example.com/analytics',
-        websiteTitle: 'Analytics Pro',
-        websiteLink: 'https://example.com/analytics',
-        thumbnailUrl: '/uploads/products/thumbnail-1760585714527-177960529.JPEG',
-        descriptionAuto: 'Comprehensive analytics dashboard for e-commerce businesses with real-time insights and reporting.',
-        descriptionManual: 'Advanced analytics platform for e-commerce success.',
-        price: 49.99,
+        title: 'Smart Analytics Dashboard',
+        slug: 'smart-analytics-dashboard',
+        websiteUrl: 'https://analytics.example.com',
+        websiteTitle: 'Smart Analytics Dashboard - Real-time Data Visualization',
+        websiteLink: 'https://analytics.example.com',
+        thumbnailUrl: 'https://via.placeholder.com/400x300/52c41a/ffffff?text=Analytics+Dashboard',
+        descriptionManual: 'Comprehensive analytics dashboard with real-time data visualization and predictive insights.',
+        category: 'Analytics',
+        prebookAmount: 149.99,
         currency: 'USD',
+        status: 'published',
+        trending: true,
+        stock: 25,
+        images: ['https://via.placeholder.com/400x300/52c41a/ffffff?text=Analytics+Dashboard'],
+        features: ['Real-time Data', 'Predictive Analytics', 'Custom Reports'],
+        tags: ['Analytics', 'Dashboard', 'Data Visualization']
+      },
+      {
+        title: 'AI Content Generator',
+        slug: 'ai-content-generator',
+        websiteUrl: 'https://contentgen.example.com',
+        websiteTitle: 'AI Content Generator - Advanced Content Creation',
+        websiteLink: 'https://contentgen.example.com',
+        thumbnailUrl: 'https://via.placeholder.com/400x300/fa8c16/ffffff?text=Content+Generator',
+        descriptionManual: 'Advanced AI content generation tool for blogs, articles, and marketing materials.',
+        category: 'Content Creation',
+        prebookAmount: 199.99,
+        currency: 'USD',
+        status: 'published',
         trending: false,
-        tags: ['Analytics', 'E-commerce', 'Dashboard', 'Business Intelligence'],
-        categories: ['Analytics', 'Business Tools'],
-        developerName: 'DataViz Inc',
-        techStack: ['Vue.js', 'Python', 'PostgreSQL', 'D3.js'],
-        status: 'published',
-        meta: {
-          title: 'E-Commerce Analytics Dashboard',
-          description: 'Real-time insights for your online business',
-          keywords: ['analytics', 'e-commerce', 'dashboard', 'business intelligence']
-        }
-      },
-      {
-        title: 'Social Media Scheduler',
-        slug: 'social-media-scheduler',
-        websiteUrl: 'https://example.com/scheduler',
-        websiteTitle: 'SocialScheduler',
-        websiteLink: 'https://example.com/scheduler',
-        thumbnailUrl: '/uploads/products/thumbnail-1760585720696-817176932.JPEG',
-        descriptionAuto: 'Automate your social media presence with intelligent scheduling and content optimization.',
-        descriptionManual: 'Smart social media management made simple.',
-        price: 19.99,
-        currency: 'USD',
-        trending: true,
-        tags: ['Social Media', 'Scheduling', 'Marketing', 'Automation'],
-        categories: ['Marketing', 'Social Media'],
-        developerName: 'SocialTech',
-        techStack: ['Angular', 'Express', 'MongoDB', 'Redis'],
-        status: 'published',
-        meta: {
-          title: 'Social Media Scheduler - Automate Your Posts',
-          description: 'Schedule and optimize your social media content',
-          keywords: ['social media', 'scheduling', 'marketing', 'automation']
-        }
-      },
-      {
-        title: 'Code Review Assistant',
-        slug: 'code-review-assistant',
-        websiteUrl: 'https://example.com/code-review',
-        websiteTitle: 'CodeReview Pro',
-        websiteLink: 'https://example.com/code-review',
-        thumbnailUrl: '/uploads/products/thumbnail-1760585803679-924120959.JPEG',
-        descriptionAuto: 'AI-powered code review tool that helps developers improve code quality and catch bugs early.',
-        descriptionManual: 'Intelligent code analysis and review automation.',
-        price: 39.99,
-        currency: 'USD',
-        trending: false,
-        tags: ['Development', 'Code Review', 'AI', 'Quality Assurance'],
-        categories: ['Development Tools', 'AI'],
-        developerName: 'DevTools Inc',
-        techStack: ['React', 'Python', 'TensorFlow', 'Docker'],
-        status: 'published',
-        meta: {
-          title: 'AI Code Review Assistant',
-          description: 'Automated code review with AI insights',
-          keywords: ['code review', 'AI', 'development', 'quality assurance']
-        }
-      },
-      {
-        title: 'Customer Support Chatbot',
-        slug: 'customer-support-chatbot',
-        websiteUrl: 'https://example.com/chatbot',
-        websiteTitle: 'SupportBot AI',
-        websiteLink: 'https://example.com/chatbot',
-        thumbnailUrl: '/uploads/products/thumbnail-1760585808384-751002739.JPEG',
-        descriptionAuto: 'Intelligent chatbot solution for customer support with natural language processing capabilities.',
-        descriptionManual: '24/7 customer support with AI-powered conversations.',
-        price: 59.99,
-        currency: 'USD',
-        trending: true,
-        tags: ['Chatbot', 'Customer Support', 'AI', 'Automation'],
-        categories: ['Customer Service', 'AI Tools'],
-        developerName: 'BotSolutions',
-        techStack: ['Node.js', 'OpenAI', 'MongoDB', 'WebSocket'],
-        status: 'published',
-        meta: {
-          title: 'AI Customer Support Chatbot',
-          description: 'Intelligent customer support automation',
-          keywords: ['chatbot', 'customer support', 'AI', 'automation']
-        }
+        stock: 15,
+        images: ['https://via.placeholder.com/400x300/fa8c16/ffffff?text=Content+Generator'],
+        features: ['AI Writing', 'SEO Optimization', 'Multi-language Support'],
+        tags: ['AI', 'Content', 'Writing']
       }
     ];
 
-    const createdProducts = [];
-    for (const productData of products) {
-      const product = new Product(productData);
-      await product.save();
-      createdProducts.push(product);
-    }
-
-    console.log(`📦 Created ${createdProducts.length} sample products`);
-    return createdProducts;
+    const products = await Product.insertMany(sampleProducts);
+    console.log(`📦 Created ${products.length} sample products`);
+    return products;
   } catch (error) {
     console.error('Error creating sample products:', error);
+    return [];
   }
 };
 
@@ -265,6 +201,79 @@ const createSampleNotifications = async (users) => {
   }
 };
 
+// Create sample orders
+const createSampleOrders = async (users, products) => {
+  try {
+    if (!users || users.length === 0 || !products || products.length === 0) {
+      console.log('📦 No sample orders created - need users and products first');
+      return [];
+    }
+
+    const sampleOrders = [
+      {
+        buyer: users[0]._id,
+        product: products[0]._id,
+        razorpayOrderId: 'order_' + Date.now() + '_1',
+        amount: 99.99,
+        currency: 'USD',
+        status: 'paid',
+        paymentMethod: 'card',
+        razorpaySignature: 'signature_' + Date.now() + '_1',
+        createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000) // 2 days ago
+      },
+      {
+        buyer: users[1]._id,
+        product: products[1]._id,
+        razorpayOrderId: 'order_' + Date.now() + '_2',
+        amount: 149.99,
+        currency: 'USD',
+        status: 'paid',
+        paymentMethod: 'card',
+        razorpaySignature: 'signature_' + Date.now() + '_2',
+        createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000) // 1 day ago
+      },
+      {
+        buyer: users[2]._id,
+        product: products[0]._id,
+        razorpayOrderId: 'order_' + Date.now() + '_3',
+        amount: 199.99,
+        currency: 'USD',
+        status: 'created',
+        paymentMethod: 'card',
+        createdAt: new Date() // today
+      },
+      {
+        buyer: users[0]._id,
+        product: products[1]._id,
+        razorpayOrderId: 'order_' + Date.now() + '_4',
+        amount: 79.99,
+        currency: 'USD',
+        status: 'paid',
+        paymentMethod: 'upi',
+        razorpaySignature: 'signature_' + Date.now() + '_4',
+        createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000) // 3 days ago
+      },
+      {
+        buyer: users[1]._id,
+        product: products[0]._id,
+        razorpayOrderId: 'order_' + Date.now() + '_5',
+        amount: 299.99,
+        currency: 'USD',
+        status: 'cancelled',
+        paymentMethod: 'card',
+        createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000) // 5 days ago
+      }
+    ];
+
+    const orders = await Purchase.insertMany(sampleOrders);
+    console.log(`🛒 Created ${orders.length} sample orders`);
+    return orders;
+  } catch (error) {
+    console.error('Error creating sample orders:', error);
+    return [];
+  }
+};
+
 // Main seeding function
 const seedDatabase = async () => {
   try {
@@ -276,6 +285,7 @@ const seedDatabase = async () => {
     const adminUser = await createAdminUser();
     const demoUsers = await createDemoUsers();
     const products = await createSampleProducts();
+    const orders = await createSampleOrders([adminUser, ...demoUsers], products);
     await createSampleNotifications([adminUser, ...demoUsers]);
     
     console.log('✅ Database seeding completed successfully!');
@@ -283,6 +293,7 @@ const seedDatabase = async () => {
     console.log('- Admin user: admin@itwos.ai / admin123');
     console.log('- Demo users: john@example.com, jane@example.com, mike@example.com (password: password123)');
     console.log(`- Products: ${products.length} sample products created`);
+    console.log(`- Orders: ${orders.length} sample orders created`);
     console.log('- Notifications: Sample notifications created');
     
   } catch (error) {

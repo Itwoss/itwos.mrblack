@@ -3,7 +3,7 @@ import { Badge, Button } from 'antd'
 import { BellOutlined } from '@ant-design/icons'
 import { useAuth } from '../contexts/AuthContextOptimized'
 import useNotifications from '../hooks/useNotifications'
-import NotificationCenter from './NotificationCenter'
+import NotificationPopup from './NotificationPopup'
 
 const NotificationBell = () => {
   const { user } = useAuth()
@@ -18,6 +18,9 @@ const NotificationBell = () => {
     notificationsCount: notifications?.length || 0
   })
 
+  // Use actual unread count (no demo count)
+  const displayCount = unreadCount > 0 ? unreadCount : 0
+
   const handleBellClick = () => {
     setNotificationVisible(true)
   }
@@ -30,19 +33,19 @@ const NotificationBell = () => {
 
   return (
     <>
-      <Badge count={unreadCount} size="small">
+      <Badge count={displayCount} size="small">
         <Button
           type="text"
           icon={<BellOutlined />}
           onClick={handleBellClick}
           style={{
             fontSize: '18px',
-            color: unreadCount > 0 ? '#1890ff' : '#666'
+            color: displayCount > 0 ? '#1890ff' : '#666'
           }}
         />
       </Badge>
 
-      <NotificationCenter
+      <NotificationPopup
         visible={notificationVisible}
         onClose={handleNotificationClose}
         userId={user?._id}

@@ -49,7 +49,13 @@ router.get('/dashboard', authenticateToken, requireAdmin, async (req, res) => {
     // Sales statistics
     const salesSummary = await Purchase.getSalesSummary();
     const totalOrders = await Purchase.countDocuments();
-    const pendingOrders = await Purchase.countDocuments({ status: 'pending' });
+    const pendingOrders = await Purchase.countDocuments({ status: 'created' });
+    console.log('📊 Admin Dashboard: Total orders:', totalOrders);
+    console.log('📊 Admin Dashboard: Pending orders count:', pendingOrders);
+    
+    // Debug: Check all order statuses
+    const allOrders = await Purchase.find({}).select('status').limit(10);
+    console.log('📊 Admin Dashboard: Sample orders:', allOrders);
     const completedOrders = await Purchase.countDocuments({ status: 'paid' });
     const cancelledOrders = await Purchase.countDocuments({ status: 'cancelled' });
     
@@ -93,7 +99,7 @@ router.get('/dashboard', authenticateToken, requireAdmin, async (req, res) => {
       .sort({ createdAt: -1 })
       .limit(5);
 
-    const recentOrders = await Purchase.find({ status: 'paid' })
+    const recentOrders = await Purchase.find({})
       .populate('buyer', 'name email')
       .populate('product', 'title type')
       .sort({ createdAt: -1 })

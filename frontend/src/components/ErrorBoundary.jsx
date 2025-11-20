@@ -57,6 +57,11 @@ class ErrorBoundary extends React.Component {
     window.location.href = '/';
   };
 
+  handleReset = () => {
+    // Try to reset error state without reloading
+    this.setState({ hasError: false, error: null, errorInfo: null });
+  };
+
   render() {
     if (this.state.hasError) {
       // Custom fallback UI
@@ -123,11 +128,29 @@ class ErrorBoundary extends React.Component {
             <p style={{
               fontSize: '16px',
               color: '#64748b',
-              margin: '0 0 32px 0',
+              margin: '0 0 16px 0',
               lineHeight: '1.5'
             }}>
               We're sorry, but something unexpected happened. Our team has been notified and we're working to fix it.
             </p>
+            
+            {/* Show actual error message in development or if available */}
+            {(import.meta.env.MODE === 'development' || this.state.error) && (
+              <div style={{
+                fontSize: '14px',
+                color: '#dc2626',
+                margin: '0 0 32px 0',
+                padding: '12px',
+                backgroundColor: '#fef2f2',
+                borderRadius: '6px',
+                border: '1px solid #fecaca',
+                textAlign: 'left',
+                maxHeight: '150px',
+                overflow: 'auto'
+              }}>
+                <strong>Error:</strong> {this.state.error?.message || this.state.error?.toString() || 'Unknown error'}
+              </div>
+            )}
 
             {/* Action Buttons */}
             <div style={{
@@ -183,6 +206,30 @@ class ErrorBoundary extends React.Component {
               >
                 Go Home
               </button>
+              
+              <button
+                onClick={this.handleReset}
+                style={{
+                  padding: '12px 24px',
+                  backgroundColor: '#10b981',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  minWidth: '120px'
+                }}
+                onMouseOver={(e) => {
+                  e.target.style.backgroundColor = '#059669';
+                }}
+                onMouseOut={(e) => {
+                  e.target.style.backgroundColor = '#10b981';
+                }}
+              >
+                Try Again
+              </button>
             </div>
 
             {/* Error ID for support */}
@@ -195,11 +242,30 @@ class ErrorBoundary extends React.Component {
               color: '#64748b',
               textAlign: 'left'
             }}>
-              <strong>Error ID:</strong> {this.state.error?.toString().slice(0, 20)}...
+              <strong>Error:</strong> {this.state.error?.message || this.state.error?.toString() || 'Unknown error'}
               <br />
               <strong>Time:</strong> {new Date().toLocaleString()}
               <br />
               <strong>URL:</strong> {window.location.href}
+              {this.state.error?.stack && (
+                <>
+                  <br />
+                  <details style={{ marginTop: '8px' }}>
+                    <summary style={{ cursor: 'pointer', fontWeight: '500' }}>Stack Trace</summary>
+                    <pre style={{
+                      marginTop: '4px',
+                      padding: '8px',
+                      backgroundColor: '#ffffff',
+                      borderRadius: '4px',
+                      overflow: 'auto',
+                      fontSize: '10px',
+                      maxHeight: '200px'
+                    }}>
+                      {this.state.error.stack}
+                    </pre>
+                  </details>
+                </>
+              )}
             </div>
 
             {/* Development Error Details */}

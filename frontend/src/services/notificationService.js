@@ -14,14 +14,20 @@ class NotificationService {
     }
 
     // Validate user details
-    if (!userId) {
-      console.warn('⚠️ No user ID provided for socket connection')
+    if (!userId || userId === 'mock-user-id') {
+      console.warn('⚠️ No valid user ID provided for socket connection')
       return null
     }
 
     try {
       const serverUrl = import.meta.env.VITE_SERVER_URL || 'http://localhost:7000'
       const token = localStorage.getItem('accessToken') || localStorage.getItem('token')
+      
+      // Check if backend is available before connecting
+      if (!token || !serverUrl) {
+        console.warn('⚠️ Missing token or server URL, skipping socket connection')
+        return null
+      }
       
       console.log('🔌 Connecting to Socket.IO server:', serverUrl)
       console.log('🔌 User details:', { userId, userRole })
@@ -30,10 +36,11 @@ class NotificationService {
         transports: ['polling', 'websocket'], // Try polling first
         autoConnect: true,
         reconnection: true,
-        reconnectionAttempts: 10,
-        reconnectionDelay: 2000,
-        timeout: 10000,
-        forceNew: true,
+        reconnectionAttempts: 3, // Reduced attempts
+        reconnectionDelay: 5000, // Increased delay
+        reconnectionDelayMax: 10000,
+        timeout: 5000, // Reduced timeout
+        forceNew: false, // Don't force new connection
         auth: {
           token: token,
           userId: userId,
@@ -53,8 +60,15 @@ class NotificationService {
           token: token
         })
         
-        // Join user-specific room with actual user ID
-        this.socket.emit('join-room', `user_${userId}`)
+        // Join user-specific room for notifications (backend expects this format)
+        if (userId && userId !== 'mock-user-id') {
+          this.socket.emit('join-user-room', userId)
+          console.log('🔌 Joining user room via join-user-room:', userId)
+        }
+        
+        // Also join via join-room for compatibility
+        this.socket.emit('join-room', `user:${userId}`)
+        console.log('🔌 Joining room: user:' + userId)
         
         // Join admin room if user is admin
         if (userRole === 'admin' || userRole === 'superadmin') {
@@ -72,16 +86,12 @@ class NotificationService {
       })
 
       this.socket.on('connect_error', (error) => {
-        console.error('🔌 Connection error:', error)
+        // Only log errors, don't spam console
+        if (error.message && !error.message.includes('xhr poll error')) {
+          console.error('🔌 Connection error:', error.message)
+        }
         this.isConnected = false
-        
-        // Try to reconnect after a delay
-        setTimeout(() => {
-          if (!this.isConnected) {
-            console.log('🔄 Attempting to reconnect...')
-            this.socket.connect()
-          }
-        }, 5000)
+        // Don't auto-reconnect on error - let Socket.IO handle it
       })
 
       this.socket.on('reconnect', () => {
@@ -89,8 +99,9 @@ class NotificationService {
         this.isConnected = true
         
         // Rejoin rooms after reconnection
-        if (userId) {
-          this.socket.emit('join-room', `user_${userId}`)
+        if (userId && userId !== 'mock-user-id') {
+          this.socket.emit('join-user-room', userId)
+          this.socket.emit('join-room', `user:${userId}`)
         }
         if (userRole === 'admin' || userRole === 'superadmin') {
           this.socket.emit('join-room', 'admin')
@@ -102,6 +113,10 @@ class NotificationService {
         console.log('🔌 Room joined confirmation:', data)
       })
 
+      this.socket.on('user-room-joined', (data) => {
+        console.log('🔌 User room joined confirmation:', data)
+      })
+
       this.socket.on('authenticated', (data) => {
         console.log('🔌 Authentication confirmed:', data)
       })
@@ -110,16 +125,7 @@ class NotificationService {
         console.log('🔌 Pong received:', data)
       })
 
-      this.socket.on('connect_error', (error) => {
-        console.error('🔌 Connection error:', error)
-        console.error('🔌 Error details:', {
-          message: error.message,
-          description: error.description,
-          context: error.context,
-          type: error.type
-        })
-        this.isConnected = false
-      })
+      // Removed duplicate connect_error handler
 
       // Listen for payment success notifications
       this.socket.on('payment_success', (data) => {
@@ -143,6 +149,12 @@ class NotificationService {
       this.socket.on('notification', (data) => {
         console.log('🔔 General notification:', data)
         this.emit('notification', data)
+      })
+
+      // Listen for new_notification events (follow requests, etc.)
+      this.socket.on('new_notification', (data) => {
+        console.log('🔔 New notification received:', data)
+        this.emit('new_notification', data)
       })
 
     } catch (error) {

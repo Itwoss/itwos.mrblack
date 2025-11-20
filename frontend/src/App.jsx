@@ -2,25 +2,30 @@ import React from 'react'
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
 import { ConfigProvider, App as AntApp } from 'antd'
 import { AuthProvider } from './contexts/AuthContextOptimized'
+import './styles/design-tokens.css'
+import './styles/base.css'
+import './styles/components.css'
+import './styles/typography.css'
+import './styles/table.css'
+import './styles/responsive.css'
 import './styles/mobile-responsive.css'
 import Layout from './components/Layout'
 import DashboardLayout from './components/DashboardLayout'
-import AdminLayout from './components/AdminLayout'
 import UserLayout from './components/UserLayout'
+import AdminLayout from './components/AdminLayout'
 import ProtectedRoute from './components/ProtectedRoute'
 import HomePage from './pages/HomePage'
 import LoginPage from './pages/Auth/LoginPage'
 import RegisterPage from './pages/Auth/RegisterPage'
 import ForgotPasswordPage from './pages/Auth/ForgotPasswordPage'
 import Dashboard from './pages/User/Dashboard'
-import PurchasesPage from './pages/User/PurchasesPage'
-import FavoritesPage from './pages/User/FavoritesPage'
 import Wishlist from './pages/User/Wishlist'
 import UserNotifications from './pages/User/Notifications'
 import Messages from './pages/User/Messages'
 import Reviews from './pages/User/Reviews'
 import Settings from './pages/User/Settings'
 import Profile from './pages/User/Profile'
+import UserProfile from './pages/User/UserProfile'
 import Following from './pages/User/Following'
 import HelpCenter from './pages/User/HelpCenter'
 import UserPurchases from './pages/User/UserPurchases'
@@ -28,6 +33,7 @@ import UserFavorites from './pages/User/UserFavorites'
 import UserChat from './pages/User/UserChat'
 import UserDiscovery from './pages/User/UserDiscovery'
 import UserNetwork from './pages/User/UserNetwork'
+import NewUsers from './pages/User/NewUsers'
 import MyPrebooks from './pages/User/MyPrebooks'
 import AboutPage from './pages/AboutPage'
 import ContactPage from './pages/ContactPage'
@@ -49,10 +55,8 @@ import Products from './pages/Admin/Products'
 import PrebookManagement from './pages/Admin/PrebookManagement'
 import PaymentTracking from './pages/Admin/PaymentTracking'
 import UserActivities from './pages/Admin/UserActivities'
-import ProductList from './pages/Products/ProductList'
 import ProductsPage from './pages/Products/ProductsPage'
 import ProductDetail from './pages/Products/ProductDetail'
-import ProductPreview from './pages/Products/ProductPreview'
 import PrebookPreview from './pages/Products/PrebookPreview'
 import PaymentSuccess from './pages/PaymentSuccess'
 
@@ -89,6 +93,16 @@ function App() {
                       <UserLayout><Dashboard /></UserLayout>
                     </ProtectedRoute>
                   } />
+                  <Route path="/profile/:userId" element={
+                    <ProtectedRoute requiredRole="user">
+                      <UserProfile />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/user/:userId" element={
+                    <ProtectedRoute requiredRole="user">
+                      <UserProfile />
+                    </ProtectedRoute>
+                  } />
                   <Route path="/profile" element={
                     <ProtectedRoute requiredRole="user">
                       <DashboardLayout><Profile /></DashboardLayout>
@@ -101,7 +115,7 @@ function App() {
                   } />
                   <Route path="/purchases" element={
                     <ProtectedRoute requiredRole="user">
-                      <DashboardLayout><UserPurchases /></DashboardLayout>
+                      <UserLayout><UserPurchases /></UserLayout>
                     </ProtectedRoute>
                   } />
                   <Route path="/prebooks" element={
@@ -109,59 +123,34 @@ function App() {
                       <DashboardLayout><MyPrebooks /></DashboardLayout>
                     </ProtectedRoute>
                   } />
-                  <Route path="/user/prebooks" element={
-                    <ProtectedRoute requiredRole="user">
-                      <DashboardLayout><MyPrebooks /></DashboardLayout>
-                    </ProtectedRoute>
-                  } />
-                  <Route path="/user/purchases" element={
-                    <ProtectedRoute requiredRole="user">
-                      <DashboardLayout><UserPurchases /></DashboardLayout>
-                    </ProtectedRoute>
-                  } />
-                  <Route path="/user/favorites" element={
-                    <ProtectedRoute requiredRole="user">
-                      <DashboardLayout><UserFavorites /></DashboardLayout>
-                    </ProtectedRoute>
-                  } />
-                  <Route path="/user/chat" element={
-                    <ProtectedRoute requiredRole="user">
-                      <DashboardLayout><UserChat /></DashboardLayout>
-                    </ProtectedRoute>
-                  } />
-                  <Route path="/user/notifications" element={
-                    <ProtectedRoute requiredRole="user">
-                      <DashboardLayout><UserNotifications /></DashboardLayout>
-                    </ProtectedRoute>
-                  } />
-                  <Route path="/user/dashboard" element={
-                    <ProtectedRoute requiredRole="user">
-                      <UserLayout><Dashboard /></UserLayout>
-                    </ProtectedRoute>
-                  } />
                   <Route path="/favorites" element={
                     <ProtectedRoute requiredRole="user">
-                      <DashboardLayout><UserFavorites /></DashboardLayout>
+                      <UserLayout><UserFavorites /></UserLayout>
                     </ProtectedRoute>
                   } />
                   <Route path="/chat" element={
                     <ProtectedRoute requiredRole="user">
-                      <DashboardLayout><UserChat /></DashboardLayout>
+                      <UserLayout><UserChat /></UserLayout>
                     </ProtectedRoute>
                   } />
                   <Route path="/discover" element={
                     <ProtectedRoute requiredRole="user">
-                      <DashboardLayout><UserDiscovery /></DashboardLayout>
+                      <UserLayout><UserDiscovery /></UserLayout>
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/new-users" element={
+                    <ProtectedRoute requiredRole="user">
+                      <UserLayout><NewUsers /></UserLayout>
                     </ProtectedRoute>
                   } />
                   <Route path="/network" element={
                     <ProtectedRoute requiredRole="user">
-                      <DashboardLayout><UserNetwork /></DashboardLayout>
+                      <UserLayout><UserNetwork /></UserLayout>
                     </ProtectedRoute>
                   } />
                   <Route path="/notifications" element={
                     <ProtectedRoute requiredRole="user">
-                      <DashboardLayout><UserNotifications /></DashboardLayout>
+                      <UserLayout><UserNotifications /></UserLayout>
                     </ProtectedRoute>
                   } />
                   <Route path="/wishlist" element={
@@ -181,7 +170,7 @@ function App() {
                   } />
                   <Route path="/settings" element={
                     <ProtectedRoute requiredRole="user">
-                      <DashboardLayout><Settings /></DashboardLayout>
+                      <UserLayout><Settings /></UserLayout>
                     </ProtectedRoute>
                   } />
                   <Route path="/help" element={

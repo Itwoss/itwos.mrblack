@@ -11,14 +11,20 @@ const messageSchema = new mongoose.Schema({
     ref: 'User',
     required: [true, 'Sender is required']
   },
-  // E2EE fields - only ciphertext is stored
+  // E2EE fields - only ciphertext is stored (optional for plain text messages)
   ciphertext: {
     type: String,
-    required: [true, 'Ciphertext is required for E2EE']
+    required: function() {
+      // Only required if text is not provided (E2EE mode)
+      return !this.text;
+    }
   },
   iv: {
     type: String,
-    required: [true, 'IV is required for AES-GCM encryption']
+    required: function() {
+      // Only required if ciphertext is provided (E2EE mode)
+      return !!this.ciphertext && this.ciphertext !== this.text;
+    }
   },
   // Message metadata (not encrypted)
   messageType: {
@@ -50,6 +56,23 @@ const messageSchema = new mongoose.Schema({
     type: String,
     enum: ['sent', 'delivered', 'read'],
     default: 'sent'
+  },
+  // Read receipts - track who read the message
+  readBy: [{
+    userId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: true
+    },
+    readAt: {
+      type: Date,
+      default: Date.now
+    }
+  }],
+  // Plain text for denormalization (for thread preview)
+  text: {
+    type: String,
+    trim: true
   },
   // For message reactions
   reactions: [{

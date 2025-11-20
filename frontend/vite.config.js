@@ -14,20 +14,14 @@ export default defineConfig({
     }
   },
   build: {
-    // Vercel compatibility
-    target: 'es2015',
-    minify: 'esbuild',
-    sourcemap: false,
-    chunkSizeWarningLimit: 2000,
+    // Memory optimization for builds
+    chunkSizeWarningLimit: 1000,
     rollupOptions: {
       output: {
         manualChunks: {
           vendor: ['react', 'react-dom'],
           antd: ['antd'],
-          router: ['react-router-dom'],
-          charts: ['@ant-design/charts'],
-          icons: ['@ant-design/icons'],
-          utils: ['axios', 'socket.io-client']
+          router: ['react-router-dom']
         }
       }
     }
@@ -40,11 +34,7 @@ export default defineConfig({
       'react-router-dom',
       'antd',
       '@ant-design/icons',
-      'axios',
-      'socket.io-client'
+      'axios'
     ]
-  },
-  define: {
-    'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'production')
   }
 })

@@ -757,9 +757,9 @@ const ProductDetail = () => {
                 <Col>
                   <Space direction="vertical" size="small">
                     <Text strong style={{ fontSize: '24px', color: '#52c41a' }}>
-                      ${product.price} {product.currency || 'USD'}
+                      ${product.prebookAmount || 0} {product.currency || 'USD'}
                     </Text>
-                    <Text type="secondary">Starting price</Text>
+                    <Text type="secondary">Prebook amount</Text>
                   </Space>
                 </Col>
                 <Col>
@@ -848,7 +848,7 @@ const ProductDetail = () => {
             <Row gutter={16} align="middle" justify="space-between">
               <Col>
                 <Text strong style={{ fontSize: '24px', color: '#52c41a' }}>
-                  ${product.price} {product.currency || 'USD'}
+                  ${product.prebookAmount || 0} {product.currency || 'USD'}
                 </Text>
               </Col>
               <Col>
@@ -904,10 +904,10 @@ const ProductDetail = () => {
             <Col flex="auto">
               <Space direction="vertical" size="small">
                 <Text strong style={{ fontSize: '18px', color: '#52c41a' }}>
-                  ${product.price} {product.currency || 'USD'}
+                  ${product.prebookAmount || 0} {product.currency || 'USD'}
                 </Text>
                 <Text type="secondary" style={{ fontSize: '12px' }}>
-                  Starting price
+                  Prebook amount
                 </Text>
               </Space>
             </Col>

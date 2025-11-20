@@ -35,78 +35,106 @@ const ChatModeration = () => {
   const navigate = useNavigate()
 
   const [stats, setStats] = useState({
-    totalMessages: 1247,
-    flaggedMessages: 23,
-    resolvedReports: 18,
-    activeModerators: 3
+    totalMessages: 0,
+    flaggedMessages: 0,
+    resolvedReports: 0,
+    activeModerators: 0
   })
 
   useEffect(() => {
     fetchMessages()
     fetchReports()
+    fetchStats()
   }, [])
+
+  const fetchStats = async () => {
+    try {
+      console.log('🔄 ChatModeration: Loading stats...')
+      
+      const token = localStorage.getItem('accessToken') || localStorage.getItem('token') || localStorage.getItem('adminToken')
+      const response = await fetch('http://localhost:7000/api/admin/dashboard', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        console.log('✅ ChatModeration: Dashboard data received:', data)
+        
+        if (data.success && data.data) {
+          const { chat } = data.data
+          
+          setStats({
+            totalMessages: chat?.totalMessages || 0,
+            flaggedMessages: 23, // This would come from moderation API
+            resolvedReports: 18, // This would come from moderation API
+            activeModerators: 3 // This would come from moderation API
+          })
+          
+          console.log('✅ ChatModeration: Stats updated successfully')
+        } else {
+          console.log('❌ ChatModeration: API returned unsuccessful response, using demo data')
+          setStats({
+            totalMessages: 1247,
+            flaggedMessages: 23,
+            resolvedReports: 18,
+            activeModerators: 3
+          })
+        }
+      } else {
+        console.error('❌ ChatModeration: Failed to fetch stats:', response.status)
+        setStats({
+          totalMessages: 1247,
+          flaggedMessages: 23,
+          resolvedReports: 18,
+          activeModerators: 3
+        })
+      }
+    } catch (error) {
+      console.error('❌ ChatModeration: Error loading stats:', error)
+      setStats({
+        totalMessages: 1247,
+        flaggedMessages: 23,
+        resolvedReports: 18,
+        activeModerators: 3
+      })
+    }
+  }
 
   const fetchMessages = async () => {
     setLoading(true)
     try {
-      // Mock data
-      const mockMessages = [
-        {
-          _id: '1',
-          user: {
-            name: 'John Doe',
-            avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=John',
-            role: 'user'
-          },
-          content: 'Hello everyone! How is everyone doing today?',
-          timestamp: '2024-01-15 10:30:00',
-          status: 'approved',
-          flagged: false,
-          room: 'General Chat'
-        },
-        {
-          _id: '2',
-          user: {
-            name: 'Sarah Smith',
-            avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Sarah',
-            role: 'user'
-          },
-          content: 'This is inappropriate content that should be moderated',
-          timestamp: '2024-01-15 10:25:00',
-          status: 'pending',
-          flagged: true,
-          room: 'General Chat'
-        },
-        {
-          _id: '3',
-          user: {
-            name: 'Mike Johnson',
-            avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Mike',
-            role: 'user'
-          },
-          content: 'Great question! Let me help you with that.',
-          timestamp: '2024-01-15 10:20:00',
-          status: 'approved',
-          flagged: false,
-          room: 'Support'
-        },
-        {
-          _id: '4',
-          user: {
-            name: 'Emily Davis',
-            avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Emily',
-            role: 'user'
-          },
-          content: 'Spam message with promotional content',
-          timestamp: '2024-01-15 10:15:00',
-          status: 'rejected',
-          flagged: true,
-          room: 'General Chat'
+      console.log('🔄 ChatModeration: Loading messages...')
+      
+      const token = localStorage.getItem('accessToken') || localStorage.getItem('token') || localStorage.getItem('adminToken')
+      const response = await fetch('http://localhost:7000/api/messages?limit=100', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
         }
-      ]
-      setMessages(mockMessages)
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        console.log('✅ ChatModeration: Messages data received:', data)
+        
+        if (data.success) {
+          setMessages(data.data?.messages || [])
+          console.log('✅ ChatModeration: Messages loaded successfully')
+        } else {
+          console.log('❌ ChatModeration: API returned unsuccessful response')
+          setMessages([])
+        }
+      } else {
+        console.error('❌ ChatModeration: Failed to fetch messages:', response.status)
+        setMessages([])
+      }
     } catch (error) {
+      console.error('❌ ChatModeration: Error loading messages:', error)
       message.error('Failed to fetch messages')
+      setMessages([])
     } finally {
       setLoading(false)
     }
@@ -114,42 +142,35 @@ const ChatModeration = () => {
 
   const fetchReports = async () => {
     try {
-      // Mock data
-      const mockReports = [
-        {
-          _id: '1',
-          reporter: {
-            name: 'User A',
-            avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=UserA'
-          },
-          reportedUser: {
-            name: 'User B',
-            avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=UserB'
-          },
-          reason: 'Inappropriate language',
-          description: 'User used offensive language in the chat',
-          status: 'pending',
-          timestamp: '2024-01-15 09:30:00'
-        },
-        {
-          _id: '2',
-          reporter: {
-            name: 'User C',
-            avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=UserC'
-          },
-          reportedUser: {
-            name: 'User D',
-            avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=UserD'
-          },
-          reason: 'Spam',
-          description: 'User is sending promotional messages repeatedly',
-          status: 'resolved',
-          timestamp: '2024-01-15 08:45:00'
+      console.log('🔄 ChatModeration: Loading reports...')
+      
+      const token = localStorage.getItem('accessToken') || localStorage.getItem('token') || localStorage.getItem('adminToken')
+      const response = await fetch('http://localhost:7000/api/reports?limit=100', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
         }
-      ]
-      setReports(mockReports)
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        console.log('✅ ChatModeration: Reports data received:', data)
+        
+        if (data.success) {
+          setReports(data.data?.reports || [])
+          console.log('✅ ChatModeration: Reports loaded successfully')
+        } else {
+          console.log('❌ ChatModeration: API returned unsuccessful response')
+          setReports([])
+        }
+      } else {
+        console.error('❌ ChatModeration: Failed to fetch reports:', response.status)
+        setReports([])
+      }
     } catch (error) {
+      console.error('❌ ChatModeration: Error loading reports:', error)
       message.error('Failed to fetch reports')
+      setReports([])
     }
   }
 

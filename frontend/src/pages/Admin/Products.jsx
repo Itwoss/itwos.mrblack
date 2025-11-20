@@ -136,31 +136,55 @@ const ProductsEnhanced = () => {
     
     setLoading(true)
     try {
-      // Check authentication status
-      const token = localStorage.getItem('accessToken') || localStorage.getItem('token')
+      // Check authentication status - prioritize admin token
+      const adminToken = localStorage.getItem('adminToken') || localStorage.getItem('accessToken') || localStorage.getItem('token')
       const adminUser = localStorage.getItem('adminUser')
       
       console.log('Fetching admin products...', {
         isAuthenticated,
         userRole: user?.role,
-        hasToken: !!token,
+        hasToken: !!adminToken,
         hasAdminUser: !!adminUser,
-        tokenLength: token?.length || 0,
+        tokenLength: adminToken?.length || 0,
         pagination: pagination.current,
         pageSize: pagination.pageSize
       })
 
-      // If not authenticated as admin, try to use admin user data
+      // Verify admin authentication before making request
+      if (!adminToken) {
+        console.error('No admin token found - redirecting to login')
+        message.error('Authentication required. Please log in as admin.')
+        navigate('/admin/login')
+        setLoading(false)
+        return
+      }
+
+      // Check if user is admin
       if (!isAuthenticated || user?.role !== 'admin') {
+        // Try to use stored admin user data
         if (adminUser) {
-          console.log('Using stored admin user data:', JSON.parse(adminUser))
-          // Set admin user in context if available
+          try {
           const adminData = JSON.parse(adminUser)
           if (adminData.role === 'admin') {
             console.log('Found admin user in localStorage, proceeding with admin API call')
+            } else {
+              console.warn('Stored user is not admin, redirecting to login')
+              navigate('/admin/login')
+              setLoading(false)
+              return
+            }
+          } catch (e) {
+            console.error('Error parsing admin user:', e)
+            navigate('/admin/login')
+            setLoading(false)
+            return
           }
         } else {
-          console.log('No admin authentication found, will use fallback')
+          console.warn('No admin authentication found - redirecting to login')
+          message.error('Admin authentication required.')
+          navigate('/admin/login')
+          setLoading(false)
+          return
         }
       }
 
@@ -179,47 +203,49 @@ const ProductsEnhanced = () => {
       
       if (response.data.success) {
         console.log('✅ Admin products API call successful!')
-        setProducts(response.data.products || [])
+        // Backend returns: { success: true, data: { products: [], pagination: {} } }
+        const productsList = response.data.data?.products || []
+        const paginationData = response.data.data?.pagination || {}
+        
+        if (!productsList || productsList.length === 0) {
+          console.warn('No products returned from API')
+        }
+        
+        setProducts(productsList)
         setPagination(prev => ({
           ...prev,
-          total: response.data.pagination?.total || 0
+          total: paginationData.total || productsList.length
         }))
         
-        // Calculate statistics
-        const products = response.data.products || []
-        const published = products.filter(p => p.status === 'published').length
-        const draft = products.filter(p => p.status === 'draft').length
-        const trending = products.filter(p => p.trending).length
-        const previewSaved = products.filter(p => p.previewSaved).length
-        const revenue = products.reduce((sum, p) => sum + (p.price || 0), 0)
+        // Calculate statistics from all products (not just current page)
+        // Note: These stats are for current page only, consider fetching total stats separately
+        const published = productsList.filter(p => p.status === 'published').length
+        const draft = productsList.filter(p => p.status === 'draft').length
+        const trending = productsList.filter(p => p.trending).length
+        const previewSaved = productsList.filter(p => p.previewSaved).length
+        const revenue = productsList.reduce((sum, p) => sum + (p.price || 0), 0)
         
         setStats({
-          totalProducts: products.length,
+          totalProducts: paginationData.total || productsList.length,
           publishedProducts: published,
           draftProducts: draft,
           trendingProducts: trending,
           previewSavedProducts: previewSaved,
           totalRevenue: revenue
         })
-        console.log('Products fetched successfully:', response.data.products?.length || 0)
+        console.log('Products fetched successfully:', productsList.length, 'items')
       } else {
-        console.log('Admin products API returned unsuccessful response')
-        // Try fallback to public products API
-        try {
-          const fallbackResponse = await productAPI.getProducts({ limit: 10 })
-          if (fallbackResponse.data.success) {
-            // Public products API has nested data structure
-            const products = fallbackResponse.data.data?.products || []
-            setProducts(products)
-            setStats(prev => ({
-              ...prev,
-              totalProducts: fallbackResponse.data.data?.pagination?.total || products.length
-            }))
-            console.log('Fallback to public products successful')
-          }
-        } catch (fallbackError) {
-          console.error('Fallback to public products also failed:', fallbackError)
-        }
+        console.error('Admin products API returned unsuccessful response:', response.data)
+        message.error(response.data.message || 'Failed to fetch products. Please try again.')
+        setProducts([])
+        setStats({
+          totalProducts: 0,
+          publishedProducts: 0,
+          draftProducts: 0,
+          trendingProducts: 0,
+          previewSavedProducts: 0,
+          totalRevenue: 0
+        })
       }
     } catch (error) {
       console.error('Error fetching products:', error)
@@ -227,68 +253,38 @@ const ProductsEnhanced = () => {
       console.error('Error status:', error.response?.status)
       console.error('Error message:', error.message)
       
-      // Try fallback to public products if admin products fail
-      try {
-        console.log('Attempting fallback to public products...')
-        const fallbackResponse = await productAPI.getProducts({ limit: 20 })
-        if (fallbackResponse.data.success) {
-          // Public products API has nested data structure
-          const products = fallbackResponse.data.data?.products || []
-          setProducts(products)
-          setStats(prev => ({
-            ...prev,
-            totalProducts: fallbackResponse.data.data?.pagination?.total || products.length
-          }))
-          console.log('Fallback to public products successful')
-          message.warning('Using public products as fallback. Admin authentication may be required.')
-        }
-      } catch (fallbackError) {
-        console.error('Fallback to public products also failed:', fallbackError)
-        message.error('Failed to load products. Please check your connection and try again.')
-      }
-      
       // Handle specific error cases
       if (error.response?.status === 401) {
-        console.log('Authentication failed - redirecting to login')
-        message.error('Authentication failed. Please log in again.')
-        // Clear auth data
+        console.error('Authentication failed (401) - clearing tokens and redirecting')
         localStorage.removeItem('accessToken')
         localStorage.removeItem('token')
+        localStorage.removeItem('adminToken')
         localStorage.removeItem('user')
         localStorage.removeItem('adminUser')
-        localStorage.removeItem('adminToken')
-        // Redirect to login
+        message.error('Authentication failed. Please log in again.')
         navigate('/admin/login')
       } else if (error.response?.status === 403) {
-        console.log('Access denied - not admin')
+        console.error('Access denied (403) - Admin privileges required')
         message.error('Access denied. Admin privileges required.')
+        navigate('/admin/login')
       } else if (error.response?.status === 500) {
-        console.log('Server error - 500')
-        console.log('500 Error details:', error.response?.data)
-        message.error('Server error. Trying to load products from public API...')
-        
-        // Try immediate fallback to public products
-        try {
-          const fallbackResponse = await productAPI.getProducts({ limit: 20 })
-          if (fallbackResponse.data.success) {
-            setProducts(fallbackResponse.data.data.products || [])
-            setStats(prev => ({
-              ...prev,
-              totalProducts: fallbackResponse.data.data.pagination?.total || 0
-            }))
-            console.log('Immediate fallback to public products successful')
-            message.warning('Using public products due to server error.')
-          }
-        } catch (fallbackError) {
-          console.error('Immediate fallback also failed:', fallbackError)
-          message.error('Server error. Please try again later.')
-        }
-      } else if (error.code === 'NETWORK_ERROR' || !error.response) {
-        console.log('Network error - no response')
-        message.error('Network error. Please check your connection and try again.')
+        console.error('Server error (500):', error.response?.data)
+        message.error('Server error. Please try again later or contact support.')
+      } else if (error.code === 'ERR_NETWORK' || error.code === 'NETWORK_ERROR' || !error.response) {
+        console.error('Network error:', {
+          code: error.code,
+          message: error.message,
+          url: error.config?.url,
+          baseURL: error.config?.baseURL
+        })
+        message.error('Network error. Please check your connection and ensure the backend server is running at http://localhost:7000')
       } else {
-        console.log('Unknown error:', error.message)
-        message.warning('Unable to fetch products. Please check your connection.')
+        console.error('Unknown error:', {
+          status: error.response?.status,
+          data: error.response?.data,
+          message: error.message
+        })
+        message.error(`Unable to fetch products: ${error.response?.data?.message || error.message || 'Unknown error'}`)
       }
       
       setProducts([])

@@ -5,6 +5,7 @@ import toast from 'react-hot-toast'
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || 'http://localhost:7000/api',
   timeout: 10000,
+  withCredentials: true, // Important for CORS with credentials
   headers: {
     'Content-Type': 'application/json',
   },
@@ -14,6 +15,7 @@ const api = axios.create({
 const publicApi = axios.create({
   baseURL: import.meta.env.VITE_API_URL || 'http://localhost:7000/api',
   timeout: 10000,
+  withCredentials: true, // Important for CORS
   headers: {
     'Content-Type': 'application/json',
   },
@@ -22,10 +24,21 @@ const publicApi = axios.create({
 // Request interceptor to add auth token
 api.interceptors.request.use(
   (config) => {
-    // Check for both token formats for compatibility
-    const token = localStorage.getItem('token') || localStorage.getItem('accessToken') || localStorage.getItem('adminToken')
+    // Prioritize admin token for admin routes, then accessToken, then token
+    let token = null
+    if (config.url?.includes('/admin/')) {
+      // For admin routes, prioritize adminToken
+      token = localStorage.getItem('adminToken') || localStorage.getItem('accessToken') || localStorage.getItem('token')
+    } else {
+      // For regular routes, use standard token
+      token = localStorage.getItem('accessToken') || localStorage.getItem('token') || localStorage.getItem('adminToken')
+    }
+    
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
+      console.log(`🔑 API Request: ${config.method?.toUpperCase()} ${config.url} - Token: ${token.substring(0, 20)}...`)
+    } else {
+      console.warn(`⚠️ API Request: ${config.method?.toUpperCase()} ${config.url} - No token found`)
     }
     
     // For FormData uploads, remove the default Content-Type to let axios set it automatically
@@ -189,6 +202,21 @@ export const chatAPI = {
   getUnreadCount: () => api.get('/chat/unread-count'),
 }
 
+// Thread API (new thread-based messaging system)
+export const threadsAPI = {
+  createThread: (memberIds) => api.post('/threads', { memberIds }),
+  getThreads: (params) => api.get('/threads', { params }),
+  getMessages: (threadId, params) => api.get(`/threads/${threadId}/messages`, { params }),
+  sendMessage: (threadId, messageData) => api.post(`/threads/${threadId}/messages`, messageData),
+  sendThreadMessage: (threadId, messageData) => api.post(`/threads/${threadId}/messages`, messageData),
+}
+
+// Users List API (for finding users to chat with)
+export const usersListAPI = {
+  getUsers: (params) => api.get('/users-list', { params }),
+  getNewUsers: (params) => api.get('/users-list', { params: { ...params, onlyNew: true } }),
+}
+
 // Follow API
 export const followAPI = {
   sendFollowRequest: (userId) => api.post(`/follow/request/${userId}`),
@@ -206,9 +234,10 @@ export const notificationsAPI = {
   getNotifications: (params) => api.get('/notifications', { params }),
   getUnreadCount: () => api.get('/notifications/unread-count'),
   markAsRead: (notificationId) => api.put(`/notifications/${notificationId}/read`),
-  markAllAsRead: () => api.put('/notifications/mark-all-read'),
+  markAllAsRead: () => api.put('/notifications/read-all'),
   deleteNotification: (notificationId) => api.delete(`/notifications/${notificationId}`),
   clearAll: () => api.delete('/notifications/clear-all'),
+  createTest: (data) => api.post('/notifications/test', data), // Create test notification
 }
 
 // Prebook API

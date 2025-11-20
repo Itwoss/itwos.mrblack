@@ -4,6 +4,8 @@ const { body, param, query, validationResult } = require('express-validator');
 const handleValidationErrors = (req, res, next) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
+    console.error('❌ Validation errors:', errors.array());
+    console.error('❌ Request body:', req.body);
     return res.status(400).json({
       success: false,
       message: 'Validation failed',
@@ -69,22 +71,39 @@ const validatePasswordReset = [
 // User profile update validation
 const validateUserProfileUpdate = [
   body('name')
-    .optional()
+    .optional({ checkFalsy: true })
     .trim()
-    .isLength({ min: 2, max: 100 })
+    .custom((value) => {
+      // Allow empty/undefined/null
+      if (!value || value.trim() === '') return true;
+      // If provided, must be 2-100 characters
+      return value.length >= 2 && value.length <= 100;
+    })
     .withMessage('Name must be between 2 and 100 characters'),
   body('phone')
-    .optional()
-    .matches(/^[\+]?[1-9][\d]{0,15}$/)
+    .optional({ checkFalsy: true })
+    .custom((value) => {
+      // Allow empty/undefined/null
+      if (!value || value.trim() === '') return true;
+      // If provided, must match phone format
+      return /^[\+]?[1-9][\d]{0,15}$/.test(value.trim());
+    })
     .withMessage('Please provide a valid phone number'),
   body('bio')
-    .optional()
-    .isLength({ max: 500 })
+    .optional({ checkFalsy: true })
+    .custom((value) => {
+      // Allow empty/undefined/null
+      if (!value) return true;
+      // If provided, must not exceed 500 characters
+      return value.length <= 500;
+    })
     .withMessage('Bio cannot exceed 500 characters'),
   body('avatarUrl')
-    .optional()
+    .optional({ checkFalsy: true })
     .custom((value) => {
-      if (!value) return true; // Allow empty values
+      // Allow empty/undefined/null
+      if (!value || value === '') return true;
+      
       // Check if it's a valid URL (including localhost) or a relative path
       try {
         const url = new URL(value);
@@ -323,8 +342,8 @@ const validatePagination = [
     .withMessage('Limit must be between 1 and 100'),
   query('sort')
     .optional()
-    .isIn(['createdAt', '-createdAt', 'price', '-price', 'title', '-title'])
-    .withMessage('Sort must be a valid field with optional - prefix'),
+    .isIn(['createdAt', '-createdAt', 'price', '-price', 'title', '-title', 'new', 'old'])
+    .withMessage('Sort must be a valid field with optional - prefix, or "new" or "old"'),
   handleValidationErrors
 ];
 

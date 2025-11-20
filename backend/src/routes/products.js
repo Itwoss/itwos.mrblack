@@ -57,63 +57,22 @@ router.get('/', async (req, res) => {
   try {
     console.log('Products API called with query:', req.query)
     
-    // Check if MongoDB is connected and has data
+    // Check if MongoDB is connected
     const mongoose = require('mongoose')
     const isMongoConnected = mongoose.connection.readyState === 1
     
-    // Use mock data if MongoDB is not connected
+    // Only show real products from database, no mock data
     if (!isMongoConnected) {
-      console.log('⚠️  MongoDB not connected, returning mock products')
-      
-      // Get products from shared mock data store
-      const mockProducts = getPublishedProducts()
-      
-      const { 
-        page = 1, 
-        limit = 12, 
-        trending, 
-        category, 
-        tag, 
-        search
-      } = req.query
-      
-      let filteredProducts = mockProducts.filter(p => p.status === 'published')
-      
-      // Apply filters
-      if (trending === 'true') {
-        filteredProducts = filteredProducts.filter(p => p.trending)
-      }
-      if (category) {
-        filteredProducts = filteredProducts.filter(p => p.categories.includes(category))
-      }
-      if (tag) {
-        filteredProducts = filteredProducts.filter(p => p.tags.includes(tag))
-      }
-      if (search) {
-        const searchTerm = search.toLowerCase()
-        filteredProducts = filteredProducts.filter(p => 
-          p.title.toLowerCase().includes(searchTerm) ||
-          p.descriptionAuto.toLowerCase().includes(searchTerm) ||
-          p.tags.some(tag => tag.toLowerCase().includes(searchTerm))
-        )
-      }
-      
-      // Pagination
-      const pageNum = Math.max(1, parseInt(page) || 1)
-      const limitNum = Math.min(100, Math.max(1, parseInt(limit) || 12))
-      const skip = (pageNum - 1) * limitNum
-      
-      const paginatedProducts = filteredProducts.slice(skip, skip + limitNum)
-      const total = filteredProducts.length
+      console.log('⚠️  MongoDB not connected, returning empty products list')
       
       return res.json({
         success: true,
         data: {
-          products: paginatedProducts,
+          products: [],
           pagination: {
-            current: pageNum,
-            pages: Math.ceil(total / limitNum),
-            total: total
+            current: 1,
+            pages: 0,
+            total: 0
           }
         }
       })
@@ -195,8 +154,14 @@ router.get('/trending', async (req, res) => {
   try {
     const { limit = 6 } = req.query
 
-    // Use shared mock data store for trending products
-    const products = getTrendingProducts().slice(0, parseInt(limit))
+    // Only show real trending products from database
+    const products = await Product.find({ 
+      status: 'published', 
+      trending: true 
+    })
+    .sort({ createdAt: -1 })
+    .limit(parseInt(limit))
+    .populate('reviews.userId', 'name email')
 
     res.json({
       success: true,

@@ -1,0 +1,171 @@
+/**
+ * Global Typography System
+ * iOS-Inspired San Francisco-like typography
+ */
+
+/* ============================================
+   HEADINGS
+   ============================================ */
+h1, .h1 {
+  font-size: var(--type-h1);
+  font-weight: var(--weight-bold);
+  line-height: var(--line-tight);
+  color: var(--text-primary);
+  margin: 0 0 var(--space-md) 0;
+}
+
+h2, .h2 {
+  font-size: var(--type-h2);
+  font-weight: var(--weight-semibold);
+  line-height: var(--line-tight);
+  color: var(--text-primary);
+  margin: 0 0 var(--space-md) 0;
+}
+
+h3, .h3 {
+  font-size: var(--type-h3);
+  font-weight: var(--weight-semibold);
+  line-height: var(--line-normal);
+  color: var(--text-primary);
+  margin: 0 0 var(--space-sm) 0;
+}
+
+h4, .h4 {
+  font-size: var(--type-body);
+  font-weight: var(--weight-semibold);
+  line-height: var(--line-normal);
+  color: var(--text-primary);
+  margin: 0 0 var(--space-sm) 0;
+}
+
+h5, .h5 {
+  font-size: var(--type-small);
+  font-weight: var(--weight-semibold);
+  line-height: var(--line-normal);
+  color: var(--text-primary);
+  margin: 0 0 var(--space-xs) 0;
+}
+
+h6, .h6 {
+  font-size: var(--type-small);
+  font-weight: var(--weight-medium);
+  line-height: var(--line-normal);
+  color: var(--text-secondary);
+  margin: 0 0 var(--space-xs) 0;
+}
+
+/* ============================================
+   BODY TEXT
+   ============================================ */
+p, .text-body {
+  font-size: var(--type-body);
+  line-height: var(--line-relaxed);
+  color: var(--text-primary);
+  margin: 0 0 var(--space-md) 0;
+}
+
+.text-small {
+  font-size: var(--type-small);
+  line-height: var(--line-normal);
+  color: var(--text-secondary);
+}
+
+.text-caption {
+  font-size: var(--type-caption);
+  line-height: var(--line-normal);
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* ============================================
+   TEXT UTILITIES
+   ============================================ */
+.text-primary { color: var(--text-primary); }
+.text-secondary { color: var(--text-secondary); }
+.text-tertiary { color: var(--text-tertiary); }
+.text-disabled { color: var(--text-disabled); }
+.text-success { color: var(--success); }
+.text-warning { color: var(--warning); }
+.text-danger { color: var(--danger); }
+.text-accent { color: var(--accent-primary); }
+
+.text-bold { font-weight: var(--weight-bold); }
+.text-semibold { font-weight: var(--weight-semibold); }
+.text-medium { font-weight: var(--weight-medium); }
+.text-regular { font-weight: var(--weight-regular); }
+
+.text-center { text-align: center; }
+.text-left { text-align: left; }
+.text-right { text-align: right; }
+
+.text-uppercase { text-transform: uppercase; }
+.text-lowercase { text-transform: lowercase; }
+.text-capitalize { text-transform: capitalize; }
+
+/* ============================================
+   RESPONSIVE TYPOGRAPHY
+   ============================================ */
+@media (max-width: 767px) {
+  h1, .h1 {
+    font-size: var(--type-h1);
+  }
+
+  h2, .h2 {
+    font-size: var(--type-h2);
+  }
+
+  h3, .h3 {
+    font-size: var(--type-h3);
+  }
+
+  p, .text-body {
+    font-size: var(--type-body);
+  }
+}
+
+/* ============================================
+   ANT DESIGN OVERRIDES
+   ============================================ */
+.ant-typography {
+  font-family: var(--font-family-base) !important;
+}
+
+.ant-typography h1 {
+  font-size: var(--type-h1) !important;
+  font-weight: var(--weight-bold) !important;
+  line-height: var(--line-tight) !important;
+  color: var(--text-primary) !important;
+}
+
+.ant-typography h2 {
+  font-size: var(--type-h2) !important;
+  font-weight: var(--weight-semibold) !important;
+  line-height: var(--line-tight) !important;
+  color: var(--text-primary) !important;
+}
+
+.ant-typography h3 {
+  font-size: var(--type-h3) !important;
+  font-weight: var(--weight-semibold) !important;
+  line-height: var(--line-normal) !important;
+  color: var(--text-primary) !important;
+}
+
+.ant-card-head-title {
+  font-size: var(--type-h3) !important;
+  font-weight: var(--weight-semibold) !important;
+  color: var(--text-primary) !important;
+}
+
+.ant-statistic-title {
+  font-size: var(--type-small) !important;
+  color: var(--text-secondary) !important;
+}
+
+.ant-statistic-content {
+  font-size: var(--type-h1) !important;
+  font-weight: var(--weight-bold) !important;
+  color: var(--text-primary) !important;
+}
+

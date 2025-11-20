@@ -2,6 +2,7 @@ const express = require('express');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const { authenticateToken, requireUser } = require('../middleware/auth');
 const router = express.Router();
 
 // Configure multer for avatar uploads
@@ -34,10 +35,18 @@ const upload = multer({
   }
 });
 
-// Avatar upload endpoint
-router.post('/avatar', upload.single('avatar'), (req, res) => {
+// Avatar upload endpoint - requires authentication
+router.post('/avatar', authenticateToken, requireUser, upload.single('avatar'), (req, res) => {
   try {
+    console.log('📤 Avatar upload request received:', {
+      userId: req.user?._id,
+      hasFile: !!req.file,
+      fileName: req.file?.originalname,
+      fileSize: req.file?.size
+    });
+
     if (!req.file) {
+      console.error('❌ No file uploaded');
       return res.status(400).json({
         success: false,
         message: 'No file uploaded'
@@ -46,6 +55,12 @@ router.post('/avatar', upload.single('avatar'), (req, res) => {
 
     const avatarUrl = `/uploads/avatars/${req.file.filename}`;
     
+    console.log('✅ Avatar uploaded successfully:', {
+      filename: req.file.filename,
+      url: avatarUrl,
+      userId: req.user?._id
+    });
+    
     res.json({
       success: true,
       message: 'Avatar uploaded successfully',
@@ -53,12 +68,40 @@ router.post('/avatar', upload.single('avatar'), (req, res) => {
       filename: req.file.filename
     });
   } catch (error) {
-    console.error('Avatar upload error:', error);
+    console.error('❌ Avatar upload error:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to upload avatar'
+      message: 'Failed to upload avatar',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
     });
   }
+});
+
+// Error handling middleware for multer errors
+router.use((error, req, res, next) => {
+  if (error instanceof multer.MulterError) {
+    console.error('❌ Multer error:', error);
+    if (error.code === 'LIMIT_FILE_SIZE') {
+      return res.status(400).json({
+        success: false,
+        message: 'File too large. Maximum size is 5MB.'
+      });
+    }
+    return res.status(400).json({
+      success: false,
+      message: error.message || 'File upload error'
+    });
+  }
+  
+  if (error) {
+    console.error('❌ Upload route error:', error);
+    return res.status(400).json({
+      success: false,
+      message: error.message || 'File upload failed'
+    });
+  }
+  
+  next();
 });
 
 module.exports = router;

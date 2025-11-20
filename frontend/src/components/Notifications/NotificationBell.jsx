@@ -16,14 +16,35 @@ const NotificationBell = () => {
 
   // Fetch notifications
   const fetchNotifications = async () => {
-    if (!isAuthenticated) return
+    if (!isAuthenticated) {
+      setLoading(false)
+      setNotifications([])
+      setUnreadCount(0)
+      return
+    }
 
     setLoading(true)
     setError(null)
     
+    // Add timeout to prevent infinite loading
+    let timeoutId
+    const timeoutPromise = new Promise((_, reject) => {
+      timeoutId = setTimeout(() => {
+        reject(new Error('Request timeout'))
+      }, 15000) // 15 second timeout
+    })
+    
     try {
       console.log('🔔 Fetching notifications...')
-      const response = await notificationsAPI.getNotifications({ limit: 10 })
+      
+      // Race between API call and timeout
+      const response = await Promise.race([
+        notificationsAPI.getNotifications({ limit: 10 }),
+        timeoutPromise
+      ])
+      
+      clearTimeout(timeoutId) // Clear timeout on success
+      
       console.log('🔔 Notifications response:', response.data)
       if (response.data.success) {
         const notificationsData = response.data.data?.notifications || []
@@ -38,19 +59,27 @@ const NotificationBell = () => {
         setUnreadCount(typeof unreadCountData === 'number' ? unreadCountData : 0)
         console.log('🔔 Notifications loaded:', validNotifications.length)
       } else {
-        console.log('🔔 API returned error:', data.message)
+        console.log('🔔 API returned unsuccessful response:', response.data)
         setNotifications([])
         setUnreadCount(0)
-        setError('Failed to load notifications')
+        setError(null) // Don't show error for empty/unsuccessful responses
       }
     } catch (error) {
+      clearTimeout(timeoutId) // Clear timeout on error
       console.error('Error fetching notifications:', error)
       console.error('Error details:', error.response?.data)
       
       setNotifications([])
       setUnreadCount(0)
-      setError('Failed to load notifications. Please try again.')
+      
+      // Don't show error for 404, network errors, or timeout - just show empty state
+      if (error.response?.status === 404 || error.code === 'ERR_NETWORK' || error.message === 'Request timeout') {
+        setError(null)
+      } else {
+        setError('Failed to load notifications. Please try again.')
+      }
     } finally {
+      // Always clear loading state
       setLoading(false)
     }
   }
@@ -135,6 +164,12 @@ const NotificationBell = () => {
         return '🎉'
       case 'prebook_rejected':
         return '❌'
+      case 'follow_request':
+        return '👤➕'
+      case 'follow':
+        return '👤'
+      case 'follow_accepted':
+        return '✅'
       default:
         return '🔔'
     }

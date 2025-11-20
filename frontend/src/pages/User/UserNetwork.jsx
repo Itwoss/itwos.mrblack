@@ -22,9 +22,12 @@ import {
   UserDeleteOutlined,
   MessageOutlined,
   SearchOutlined,
-  EnvironmentOutlined
+  EnvironmentOutlined,
+  EyeOutlined,
+  GlobalOutlined
 } from '@ant-design/icons'
 import { useAuth } from "../../contexts/AuthContextOptimized"
+import { useNavigate } from 'react-router-dom'
 import api from '../../services/api'
 
 const { Title, Paragraph, Text } = Typography
@@ -32,6 +35,7 @@ const { Title, Paragraph, Text } = Typography
 
 const UserNetwork = () => {
   const { user: currentUser } = useAuth()
+  const navigate = useNavigate()
   const [loading, setLoading] = useState(false)
   const [followers, setFollowers] = useState([])
   const [following, setFollowing] = useState([])
@@ -108,7 +112,24 @@ const UserNetwork = () => {
   )
 
   const UserCard = ({ user, showUnfollow = false }) => (
-    <Card size="small" style={{ height: '100%' }}>
+    <Card 
+      size="small" 
+      style={{ height: '100%', cursor: 'pointer' }}
+      hoverable
+      onClick={() => navigate(`/profile/${user._id}`)}
+      actions={[
+        <Button 
+          type="link" 
+          icon={<EyeOutlined />}
+          onClick={(e) => {
+            e.stopPropagation()
+            navigate(`/profile/${user._id}`)
+          }}
+        >
+          View Profile
+        </Button>
+      ]}
+    >
       <div style={{ textAlign: 'center' }}>
         <div style={{ position: 'relative' }}>
           <Avatar 
@@ -129,12 +150,27 @@ const UserNetwork = () => {
             />
           )}
         </div>
-        <Title level={5} style={{ marginTop: '12px', marginBottom: '4px' }}>
+        <Title level={5} style={{ marginTop: '12px', marginBottom: '4px', cursor: 'pointer' }}>
           {user.name}
         </Title>
         <Text type="secondary" style={{ fontSize: '12px' }}>
           {user.email}
         </Text>
+        {user.website && (
+          <div style={{ marginTop: '4px' }}>
+            <GlobalOutlined style={{ fontSize: '12px', color: '#1890ff', marginRight: '4px' }} />
+            <Text 
+              type="secondary" 
+              style={{ fontSize: '12px', color: '#1890ff', cursor: 'pointer' }}
+              onClick={(e) => {
+                e.stopPropagation()
+                window.open(user.website.startsWith('http') ? user.website : `https://${user.website}`, '_blank')
+              }}
+            >
+              {user.website}
+            </Text>
+          </div>
+        )}
         {user.location && (
           <div style={{ marginTop: '4px' }}>
             <EnvironmentOutlined style={{ fontSize: '12px', color: '#666' }} />
@@ -159,7 +195,10 @@ const UserNetwork = () => {
         <Space direction="vertical" style={{ width: '100%' }}>
           <Button 
             icon={<MessageOutlined />}
-            onClick={() => handleStartChat(user._id)}
+            onClick={(e) => {
+              e.stopPropagation()
+              handleStartChat(user._id)
+            }}
             style={{ width: '100%' }}
           >
             Message
@@ -168,7 +207,10 @@ const UserNetwork = () => {
             <Button 
               danger
               icon={<UserDeleteOutlined />}
-              onClick={() => handleUnfollow(user._id)}
+              onClick={(e) => {
+                e.stopPropagation()
+                handleUnfollow(user._id)
+              }}
               style={{ width: '100%' }}
             >
               Unfollow

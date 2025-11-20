@@ -455,19 +455,77 @@ router.post('/generate-description', authenticateToken, requireAdmin, async (req
       })
     }
 
-    // Fetch website content
-    const response = await axios.get(websiteUrl, {
-      timeout: 15000,
+    // Fetch website content with improved headers to avoid blocking
+    let urlObj
+    let referer = websiteUrl
+    
+    try {
+      urlObj = new URL(websiteUrl)
+      referer = `${urlObj.protocol}//${urlObj.hostname}/`
+    } catch (urlError) {
+      // If URL parsing fails, use the original URL as referer
+      console.warn('URL parsing warning:', urlError.message)
+      referer = websiteUrl.split('/').slice(0, 3).join('/') + '/'
+    }
+    
+    // Use a more recent and realistic User-Agent
+    const userAgents = [
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+    ]
+    const randomUserAgent = userAgents[Math.floor(Math.random() * userAgents.length)]
+    
+    let response
+    try {
+      response = await axios.get(websiteUrl, {
+        timeout: 20000,
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-        'Accept-Language': 'en-US,en;q=0.5',
-        'Accept-Encoding': 'gzip, deflate',
+          'User-Agent': randomUserAgent,
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+          'Accept-Language': 'en-US,en;q=0.9',
+          'Accept-Encoding': 'gzip, deflate, br',
         'Connection': 'keep-alive',
-        'Upgrade-Insecure-Requests': '1'
+          'Upgrade-Insecure-Requests': '1',
+          'Sec-Fetch-Dest': 'document',
+          'Sec-Fetch-Mode': 'navigate',
+          'Sec-Fetch-Site': 'none',
+          'Sec-Fetch-User': '?1',
+          'Cache-Control': 'max-age=0',
+          'Referer': referer,
+          'DNT': '1'
       },
-      maxRedirects: 5
-    })
+        maxRedirects: 10,
+        validateStatus: function (status) {
+          return status >= 200 && status < 400 // Accept 2xx and 3xx status codes
+        }
+      })
+    } catch (firstError) {
+      // If first attempt fails with 403, try with simpler headers
+      if (firstError.response?.status === 403 || firstError.code === 'ECONNREFUSED') {
+        console.log('First attempt failed, trying with simpler headers...')
+        try {
+          response = await axios.get(websiteUrl, {
+            timeout: 20000,
+            headers: {
+              'User-Agent': randomUserAgent,
+              'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+              'Accept-Language': 'en-US,en;q=0.9'
+            },
+            maxRedirects: 10
+          })
+        } catch (secondError) {
+          throw secondError // Re-throw if second attempt also fails
+        }
+      } else {
+        throw firstError // Re-throw if it's not a 403 error
+      }
+    }
+
+    // Check if response data exists
+    if (!response || !response.data) {
+      throw new Error('No data received from website')
+    }
 
     const $ = cheerio.load(response.data)
     
@@ -516,29 +574,56 @@ router.post('/generate-description', authenticateToken, requireAdmin, async (req
     })
   } catch (error) {
     console.error('Error generating description:', error)
+    console.error('Error details:', {
+      code: error.code,
+      status: error.response?.status,
+      statusText: error.response?.statusText,
+      message: error.message,
+      url: websiteUrl
+    })
     
     let errorMessage = 'Failed to generate description'
+    let statusCode = 500
     
     if (error.code === 'ENOTFOUND') {
-      errorMessage = 'Website not found. Please check the URL.'
+      errorMessage = 'Website not found. Please check the URL and ensure it\'s accessible.'
+      statusCode = 404
     } else if (error.code === 'ECONNREFUSED') {
-      errorMessage = 'Connection refused. The website may be down.'
-    } else if (error.code === 'ETIMEDOUT') {
-      errorMessage = 'Request timeout. The website took too long to respond.'
+      errorMessage = 'Connection refused. The website may be down or blocking server requests.'
+      statusCode = 503
+    } else if (error.code === 'ETIMEDOUT' || error.code === 'ECONNABORTED') {
+      errorMessage = 'Request timeout. The website took too long to respond. Please try again.'
+      statusCode = 504
     } else if (error.response?.status === 403) {
-      errorMessage = 'Access forbidden. The website blocked our request.'
+      errorMessage = 'Access forbidden. The website has blocked automated requests. This website may require manual description entry or use bot protection (e.g., Cloudflare).'
+      statusCode = 403
+    } else if (error.response?.status === 401) {
+      errorMessage = 'Unauthorized. The website requires authentication to access.'
+      statusCode = 401
     } else if (error.response?.status === 404) {
-      errorMessage = 'Website not found (404). Please check the URL.'
+      errorMessage = 'Website not found (404). Please check the URL is correct.'
+      statusCode = 404
+    } else if (error.response?.status === 429) {
+      errorMessage = 'Too many requests. Please wait a moment and try again.'
+      statusCode = 429
     } else if (error.response?.status >= 500) {
-      errorMessage = 'Website server error. Please try again later.'
-    } else if (error.message.includes('Invalid URL')) {
-      errorMessage = 'Invalid URL format. Please enter a valid website URL.'
+      errorMessage = 'Website server error. The website may be experiencing issues. Please try again later.'
+      statusCode = 502
+    } else if (error.message.includes('Invalid URL') || error.message.includes('Invalid URI')) {
+      errorMessage = 'Invalid URL format. Please enter a valid website URL (e.g., https://example.com).'
+      statusCode = 400
+    } else if (error.message.includes('CORS')) {
+      errorMessage = 'CORS error. The website blocks cross-origin requests. Please enter the description manually.'
+      statusCode = 403
     }
     
-    res.status(500).json({
+    res.status(statusCode).json({
       success: false,
       message: errorMessage,
-      error: error.message
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined,
+      suggestion: error.response?.status === 403 
+        ? 'Some websites block automated scraping. You can manually enter the product description instead.'
+        : undefined
     })
   }
 })

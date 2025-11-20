@@ -2,6 +2,16 @@ const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 
 const userSchema = new mongoose.Schema({
+  username: {
+    type: String,
+    unique: true,
+    sparse: true,
+    trim: true,
+    lowercase: true,
+    match: [/^[a-z0-9_]+$/, 'Username can only contain lowercase letters, numbers, and underscores'],
+    minlength: [3, 'Username must be at least 3 characters'],
+    maxlength: [30, 'Username cannot exceed 30 characters']
+  },
   name: {
     type: String,
     required: [true, 'Name is required'],
@@ -39,6 +49,20 @@ const userSchema = new mongoose.Schema({
   isActive: {
     type: Boolean,
     default: true
+  },
+  isPrivate: {
+    type: Boolean,
+    default: false
+  },
+  followersCount: {
+    type: Number,
+    default: 0,
+    min: 0
+  },
+  followingCount: {
+    type: Number,
+    default: 0,
+    min: 0
   },
   googleId: {
     type: String,
@@ -152,7 +176,7 @@ const userSchema = new mongoose.Schema({
   notifications: [{
     type: {
       type: String,
-      enum: ['follow_request', 'follow_accepted', 'message', 'chat_invite', 'system'],
+      enum: ['follow_request', 'follow', 'follow_accepted', 'message', 'chat_invite', 'system'],
       required: true
     },
     from: {
@@ -192,6 +216,8 @@ const userSchema = new mongoose.Schema({
 // email and googleId indexes are already defined by unique: true in schema
 userSchema.index({ role: 1 });
 userSchema.index({ createdAt: -1 });
+userSchema.index({ username: 1 });
+userSchema.index({ isPrivate: 1 });
 
 // Hash password before saving
 userSchema.pre('save', async function(next) {
@@ -211,6 +237,19 @@ userSchema.pre('save', async function(next) {
   }
 });
 
+// Virtual for profilePic (alias for avatarUrl)
+userSchema.virtual('profilePic').get(function() {
+  return this.avatarUrl;
+});
+
+userSchema.virtual('profilePic').set(function(value) {
+  this.avatarUrl = value;
+});
+
+// Ensure virtuals are included in JSON output
+userSchema.set('toJSON', { virtuals: true });
+userSchema.set('toObject', { virtuals: true });
+
 // Instance method to check password
 userSchema.methods.comparePassword = async function(candidatePassword) {
   if (!this.passwordHash) return false;
@@ -227,7 +266,14 @@ userSchema.methods.getPublicProfile = function() {
     bio: this.bio,
     role: this.role,
     createdAt: this.createdAt,
-    publicKey: this.publicKey
+    publicKey: this.publicKey,
+    isPrivate: this.isPrivate,
+    followersCount: this.followersCount,
+    followingCount: this.followingCount,
+    location: this.location,
+    website: this.website,
+    company: this.company,
+    jobTitle: this.jobTitle
   };
 };
 
@@ -246,6 +292,13 @@ userSchema.methods.getFullProfile = function() {
     lastLoginAt: this.lastLoginAt,
     publicKey: this.publicKey,
     isEmailVerified: this.isEmailVerified,
+    isPrivate: this.isPrivate,
+    followersCount: this.followersCount,
+    followingCount: this.followingCount,
+    location: this.location,
+    website: this.website,
+    company: this.company,
+    jobTitle: this.jobTitle,
     createdAt: this.createdAt,
     updatedAt: this.updatedAt
   };

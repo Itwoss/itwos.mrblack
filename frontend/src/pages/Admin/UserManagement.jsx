@@ -77,9 +77,11 @@ const UserManagement = () => {
     setLoading(true)
     try {
       console.log('🔄 UserManagement: Loading users...')
+      const token = localStorage.getItem('accessToken') || localStorage.getItem('token') || localStorage.getItem('adminToken')
       const response = await fetch('http://localhost:7000/api/admin/users?limit=100', {
         headers: {
-          'Authorization': `Bearer mock-token`
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
         }
       })
       
@@ -108,9 +110,11 @@ const UserManagement = () => {
   const fetchStats = async () => {
     try {
       console.log('🔄 UserManagement: Loading stats...')
+      const token = localStorage.getItem('accessToken') || localStorage.getItem('token') || localStorage.getItem('adminToken')
       const response = await fetch('http://localhost:7000/api/admin/users?limit=100', {
         headers: {
-          'Authorization': `Bearer mock-token`
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
         }
       })
       
@@ -509,9 +513,6 @@ const UserManagement = () => {
           <Paragraph>
             Manage users, roles, and permissions across your platform.
           </Paragraph>
-          <div style={{ background: '#f0f0f0', padding: '10px', borderRadius: '4px', marginTop: '10px' }}>
-            <strong>Debug Info:</strong> Users: {users.length}, Loading: {loading.toString()}, Stats: {JSON.stringify(stats)}
-          </div>
         </div>
 
         {/* Enhanced Statistics Dashboard */}

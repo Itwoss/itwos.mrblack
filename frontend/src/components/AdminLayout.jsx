@@ -1,215 +1,406 @@
-import React, { useState } from 'react'
-import { Layout, Menu, Button, Drawer, Space, Typography, Avatar, Dropdown, Badge } from 'antd'
+import React, { useState, useEffect, useCallback } from 'react'
+import { Layout, Menu, Drawer, Button, Space, Typography, Badge } from 'antd'
 import { 
-  MenuOutlined, 
+  DashboardOutlined,
   UserOutlined, 
-  LogoutOutlined, 
-  BellOutlined,
+  ShoppingCartOutlined, 
   BarChartOutlined,
+  SettingOutlined,
+  LogoutOutlined,
+  MenuOutlined,
   TeamOutlined,
-  AppstoreOutlined,
-  ShoppingCartOutlined,
+  FileTextOutlined,
+  MessageOutlined,
+  VideoCameraOutlined,
+  BellOutlined,
   DollarOutlined,
-  CustomerServiceOutlined,
-  SettingOutlined
+  ShoppingOutlined,
+  DatabaseOutlined,
+  ToolOutlined,
+  EditOutlined,
+  MonitorOutlined,
+  BranchesOutlined,
+  SoundOutlined,
+  AppstoreOutlined,
+  ThunderboltOutlined,
+  SketchOutlined,
+  GlobalOutlined,
+  FireOutlined,
+  ReloadOutlined,
+  ExclamationCircleOutlined
 } from '@ant-design/icons'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { useAuth } from '../contexts/AuthContextOptimized'
+import { useAuth } from "../contexts/AuthContextOptimized"
 import NotificationBell from './NotificationBell'
-import { getUserAvatarUrl, getUserInitials } from '../utils/avatarUtils'
 
-const { Header, Sider, Content } = Layout
 const { Title } = Typography
+const { Sider, Content } = Layout
 
 const AdminLayout = ({ children }) => {
+  const [mobileMenuVisible, setMobileMenuVisible] = useState(false)
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768)
+  const { user, logout, forceRefreshAdminToken } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
-  const { user, logout } = useAuth()
-  const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false)
+
+  // Get current path to determine active menu item
+  const getCurrentMenuKey = () => {
+    const path = location.pathname
+    if (path === '/admin/dashboard' || path === '/admin') return 'dashboard'
+    if (path.includes('/admin/users')) return 'users'
+    if (path.includes('/admin/orders')) return 'orders'
+    if (path.includes('/admin/analytics')) return 'analytics'
+    if (path.includes('/admin/content')) return 'content'
+    if (path.includes('/admin/sessions')) return 'sessions'
+    if (path.includes('/admin/chat')) return 'chat'
+    if (path.includes('/admin/notifications')) return 'notifications'
+    if (path.includes('/admin/settings')) return 'settings'
+    if (path.includes('/admin/products')) return 'products'
+    if (path.includes('/admin/prebooks')) return 'prebooks'
+    if (path.includes('/admin/payments')) return 'payments'
+    if (path.includes('/admin/user-activities')) return 'activities'
+    return 'dashboard'
+  }
+
+  const [selectedMenu, setSelectedMenu] = useState(getCurrentMenuKey())
+
+  // Update selected menu when route changes
+  useEffect(() => {
+    setSelectedMenu(getCurrentMenuKey())
+  }, [location.pathname])
+
+  // Handle window resize
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768)
+    }
+
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
 
   const handleLogout = async () => {
     try {
       await logout()
-      navigate('/login')
+      navigate('/admin/login')
     } catch (error) {
       console.error('Logout error:', error)
     }
   }
 
-  const adminMenuItems = [
+  const sidebarItems = [
     {
-      key: '/admin/dashboard',
-      icon: <BarChartOutlined />,
+      key: 'dashboard',
+      icon: <DashboardOutlined />,
       label: 'Dashboard',
     },
     {
-      key: '/admin/users',
+      key: 'users',
       icon: <TeamOutlined />,
-      label: 'Users',
+      label: 'User Management',
     },
     {
-      key: '/admin/products',
-      icon: <AppstoreOutlined />,
+      key: 'products',
+      icon: <ShoppingOutlined />,
       label: 'Products',
     },
     {
-      key: '/admin/prebooks',
+      key: 'orders',
       icon: <ShoppingCartOutlined />,
+      label: 'Orders & Sales',
+    },
+    {
+      key: 'analytics',
+      icon: <BarChartOutlined />,
+      label: 'Analytics',
+    },
+    {
+      key: 'content',
+      icon: <FileTextOutlined />,
+      label: 'Content Management',
+    },
+    {
+      key: 'sessions',
+      icon: <VideoCameraOutlined />,
+      label: 'Live Sessions',
+    },
+    {
+      key: 'chat',
+      icon: <MessageOutlined />,
+      label: 'Chat Moderation',
+    },
+    {
+      key: 'notifications',
+      icon: <BellOutlined />,
+      label: 'Notifications',
+    },
+    {
+      key: 'prebooks',
+      icon: <DollarOutlined />,
       label: 'Prebook Management',
     },
     {
-      key: '/admin/payments',
+      key: 'payments',
       icon: <DollarOutlined />,
       label: 'Payment Tracking',
     },
     {
-      key: '/admin/user-activities',
-      icon: <UserOutlined />,
+      key: 'activities',
+      icon: <MonitorOutlined />,
       label: 'User Activities',
     },
     {
-      key: '/admin/sales',
-      icon: <BarChartOutlined />,
-      label: 'Sales',
-    },
-    {
-      key: '/admin/chat',
-      icon: <CustomerServiceOutlined />,
-      label: 'Chat Moderation',
-    },
-    {
-      key: '/admin/settings',
+      key: 'settings',
       icon: <SettingOutlined />,
       label: 'Settings',
     },
   ]
 
   const handleMenuClick = ({ key }) => {
-    navigate(key)
-    setMobileDrawerOpen(false)
+    setSelectedMenu(key)
+    switch (key) {
+      case 'dashboard':
+        navigate('/admin/dashboard')
+        break
+      case 'users':
+        navigate('/admin/users')
+        break
+      case 'products':
+        navigate('/admin/products')
+        break
+      case 'orders':
+        navigate('/admin/orders')
+        break
+      case 'analytics':
+        navigate('/admin/analytics')
+        break
+      case 'content':
+        navigate('/admin/content')
+        break
+      case 'sessions':
+        navigate('/admin/sessions')
+        break
+      case 'chat':
+        navigate('/admin/chat')
+        break
+      case 'notifications':
+        navigate('/admin/notifications')
+        break
+      case 'prebooks':
+        navigate('/admin/prebooks')
+        break
+      case 'payments':
+        navigate('/admin/payments')
+        break
+      case 'activities':
+        navigate('/admin/user-activities')
+        break
+      case 'settings':
+        navigate('/admin/settings')
+        break
+      default:
+        navigate('/admin/dashboard')
+    }
   }
 
-  const userDropdownItems = [
-    {
-      key: 'profile',
-      icon: <UserOutlined />,
-      label: 'Profile',
-      onClick: () => navigate('/profile')
-    },
-    {
-      key: 'settings',
-      icon: <SettingOutlined />,
-      label: 'Settings',
-      onClick: () => navigate('/admin/settings')
-    },
-    {
-      type: 'divider',
-    },
-    {
-      key: 'logout',
-      icon: <LogoutOutlined />,
-      label: 'Logout',
-      onClick: handleLogout
-    },
-  ]
-
-  const selectedKeys = [location.pathname]
-
   return (
-    <Layout style={{ minHeight: '100vh' }}>
+    <div style={{ 
+      background: '#f5f5f5', 
+      minHeight: '100vh'
+    }}>
+      <style>
+        {`
+          .ant-menu-vertical .ant-menu-item {
+            color: #333 !important;
+            font-size: 14px !important;
+            font-weight: 500 !important;
+            padding: 12px 24px !important;
+            margin: 4px 0 !important;
+            border-radius: 6px !important;
+            transition: all 0.3s ease !important;
+            height: auto !important;
+            line-height: 1.4 !important;
+          }
+          
+          .ant-menu-vertical .ant-menu-item:hover {
+            color: #1890ff !important;
+            background-color: #f0f8ff !important;
+          }
+          
+          .ant-menu-vertical .ant-menu-item-selected {
+            color: #1890ff !important;
+            background-color: #e6f7ff !important;
+            font-weight: 600 !important;
+          }
+          
+          .ant-menu-vertical .ant-menu-item .ant-menu-item-icon {
+            color: inherit !important;
+            font-size: 16px !important;
+            margin-right: 12px !important;
+          }
+          
+          .ant-menu-vertical .ant-menu-item-selected .ant-menu-item-icon {
+            color: #1890ff !important;
+          }
+        `}
+      </style>
       {/* Header */}
-      <Header style={{ 
-        background: '#fff', 
-        padding: '0 24px', 
+      <div style={{ 
         display: 'flex', 
+        justifyContent: 'space-between', 
         alignItems: 'center', 
-        justifyContent: 'space-between',
+        padding: '1rem 2rem',
+        borderBottom: '1px solid #e8e8e8',
+        background: '#fff',
         boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-        zIndex: 1000
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        zIndex: 1001,
+        height: '80px'
       }}>
         <div style={{ display: 'flex', alignItems: 'center' }}>
-          <Button
-            type="text"
-            icon={<MenuOutlined />}
-            onClick={() => setMobileDrawerOpen(true)}
-            style={{ display: 'block', marginRight: '16px' }}
-            className="md:hidden"
-          />
-          <Title level={3} style={{ margin: 0, color: '#1890ff' }}>
-            ITWOS AI - Admin Panel
+          <Title level={3} style={{ color: '#1890ff', margin: 0, marginRight: '2rem' }}>
+            ITWOS AI - Admin
           </Title>
         </div>
-        
         <Space>
           <NotificationBell />
+          <Button 
+            type="text" 
+            onClick={() => {
+              const result = forceRefreshAdminToken()
+              if (result.success) {
+                console.log('✅ Admin token refreshed successfully')
+                window.location.reload()
+              } else {
+                console.error('❌ Failed to refresh admin token:', result.error)
+              }
+            }}
+            icon={<ReloadOutlined />}
+            title="Refresh Admin Token"
+          >
+            Refresh
+          </Button>
           <UserOutlined style={{ fontSize: '18px', color: '#666' }} />
           <span style={{ color: '#666' }}>{user?.name || 'Admin'}</span>
           <Button type="text" onClick={handleLogout} icon={<LogoutOutlined />}>
             Logout
           </Button>
         </Space>
-      </Header>
+        <Button 
+          type="text" 
+          icon={<MenuOutlined />}
+          onClick={() => setMobileMenuVisible(true)}
+          style={{ display: isMobile ? 'block' : 'none' }}
+        />
+      </div>
 
-      <Layout>
-        {/* Desktop Sidebar */}
-        <Sider
-          width={280}
-          style={{
-            background: '#fff',
-            boxShadow: '2px 0 8px rgba(0,0,0,0.1)',
-            position: 'sticky',
-            top: 0,
-            height: 'calc(100vh - 64px)',
-            overflow: 'auto'
+      <Layout style={{ background: '#f5f5f5' }}>
+        {/* Sidebar */}
+        <Sider 
+          width={250} 
+          style={{ 
+            background: '#fff', 
+            borderRight: '1px solid #e8e8e8',
+            padding: '2rem 0',
+            display: isMobile ? 'none' : 'block',
+            position: 'fixed',
+            left: 0,
+            top: '80px',
+            height: 'calc(100vh - 80px)',
+            zIndex: 1000,
+            overflowY: 'auto'
           }}
-          className="hidden md:block"
-        >
-          <div style={{ padding: '24px 16px' }}>
-            <Title level={4} style={{ textAlign: 'center', marginBottom: '24px' }}>
-              Admin Menu
-            </Title>
-            <Menu
-              mode="inline"
-              selectedKeys={selectedKeys}
-              items={adminMenuItems}
-              onClick={handleMenuClick}
-              style={{ border: 'none' }}
-            />
-          </div>
-        </Sider>
-
-        {/* Mobile Drawer */}
-        <Drawer
-          title="Admin Menu"
-          placement="left"
-          onClose={() => setMobileDrawerOpen(false)}
-          open={mobileDrawerOpen}
-          width={280}
-          className="md:hidden"
         >
           <Menu
-            mode="inline"
-            selectedKeys={selectedKeys}
-            items={adminMenuItems}
+            mode="vertical"
+            items={sidebarItems}
+            selectedKeys={[selectedMenu]}
             onClick={handleMenuClick}
-            style={{ border: 'none' }}
+            style={{ 
+              background: 'transparent', 
+              border: 'none'
+            }}
+            theme="light"
           />
-        </Drawer>
+        </Sider>
 
         {/* Main Content */}
-        <Layout style={{ padding: '24px' }}>
-          <Content style={{ 
-            background: '#fff', 
-            padding: '24px',
-            borderRadius: '8px',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-            minHeight: 'calc(100vh - 112px)'
-          }}>
-            {children}
-          </Content>
-        </Layout>
+        <Content style={{ 
+          padding: isMobile ? '1rem' : '2rem', 
+          background: '#f5f5f5',
+          minHeight: 'calc(100vh - 80px)',
+          marginLeft: isMobile ? '0' : '250px',
+          marginTop: '80px',
+          transition: 'margin-left 0.3s ease'
+        }}>
+          {children}
+        </Content>
       </Layout>
-    </Layout>
+
+      {/* Mobile Drawer */}
+      <Drawer
+        title="Admin Navigation"
+        placement="right"
+        closable={true}
+        onClose={() => setMobileMenuVisible(false)}
+        open={mobileMenuVisible}
+        styles={{ body: { padding: 0 } }}
+      >
+        <style>
+          {`
+            .ant-drawer .ant-menu-vertical .ant-menu-item {
+              color: #333 !important;
+              font-size: 14px !important;
+              font-weight: 500 !important;
+              padding: 12px 24px !important;
+              margin: 4px 0 !important;
+              border-radius: 6px !important;
+              transition: all 0.3s ease !important;
+              height: auto !important;
+              line-height: 1.4 !important;
+            }
+            
+            .ant-drawer .ant-menu-vertical .ant-menu-item:hover {
+              color: #1890ff !important;
+              background-color: #f0f8ff !important;
+            }
+            
+            .ant-drawer .ant-menu-vertical .ant-menu-item-selected {
+              color: #1890ff !important;
+              background-color: #e6f7ff !important;
+              font-weight: 600 !important;
+            }
+            
+            .ant-drawer .ant-menu-vertical .ant-menu-item .ant-menu-item-icon {
+              color: inherit !important;
+              font-size: 16px !important;
+              margin-right: 12px !important;
+            }
+            
+            .ant-drawer .ant-menu-vertical .ant-menu-item-selected .ant-menu-item-icon {
+              color: #1890ff !important;
+            }
+          `}
+        </style>
+        <Menu
+          mode="vertical"
+          items={sidebarItems}
+          selectedKeys={[selectedMenu]}
+          onClick={({ key }) => {
+            handleMenuClick({ key })
+            setMobileMenuVisible(false)
+          }}
+          style={{ 
+            background: 'transparent', 
+            border: 'none'
+          }}
+          theme="light"
+        />
+      </Drawer>
+    </div>
   )
 }
 

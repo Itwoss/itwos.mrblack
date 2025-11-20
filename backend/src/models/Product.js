@@ -46,6 +46,13 @@ const ProductSchema = new mongoose.Schema({
     },
     default: 0
   },
+  prebookAmount: {
+    type: Number,
+    required: function() {
+      return this.status === 'published'
+    },
+    default: 0
+  },
   currency: {
     type: String,
     default: 'USD'

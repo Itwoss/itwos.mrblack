@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { 
   Card, 
   List, 
@@ -23,10 +23,16 @@ import {
   CheckCircleOutlined,
   CloseCircleOutlined,
   InfoCircleOutlined,
-  ReloadOutlined
+  ReloadOutlined,
+  UserAddOutlined,
+  UserOutlined,
+  CloseOutlined
 } from '@ant-design/icons'
 import useNotifications from '../../hooks/useNotifications'
 import { useAuth } from '../../contexts/AuthContextOptimized'
+import { notificationsAPI, followAPI } from '../../services/api'
+import api from '../../services/api'
+import { getUserAvatarUrl, getUserInitials } from '../../utils/avatarUtils'
 
 const { Title, Text } = Typography
 
@@ -51,6 +57,92 @@ const Notifications = () => {
     markAllAsRead,
     fetchNotifications 
   } = useNotifications(user._id, user.role)
+
+  // Handle accept follow request
+  const handleAcceptFollowRequest = async (notification) => {
+    try {
+      const followId = notification.data?.followId || notification.metadata?.followId
+      const requesterId = notification.from?._id || notification.from
+      
+      if (!requesterId) {
+        message.error('Invalid follow request')
+        return
+      }
+
+      console.log('Accepting follow request:', { followId, requesterId, notification })
+
+      // Try using followId first, then fallback to userId
+      let response
+      if (followId) {
+        // Use followId endpoint if available
+        try {
+          response = await api.post(`/follow/accept/${followId}`)
+        } catch (err) {
+          // Fallback to userId endpoint
+          response = await followAPI.acceptFollowRequest(requesterId)
+        }
+      } else {
+        // Use userId endpoint
+        response = await followAPI.acceptFollowRequest(requesterId)
+      }
+
+      if (response.data.success) {
+        message.success('Follow request accepted')
+        // Mark notification as read
+        await markAsRead(notification._id)
+        // Refresh notifications
+        setTimeout(() => fetchNotifications(), 500)
+      } else {
+        message.error(response.data.message || 'Failed to accept follow request')
+      }
+    } catch (error) {
+      console.error('Accept follow request error:', error)
+      message.error(error.response?.data?.message || 'Failed to accept follow request')
+    }
+  }
+
+  // Handle decline follow request
+  const handleDeclineFollowRequest = async (notification) => {
+    try {
+      const followId = notification.data?.followId || notification.metadata?.followId
+      const requesterId = notification.from?._id || notification.from
+      
+      if (!requesterId) {
+        message.error('Invalid follow request')
+        return
+      }
+
+      console.log('Declining follow request:', { followId, requesterId, notification })
+
+      // Try using followId first, then fallback to userId
+      let response
+      if (followId) {
+        // Use followId endpoint if available
+        try {
+          response = await api.post(`/follow/decline/${followId}`)
+        } catch (err) {
+          // Fallback to userId endpoint
+          response = await followAPI.declineFollowRequest(requesterId)
+        }
+      } else {
+        // Use userId endpoint
+        response = await followAPI.declineFollowRequest(requesterId)
+      }
+
+      if (response.data.success) {
+        message.success('Follow request declined')
+        // Mark notification as read
+        await markAsRead(notification._id)
+        // Refresh notifications
+        setTimeout(() => fetchNotifications(), 500)
+      } else {
+        message.error(response.data.message || 'Failed to decline follow request')
+      }
+    } catch (error) {
+      console.error('Decline follow request error:', error)
+      message.error(error.response?.data?.message || 'Failed to decline follow request')
+    }
+  }
 
   // Get notification icon and color
   const getNotificationStyle = (type) => {
@@ -78,6 +170,24 @@ const Notifications = () => {
           icon: <InfoCircleOutlined />,
           color: '#1890ff',
           bgColor: '#e6f7ff'
+        }
+      case 'follow_request':
+        return {
+          icon: <UserAddOutlined />,
+          color: '#1890ff',
+          bgColor: '#e6f7ff'
+        }
+      case 'follow':
+        return {
+          icon: <UserOutlined />,
+          color: '#52c41a',
+          bgColor: '#f6ffed'
+        }
+      case 'follow_accepted':
+        return {
+          icon: <CheckCircleOutlined />,
+          color: '#52c41a',
+          bgColor: '#f6ffed'
         }
       default:
         return {
@@ -110,7 +220,10 @@ const Notifications = () => {
       unread: unreadCount,
       paymentSuccess: notifications.filter(n => n.type === 'payment_success').length,
       prebookConfirmed: notifications.filter(n => n.type === 'prebook_confirmed').length,
-      prebookRejected: notifications.filter(n => n.type === 'prebook_rejected').length
+      prebookRejected: notifications.filter(n => n.type === 'prebook_rejected').length,
+      followRequests: notifications.filter(n => n.type === 'follow_request').length,
+      follows: notifications.filter(n => n.type === 'follow').length,
+      followAccepted: notifications.filter(n => n.type === 'follow_accepted').length
     }
     return stats
   }
@@ -195,14 +308,45 @@ const Notifications = () => {
               loading={loading}
             >
               Refresh
-                  </Button>
+            </Button>
+            <Button 
+              type="link" 
+              size="small"
+              onClick={async () => {
+                try {
+                  await notificationsAPI.createTest({
+                    type: 'general',
+                    title: 'Test Notification',
+                    message: 'This is a test notification to verify the system is working!'
+                  })
+                  message.success('Test notification created! Refreshing...')
+                  setTimeout(() => fetchNotifications(), 1000)
+                } catch (err) {
+                  message.error('Failed to create test notification')
+                }
+              }}
+            >
+              Create Test
+            </Button>
                 </Space>
               }
             >
         {loading ? (
           <div style={{ textAlign: 'center', padding: '2rem' }}>
             <Spin size="large" />
-            <div style={{ marginTop: '1rem' }}>Loading notifications...</div>
+            <div style={{ marginTop: '1rem' }}>
+              {error ? (
+                <>
+                  <Text type="danger">{error}</Text>
+                  <br />
+                  <Text type="secondary" style={{ fontSize: '12px', marginTop: '8px', display: 'block' }}>
+                    Please wait while we fetch your notifications...
+                  </Text>
+                </>
+              ) : (
+                'Loading notifications...'
+              )}
+            </div>
           </div>
         ) : error ? (
           <div style={{ textAlign: 'center', padding: '2rem' }}>
@@ -231,39 +375,142 @@ const Notifications = () => {
                     marginBottom: '8px',
                     borderRadius: '6px'
                       }}
-                      actions={[
-                    !notification.read && (
-                        <Button 
-                        type="text"
-                          size="small" 
-                          icon={<CheckOutlined />}
-                        onClick={() => markAsRead(notification._id)}
-                      >
-                        Mark read
-                        </Button>
-                    )
-                      ]}
+                      actions={
+                        notification.type === 'follow_request' ? [
+                          // Accept and Decline buttons for follow requests
+                          <Space key="actions" size="small">
+                            <Button 
+                              type="primary"
+                              size="small"
+                              icon={<CheckOutlined />}
+                              onClick={() => handleAcceptFollowRequest(notification)}
+                            >
+                              Accept
+                            </Button>
+                            <Button 
+                              size="small"
+                              icon={<CloseOutlined />}
+                              onClick={() => handleDeclineFollowRequest(notification)}
+                            >
+                              Decline
+                            </Button>
+                          </Space>
+                        ] : [
+                          // Mark as read for other notifications
+                          !notification.read && (
+                            <Button 
+                              key="mark-read"
+                              type="text"
+                              size="small" 
+                              icon={<CheckOutlined />}
+                              onClick={() => markAsRead(notification._id)}
+                            >
+                              Mark read
+                            </Button>
+                          )
+                        ]
+                      }
                     >
                       <List.Item.Meta
                         avatar={
-                          <Avatar 
-                        icon={style.icon}
-                        style={{ backgroundColor: style.color }}
-                          />
+                          // Show requester's avatar for follow requests (Instagram style)
+                          notification.type === 'follow_request' && notification.from ? (
+                            <Avatar 
+                              src={getUserAvatarUrl(notification.from)}
+                              icon={<UserOutlined />}
+                              size={64}
+                              style={{ cursor: 'pointer' }}
+                              onClick={() => {
+                                // Navigate to user profile
+                                window.location.href = `/users/${notification.from._id}`
+                              }}
+                            >
+                              {getUserInitials(notification.from?.name || 'U')}
+                            </Avatar>
+                          ) : (
+                            <Avatar 
+                              icon={style.icon}
+                              style={{ backgroundColor: style.color }}
+                              size={48}
+                            />
+                          )
                         }
                         title={
-                      <Space>
-                        <Text strong={!notification.read}>
-                              {notification.title}
-                        </Text>
-                        {!notification.read && (
-                          <Badge dot color="#f5222d" />
-                        )}
+                          notification.type === 'follow_request' && notification.from ? (
+                            // Instagram-style title for follow requests
+                            <Space direction="vertical" size={0} style={{ width: '100%' }}>
+                              <Space>
+                                <Text 
+                                  strong={!notification.read}
+                                  style={{ fontSize: '14px', cursor: 'pointer' }}
+                                  onClick={() => {
+                                    window.location.href = `/users/${notification.from._id}`
+                                  }}
+                                >
+                                  {notification.from?.name || 'Unknown User'}
+                                </Text>
+                                {!notification.read && (
+                                  <Badge dot color="#f5222d" />
+                                )}
+                              </Space>
+                              <Text type="secondary" style={{ fontSize: '12px' }}>
+                                {notification.from?.email || notification.from?.username || ''}
+                              </Text>
                             </Space>
+                          ) : (
+                            <Space>
+                              <Text strong={!notification.read}>
+                                {notification.title}
+                              </Text>
+                              {!notification.read && (
+                                <Badge dot color="#f5222d" />
+                              )}
+                            </Space>
+                          )
                         }
                         description={
                       <Space direction="vertical" size="small" style={{ width: '100%' }}>
-                        <Text>{notification.message}</Text>
+                        {/* Message for follow requests */}
+                        {notification.type === 'follow_request' ? (
+                          <div style={{ marginTop: '8px' }}>
+                            <Text style={{ fontSize: '14px' }}>
+                              {notification.message || 'wants to follow you'}
+                            </Text>
+                          </div>
+                        ) : (
+                          <Text>{notification.message}</Text>
+                        )}
+                        
+                        {/* Show requester info for other notification types */}
+                        {notification.type !== 'follow_request' && notification.from && (
+                          <div style={{ 
+                            padding: '8px', 
+                            background: '#f5f5f5', 
+                            borderRadius: '6px',
+                            marginTop: '4px'
+                          }}>
+                            <Space>
+                              <Avatar 
+                                size="small"
+                                src={getUserAvatarUrl(notification.from)}
+                                icon={<UserOutlined />}
+                              >
+                                {getUserInitials(notification.from?.name || 'U')}
+                              </Avatar>
+                              <div>
+                                <Text strong style={{ fontSize: '13px', display: 'block' }}>
+                                  {notification.from?.name || 'Unknown User'}
+                                </Text>
+                                {notification.from?.email && (
+                                  <Text type="secondary" style={{ fontSize: '11px' }}>
+                                    {notification.from.email}
+                                  </Text>
+                                )}
+                              </div>
+                            </Space>
+                          </div>
+                        )}
+                        
                         <Space>
                           <Tag color={style.color} size="small">
                             {notification.type.replace('_', ' ').toUpperCase()}

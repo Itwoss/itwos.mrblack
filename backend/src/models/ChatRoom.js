@@ -41,6 +41,27 @@ const chatRoomSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Message'
   },
+  lastMessageText: {
+    type: String,
+    trim: true
+  },
+  // Unread counts per user
+  unreadCounts: [{
+    userId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: true
+    },
+    count: {
+      type: Number,
+      default: 0,
+      min: 0
+    },
+    lastReadAt: {
+      type: Date,
+      default: Date.now
+    }
+  }],
   metadata: {
     subject: {
       type: String,
@@ -209,6 +230,66 @@ chatRoomSchema.statics.findModerated = function() {
     'metadata.isModerated': true,
     isActive: true 
   }).populate('participants', 'name email avatarUrl');
+};
+
+// Instance method to get unread count for a user
+chatRoomSchema.methods.getUnreadCount = function(userId) {
+  const unreadEntry = this.unreadCounts.find(
+    entry => entry.userId.toString() === userId.toString()
+  );
+  return unreadEntry ? unreadEntry.count : 0;
+};
+
+// Instance method to increment unread count for a user
+chatRoomSchema.methods.incrementUnread = async function(userId) {
+  const unreadEntry = this.unreadCounts.find(
+    entry => entry.userId.toString() === userId.toString()
+  );
+  
+  if (unreadEntry) {
+    unreadEntry.count += 1;
+  } else {
+    this.unreadCounts.push({
+      userId: userId,
+      count: 1
+    });
+  }
+  
+  return this.save();
+};
+
+// Instance method to reset unread count for a user
+chatRoomSchema.methods.resetUnread = async function(userId) {
+  const unreadEntry = this.unreadCounts.find(
+    entry => entry.userId.toString() === userId.toString()
+  );
+  
+  if (unreadEntry) {
+    unreadEntry.count = 0;
+    unreadEntry.lastReadAt = new Date();
+  } else {
+    this.unreadCounts.push({
+      userId: userId,
+      count: 0,
+      lastReadAt: new Date()
+    });
+  }
+  
+  return this.save();
+};
+
+// Static method to find or create thread (alias for findOrCreateDirectMessage)
+chatRoomSchema.statics.findOrCreateThread = async function(memberIds) {
+  if (memberIds.length === 2) {
+    return this.findOrCreateDirectMessage(memberIds[0], memberIds[1]);
+  }
+  
+  // For group threads, create new one
+  return this.create({
+    participants: memberIds,
+    isGroup: memberIds.length > 2,
+    createdBy: memberIds[0]
+  });
 };
 
 // Pre-save middleware to update lastMessageAt

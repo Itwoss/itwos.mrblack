@@ -30,7 +30,7 @@ export const createMockJWT = (userId = '1', role = 'user', email = 'user@example
     name: name,
     type: 'access',
     iat: Math.floor(Date.now() / 1000),
-    exp: Math.floor(Date.now() / 1000) + (15 * 60), // 15 minutes
+    exp: Math.floor(Date.now() / 1000) + (24 * 60 * 60), // 24 hours
     iss: 'itwos-ai',
     aud: 'itwos-ai-users'
   }

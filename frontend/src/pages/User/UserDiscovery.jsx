@@ -13,7 +13,9 @@ import {
   Empty,
   Badge,
   Tag,
-  Divider
+  Divider,
+  Modal,
+  Descriptions
 } from 'antd'
 import { 
   SearchOutlined, 
@@ -23,32 +25,70 @@ import {
   CheckOutlined,
   CloseOutlined,
   HeartOutlined,
-  EnvironmentOutlined
+  EnvironmentOutlined,
+  LockOutlined,
+  GlobalOutlined,
+  CalendarOutlined,
+  MailOutlined,
+  EyeOutlined
 } from '@ant-design/icons'
 import { useAuth } from "../../contexts/AuthContextOptimized"
 import api from '../../services/api'
+import { usersListAPI, threadsAPI } from '../../services/api'
 import { getUserAvatarUrl, getUserInitials } from '../../utils/avatarUtils'
+import { useNavigate } from 'react-router-dom'
 
 const { Title, Paragraph, Text } = Typography
 
 const UserDiscovery = () => {
   const { user: currentUser } = useAuth()
+  const navigate = useNavigate()
   const [loading, setLoading] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [users, setUsers] = useState([])
+  const [newUsers, setNewUsers] = useState([])
   const [followRequests, setFollowRequests] = useState([])
+  const [selectedUser, setSelectedUser] = useState(null)
+  const [profileModalVisible, setProfileModalVisible] = useState(false)
 
   useEffect(() => {
     loadFollowRequests()
-    loadRecommendedUsers()
+    loadNewUsers()
     if (searchQuery.length >= 2) {
       searchUsers()
+    } else {
+      loadRecommendedUsers()
     }
   }, [searchQuery])
 
+  const loadNewUsers = async () => {
+    try {
+      // Load new users (created in last 7 days) sorted by newest
+      const response = await usersListAPI.getUsers({
+        sort: 'new',
+        limit: 12,
+        excludeSelf: true
+      })
+      
+      if (response.data.success) {
+        // Filter to only show new users (isNew flag)
+        const newUsersList = (response.data.users || []).filter(user => user.isNew)
+        setNewUsers(newUsersList.slice(0, 8)) // Show top 8 new users
+      }
+    } catch (error) {
+      console.error('Load new users error:', error)
+      setNewUsers([])
+    }
+  }
+
   const loadRecommendedUsers = async () => {
     try {
-      const response = await api.get('/follow/recommendations')
+      // Use users-list API to get all users
+      const response = await usersListAPI.getUsers({
+        limit: 20,
+        excludeSelf: true
+      })
+      
       if (response.data.success) {
         // Add recommended users to the users list if no search query
         if (searchQuery.length < 2) {
@@ -58,9 +98,16 @@ const UserDiscovery = () => {
     } catch (error) {
       console.error('Load recommendations error:', error)
       
-      // TODO: Replace with real API call
-      if (searchQuery.length < 2) {
-        setUsers([])
+      // Fallback to old API
+      try {
+        const response = await api.get('/follow/recommendations')
+        if (response.data.success && searchQuery.length < 2) {
+          setUsers(response.data.users || [])
+        }
+      } catch (fallbackError) {
+        if (searchQuery.length < 2) {
+          setUsers([])
+        }
       }
     }
   }
@@ -103,36 +150,46 @@ const UserDiscovery = () => {
 
   const handleFollowRequest = async (userId) => {
     try {
-      // Optimistically update UI first
-      setUsers(prev => 
-        prev.map(user => 
-          user._id === userId 
-            ? { ...user, isFollowRequestSent: true }
-            : user
-        )
-      )
-      message.success('Follow request sent!')
+      console.log('📤 Sending follow request to user:', userId)
       
-      // Then try to update on server
-      try {
-        const response = await api.post(`/follow/request/${userId}`)
-        if (!response.data.success) {
-          // Revert UI change if server fails
-          setUsers(prev => 
-            prev.map(user => 
-              user._id === userId 
-                ? { ...user, isFollowRequestSent: false }
-                : user
-            )
+      // Send request to server first
+      const response = await api.post(`/follow/request/${userId}`)
+      
+      console.log('📤 Follow request response:', response.data)
+      
+      if (response.data.success) {
+        const followStatus = response.data.follow?.status
+        const isAccepted = followStatus === 'accepted'
+        const isPending = followStatus === 'pending'
+        
+        // Update UI on success - set correct state based on status
+        setUsers(prev => 
+          prev.map(user => 
+            user._id === userId 
+              ? { 
+                  ...user, 
+                  isFollowing: isAccepted,
+                  isFollowRequestSent: isPending,
+                  hasFollowRequest: isPending // Also set this for button check
+                }
+              : user
           )
-          message.error(response.data.message)
-        }
-      } catch (error) {
-        console.log('Server update failed, but UI updated locally')
+        )
+        message.success(response.data.message || (isPending ? 'Follow request sent!' : 'User followed successfully!'))
+      } else {
+        message.error(response.data.message || 'Failed to send follow request')
       }
     } catch (error) {
-      console.error('Send follow request error:', error)
-      message.error('Failed to send follow request')
+      console.error('❌ Send follow request error:', error)
+      console.error('❌ Error details:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+        statusText: error.response?.statusText
+      })
+      
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to send follow request'
+      message.error(errorMessage)
     }
   }
 
@@ -188,24 +245,40 @@ const UserDiscovery = () => {
 
   const handleStartChat = async (userId) => {
     try {
-      // Navigate to chat with this user
-      window.location.href = `/chat?user=${userId}`
+      // Create a thread with this user
+      const response = await threadsAPI.createThread([userId])
+      if (response.data.success) {
+        const threadId = response.data.thread?._id
+        navigate(`/user/chat`)
+        // Optionally scroll to or select the thread
+        message.success('Chat started!')
+      }
     } catch (error) {
       console.error('Start chat error:', error)
-      message.error('Failed to start chat')
+      // Fallback to navigation
+      navigate(`/user/chat`)
+      message.info('Opening chat...')
     }
   }
 
   const getFollowButton = (user) => {
     if (user.isFollowing) {
       return (
-        <Button disabled icon={<CheckOutlined />}>
+        <Button 
+          disabled 
+          icon={<CheckOutlined />}
+          onClick={(e) => e.stopPropagation()}
+        >
           Following
         </Button>
       )
     } else if (user.hasFollowRequest) {
       return (
-        <Button disabled icon={<UserAddOutlined />}>
+        <Button 
+          disabled 
+          icon={<UserAddOutlined />}
+          onClick={(e) => e.stopPropagation()}
+        >
           Request Sent
         </Button>
       )
@@ -214,7 +287,11 @@ const UserDiscovery = () => {
         <Button 
           type="primary" 
           icon={<UserAddOutlined />}
-          onClick={() => handleFollowRequest(user._id)}
+          onClick={(e) => {
+            e.preventDefault()
+            e.stopPropagation()
+            handleFollowRequest(user._id)
+          }}
         >
           Follow
         </Button>
@@ -242,6 +319,175 @@ const UserDiscovery = () => {
           Enter at least 2 characters to search for users
         </Text>
       </Card>
+
+      {/* New Users Section */}
+      {newUsers.length > 0 && searchQuery.length < 2 && (
+        <Card 
+          title={
+            <Space>
+              <Tag color="green" style={{ fontSize: '12px' }}>NEW</Tag>
+              <span>New Users This Week</span>
+            </Space>
+          }
+          style={{ marginBottom: '24px' }}
+        >
+          <Row gutter={[16, 16]}>
+            {newUsers.map((user) => (
+              <Col xs={24} sm={12} md={8} lg={6} key={user._id}>
+                <Card 
+                  size="small"
+                  hoverable
+                  style={{ height: '100%', border: user.isNew ? '2px solid #52c41a' : '1px solid #f0f0f0', cursor: 'pointer' }}
+                  onClick={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    console.log('🔍 UserDiscovery: Clicked user card, navigating to:', `/profile/${user._id}`)
+                    if (user._id) {
+                      navigate(`/profile/${user._id}`)
+                    } else {
+                      console.error('No user._id found:', user)
+                      message.error('Invalid user ID')
+                    }
+                  }}
+                  actions={[
+                    <Button 
+                      type="link" 
+                      icon={<EyeOutlined />}
+                      onClick={(e) => {
+                        e.preventDefault()
+                        e.stopPropagation()
+                        console.log('🔍 UserDiscovery: Clicked View Profile button, navigating to:', `/profile/${user._id}`)
+                        if (user._id) {
+                          navigate(`/profile/${user._id}`)
+                        } else {
+                          console.error('No user._id found:', user)
+                          message.error('Invalid user ID')
+                        }
+                      }}
+                    >
+                      View Profile
+                    </Button>
+                  ]}
+                >
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ position: 'relative' }}>
+                      <div style={{ position: 'relative', display: 'inline-block' }}>
+                        <Avatar 
+                          size={64} 
+                          src={getUserAvatarUrl(user)} 
+                          icon={<UserOutlined />}
+                        >
+                          {getUserInitials(user.name)}
+                        </Avatar>
+                        {user.isPrivate && (
+                          <LockOutlined 
+                            style={{ 
+                              position: 'absolute', 
+                              bottom: 0, 
+                              right: 0,
+                              background: '#fff',
+                              borderRadius: '50%',
+                              padding: '4px',
+                              fontSize: '14px',
+                              color: '#666'
+                            }} 
+                          />
+                        )}
+                      </div>
+                      {user.isNew && (
+                        <Tag 
+                          color="green" 
+                          style={{ 
+                            position: 'absolute', 
+                            top: '-8px', 
+                            right: '-8px',
+                            fontSize: '10px',
+                            fontWeight: 'bold'
+                          }}
+                        >
+                          NEW
+                        </Tag>
+                      )}
+                      {user.isOnline && (
+                        <Badge 
+                          status="success" 
+                          style={{ 
+                            position: 'absolute', 
+                            bottom: '0', 
+                            right: '0' 
+                          }}
+                        />
+                      )}
+                    </div>
+                    <Title 
+                      level={5} 
+                      style={{ marginTop: '12px', marginBottom: '4px', cursor: 'pointer' }}
+                      onClick={(e) => {
+                        e.preventDefault()
+                        e.stopPropagation()
+                        console.log('🔍 UserDiscovery: Clicked name, navigating to:', `/profile/${user._id}`)
+                        if (user._id) {
+                          navigate(`/profile/${user._id}`)
+                        }
+                      }}
+                    >
+                      {user.name}
+                    </Title>
+                    <Text type="secondary" style={{ fontSize: '12px' }}>
+                      {user.email}
+                    </Text>
+                    {user.website && (
+                      <div style={{ marginTop: '4px' }}>
+                        <GlobalOutlined style={{ fontSize: '12px', color: '#1890ff', marginRight: '4px' }} />
+                        <Text 
+                          type="secondary" 
+                          style={{ fontSize: '12px', color: '#1890ff', cursor: 'pointer' }}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            window.open(user.website.startsWith('http') ? user.website : `https://${user.website}`, '_blank')
+                          }}
+                        >
+                          {user.website}
+                        </Text>
+                      </div>
+                    )}
+                    {user.bio && (
+                      <Paragraph 
+                        style={{ 
+                          marginTop: '8px', 
+                          fontSize: '12px',
+                          color: '#666',
+                          marginBottom: '12px'
+                        }}
+                        ellipsis={{ rows: 2 }}
+                      >
+                        {user.bio}
+                      </Paragraph>
+                    )}
+                    <Space direction="vertical" style={{ width: '100%' }}>
+                      <div onClick={(e) => e.stopPropagation()}>
+                        {getFollowButton(user)}
+                      </div>
+                      <Button 
+                        type="primary"
+                        icon={<MessageOutlined />}
+                        onClick={(e) => {
+                          e.preventDefault()
+                          e.stopPropagation()
+                          handleStartChat(user._id)
+                        }}
+                        style={{ width: '100%' }}
+                      >
+                        Start Chat
+                      </Button>
+                    </Space>
+                  </div>
+                </Card>
+              </Col>
+            ))}
+          </Row>
+        </Card>
+      )}
 
       {/* Follow Requests Section */}
       {followRequests.length > 0 && (
@@ -315,7 +561,37 @@ const UserDiscovery = () => {
                   <Card 
                     size="small"
                     hoverable
-                    style={{ height: '100%' }}
+                    style={{ height: '100%', cursor: 'pointer' }}
+                    onClick={(e) => {
+                      e.preventDefault()
+                      e.stopPropagation()
+                      console.log('🔍 UserDiscovery Search: Clicked user card, navigating to:', `/profile/${user._id}`)
+                      if (user._id) {
+                        navigate(`/profile/${user._id}`)
+                      } else {
+                        console.error('No user._id found:', user)
+                        message.error('Invalid user ID')
+                      }
+                    }}
+                    actions={[
+                      <Button 
+                        type="link" 
+                        icon={<EyeOutlined />}
+                        onClick={(e) => {
+                          e.preventDefault()
+                          e.stopPropagation()
+                          console.log('🔍 UserDiscovery Search: Clicked View Profile button, navigating to:', `/profile/${user._id}`)
+                          if (user._id) {
+                            navigate(`/profile/${user._id}`)
+                          } else {
+                            console.error('No user._id found:', user)
+                            message.error('Invalid user ID')
+                          }
+                        }}
+                      >
+                        View Profile
+                      </Button>
+                    ]}
                   >
                     <div style={{ textAlign: 'center' }}>
                       <div style={{ position: 'relative' }}>
@@ -337,12 +613,32 @@ const UserDiscovery = () => {
                           />
                         )}
                       </div>
-                      <Title level={5} style={{ marginTop: '12px', marginBottom: '4px' }}>
+                      <Title level={5} style={{ marginTop: '12px', marginBottom: '4px', cursor: 'pointer' }}>
                         {user.name}
+                        {user.isNew && (
+                          <Tag color="green" style={{ marginLeft: '8px', fontSize: '10px' }}>
+                            NEW
+                          </Tag>
+                        )}
                       </Title>
                       <Text type="secondary" style={{ fontSize: '12px' }}>
                         {user.email}
                       </Text>
+                      {user.website && (
+                        <div style={{ marginTop: '4px' }}>
+                          <GlobalOutlined style={{ fontSize: '12px', color: '#1890ff', marginRight: '4px' }} />
+                          <Text 
+                            type="secondary" 
+                            style={{ fontSize: '12px', color: '#1890ff', cursor: 'pointer' }}
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              window.open(user.website.startsWith('http') ? user.website : `https://${user.website}`, '_blank')
+                            }}
+                          >
+                            {user.website}
+                          </Text>
+                        </div>
+                      )}
                       {user.location && (
                         <div style={{ marginTop: '4px' }}>
                           <EnvironmentOutlined style={{ fontSize: '12px', color: '#666' }} />
@@ -368,7 +664,11 @@ const UserDiscovery = () => {
                         {getFollowButton(user)}
                         <Button 
                           icon={<MessageOutlined />}
-                          onClick={() => handleStartChat(user._id)}
+                          onClick={(e) => {
+                            e.preventDefault()
+                            e.stopPropagation()
+                            handleStartChat(user._id)
+                          }}
                           style={{ width: '100%' }}
                         >
                           Message
@@ -387,6 +687,110 @@ const UserDiscovery = () => {
           )}
         </Card>
       )}
+
+      {/* User Profile Detail Modal */}
+      <Modal
+        title={
+          <Space>
+            <Avatar 
+              size={40} 
+              src={selectedUser ? getUserAvatarUrl(selectedUser) : null} 
+              icon={<UserOutlined />}
+            >
+              {selectedUser ? getUserInitials(selectedUser.name) : ''}
+            </Avatar>
+            <span>{selectedUser?.name || 'User Profile'}</span>
+            {selectedUser?.isOnline && <Badge status="success" text="Online" />}
+          </Space>
+        }
+        open={profileModalVisible}
+        onCancel={() => {
+          setProfileModalVisible(false)
+          setSelectedUser(null)
+        }}
+        footer={[
+          <Button key="chat" type="primary" icon={<MessageOutlined />} onClick={() => {
+            if (selectedUser) {
+              handleStartChat(selectedUser._id)
+              setProfileModalVisible(false)
+            }
+          }}>
+            Start Chat
+          </Button>,
+          <Button key="close" onClick={() => {
+            setProfileModalVisible(false)
+            setSelectedUser(null)
+          }}>
+            Close
+          </Button>
+        ]}
+        width={600}
+      >
+        {selectedUser && (
+          <div>
+            <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+              <Avatar 
+                size={120} 
+                src={getUserAvatarUrl(selectedUser)} 
+                icon={<UserOutlined />}
+                style={{ marginBottom: '16px' }}
+              >
+                {getUserInitials(selectedUser.name)}
+              </Avatar>
+              <Title level={3} style={{ marginBottom: '8px' }}>
+                {selectedUser.name}
+                {selectedUser.isPrivate && <LockOutlined style={{ marginLeft: '8px', color: '#999' }} />}
+              </Title>
+              {selectedUser.bio && (
+                <Paragraph style={{ fontSize: '14px', color: '#666', maxWidth: '500px', margin: '0 auto 16px' }}>
+                  {selectedUser.bio}
+                </Paragraph>
+              )}
+            </div>
+
+            <Descriptions bordered column={1}>
+              <Descriptions.Item label={<><MailOutlined /> Email</>}>
+                {selectedUser.email}
+              </Descriptions.Item>
+              {selectedUser.location && (
+                <Descriptions.Item label={<><EnvironmentOutlined /> Location</>}>
+                  {selectedUser.location}
+                </Descriptions.Item>
+              )}
+              {selectedUser.website && (
+                <Descriptions.Item label={<><GlobalOutlined /> Website</>}>
+                  <a 
+                    href={selectedUser.website.startsWith('http') ? selectedUser.website : `https://${selectedUser.website}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{ color: '#1890ff' }}
+                  >
+                    {selectedUser.website}
+                  </a>
+                </Descriptions.Item>
+              )}
+              {selectedUser.createdAt && (
+                <Descriptions.Item label={<><CalendarOutlined /> Member Since</>}>
+                  {new Date(selectedUser.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+                </Descriptions.Item>
+              )}
+              <Descriptions.Item label="Account Type">
+                <Tag color={selectedUser.isPrivate ? 'orange' : 'blue'}>
+                  {selectedUser.isPrivate ? 'Private Account' : 'Public Account'}
+                </Tag>
+              </Descriptions.Item>
+              <Descriptions.Item label="Status">
+                <Space>
+                  <Tag color={selectedUser.isOnline ? 'green' : 'default'}>
+                    {selectedUser.isOnline ? 'Online' : 'Offline'}
+                  </Tag>
+                  {selectedUser.isNew && <Tag color="green">New User</Tag>}
+                </Space>
+              </Descriptions.Item>
+            </Descriptions>
+          </div>
+        )}
+      </Modal>
 
       {/* No search query message */}
       {searchQuery.length < 2 && (

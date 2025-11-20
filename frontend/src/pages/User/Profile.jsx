@@ -96,10 +96,34 @@ const Profile = () => {
       console.log('Saving profile with values:', values) // Debug log
       console.log('Current avatarUrl:', avatarUrl) // Debug log
       
-      const response = await api.put('/users/me', {
-        ...values,
-        avatarUrl: avatarUrl
+      // Clean up values - remove empty strings and convert to null/undefined
+      const cleanedValues = {}
+      Object.keys(values).forEach(key => {
+        const value = values[key]
+        // Skip email as it shouldn't be updated via profile update
+        if (key === 'email') return
+        
+        // Convert empty strings to null for optional fields
+        if (value === '' || value === null || value === undefined) {
+          // Only include if it's a field that can be cleared (like avatarUrl, bio, etc.)
+          if (['avatarUrl', 'bio', 'phone', 'location', 'website', 'company', 'jobTitle'].includes(key)) {
+            cleanedValues[key] = null
+          }
+        } else {
+          cleanedValues[key] = value
+        }
       })
+      
+      // Handle avatarUrl separately
+      if (avatarUrl && avatarUrl.trim() !== '') {
+        cleanedValues.avatarUrl = avatarUrl
+      } else {
+        cleanedValues.avatarUrl = null
+      }
+      
+      console.log('Cleaned values being sent:', cleanedValues)
+      
+      const response = await api.put('/users/me', cleanedValues)
 
       console.log('Profile update response:', response.data) // Debug log
 
@@ -128,11 +152,23 @@ const Profile = () => {
       } else if (error.response?.status === 403) {
         message.error('Access denied. You do not have permission to update this profile.')
       } else if (error.response?.status === 400) {
-        message.error(error.response.data?.message || 'Invalid data provided.')
+        // Handle validation errors
+        const errorData = error.response.data
+        if (errorData?.errors && Array.isArray(errorData.errors)) {
+          const errorMessages = errorData.errors.map(err => err.message || err.msg).join(', ')
+          message.error(`Validation failed: ${errorMessages}`)
+        } else {
+          message.error(errorData?.message || 'Invalid data provided. Please check your input.')
+        }
+      } else if (error.response?.status === 404) {
+        message.error('User not found. Please login again.')
       } else if (error.response?.status === 500) {
         message.error('Server error. Please try again later.')
+      } else if (error.code === 'ERR_NETWORK' || error.message === 'Network Error') {
+        message.error('Cannot connect to server. Please check your connection.')
       } else {
-        message.error('Failed to update profile. Please check your connection.')
+        const errorMsg = error.response?.data?.message || error.message || 'Failed to update profile. Please try again.'
+        message.error(errorMsg)
       }
     } finally {
       setSaving(false)
@@ -147,8 +183,14 @@ const Profile = () => {
     } else if (info.file.status === 'done') {
       setUploading(false)
       setUploadProgress(100)
-      const uploadedUrl = info.file.response?.url || info.file.response?.data?.url
-      console.log('Avatar change - uploaded URL:', uploadedUrl)
+      
+      // Try multiple ways to get the uploaded URL
+      const uploadedUrl = info.file.response?.url || 
+                         info.file.response?.data?.url || 
+                         (typeof info.file.response === 'string' ? info.file.response : null)
+      
+      console.log('Avatar change - uploaded URL:', uploadedUrl, 'Response:', info.file.response)
+      
       if (uploadedUrl) {
         setAvatarUrl(uploadedUrl)
         // Update user profile with new avatar
@@ -161,19 +203,25 @@ const Profile = () => {
               updateUser({ ...currentUser, avatarUrl: uploadedUrl })
             }
           } else {
-            message.error('Failed to save profile picture')
+            message.error(response.data.message || 'Failed to save profile picture')
           }
         } catch (error) {
           console.error('Failed to update profile with new avatar:', error)
-          message.error('Failed to save profile picture')
+          const errorMsg = error.response?.data?.message || error.message || 'Failed to save profile picture'
+          message.error(errorMsg)
         }
       } else {
-        message.error('Failed to get uploaded image URL')
+        console.error('No uploaded URL found in response:', info.file.response)
+        message.error('Failed to get uploaded image URL. Please try again.')
       }
     } else if (info.file.status === 'error') {
       setUploading(false)
       setUploadProgress(0)
-      message.error('Failed to upload profile picture')
+      const errorMsg = info.file.error?.message || 
+                       info.file.response?.message || 
+                       'Failed to upload profile picture'
+      console.error('Avatar upload error:', info.file.error, info.file.response)
+      message.error(errorMsg)
     }
   }
 
@@ -203,7 +251,7 @@ const Profile = () => {
     },
     customRequest: async ({ file, onSuccess, onError, onProgress }) => {
       try {
-        console.log('Starting upload for file:', file.name) // Debug log
+        console.log('📤 Starting upload for file:', file.name, 'Size:', file.size) // Debug log
         const formData = new FormData()
         formData.append('avatar', file)
         
@@ -211,19 +259,30 @@ const Profile = () => {
         onProgress({ percent: 10 })
         
         const response = await uploadAPI.uploadAvatar(formData)
-        console.log('Upload response:', response.data) // Debug log
+        console.log('📤 Upload response:', response.data) // Debug log
         
-        if (response.data.success) {
-          const uploadedUrl = response.data.url
-          console.log('Upload successful, URL:', uploadedUrl)
+        if (response.data && response.data.success) {
+          const uploadedUrl = response.data.url || response.data.data?.url
+          console.log('✅ Upload successful, URL:', uploadedUrl)
           onProgress({ percent: 100 })
-          onSuccess({ url: uploadedUrl })
+          // Pass the URL in the format expected by handleAvatarChange
+          onSuccess({ url: uploadedUrl }, response)
         } else {
-          onError(new Error(response.data.message || 'Upload failed'))
+          const errorMsg = response.data?.message || 'Upload failed'
+          console.error('❌ Upload failed:', errorMsg)
+          onError(new Error(errorMsg))
         }
       } catch (error) {
-        console.error('Upload error:', error)
-        onError(error)
+        console.error('❌ Upload error:', error)
+        console.error('❌ Error details:', {
+          message: error.message,
+          response: error.response?.data,
+          status: error.response?.status
+        })
+        const errorMsg = error.response?.data?.message || 
+                        error.message || 
+                        'Failed to upload avatar. Please check your connection and try again.'
+        onError(new Error(errorMsg))
       }
     }
   }

@@ -71,6 +71,58 @@ export const AuthProvider = ({ children }) => {
           const userData = JSON.parse(storedUser)
           console.log('AuthContext: Found regular user:', userData.email)
           
+          // Check if this is actually an admin user (email contains admin or role is admin)
+          if (userData.email === 'admin@itwos.ai' || userData.role === 'admin') {
+            console.log('AuthContext: Converting to admin user:', userData.email)
+            
+            // Force create a new admin token
+            const newAdminToken = createMockJWT(userData._id, 'admin', userData.email, userData.name)
+            console.log('AuthContext: Created new admin token:', newAdminToken.substring(0, 50) + '...')
+            
+            // Store as admin user with new token
+            localStorage.setItem('adminUser', JSON.stringify({ ...userData, role: 'admin' }))
+            localStorage.setItem('adminToken', newAdminToken)
+            localStorage.setItem('token', newAdminToken)
+            localStorage.setItem('accessToken', newAdminToken)
+            
+            // Token is already created above, no need for additional validation
+            
+            setAuthState({
+              user: { ...userData, role: 'admin' },
+              isAuthenticated: true,
+              authInitialized: true,
+              isLoading: false
+            })
+            
+            console.log('AuthContext: Admin user authentication initialized')
+            return
+          }
+          
+          // Check and refresh token if needed
+          try {
+            // For mock tokens, check if they're expired
+            if (storedToken.includes('mock-')) {
+              const payload = JSON.parse(atob(storedToken.split('-')[1]))
+              const now = Math.floor(Date.now() / 1000)
+              if (payload.exp && payload.exp < now) {
+                console.log('Mock token expired, creating new one')
+                const newToken = createMockJWT(userData._id, userData.role, userData.email, userData.name)
+                localStorage.setItem('token', newToken)
+                localStorage.setItem('accessToken', newToken)
+              }
+            }
+          } catch (error) {
+            console.error('Error validating token:', error)
+            clearAuthData()
+            setAuthState({
+              user: null,
+              isAuthenticated: false,
+              authInitialized: true,
+              isLoading: false
+            })
+            return
+          }
+          
           setAuthState({
             user: userData,
             isAuthenticated: true,
@@ -89,6 +141,34 @@ export const AuthProvider = ({ children }) => {
           // Store admin token as regular token for API calls
           localStorage.setItem('token', storedAdminToken)
           localStorage.setItem('accessToken', storedAdminToken)
+          
+          // Check and refresh token if needed
+          try {
+            // For mock tokens, check if they're expired
+            if (storedAdminToken.includes('mock-')) {
+              const payload = JSON.parse(atob(storedAdminToken.split('-')[1]))
+              const now = Math.floor(Date.now() / 1000)
+              if (payload.exp && payload.exp < now) {
+                console.log('Admin mock token expired, creating new one')
+                const newToken = createMockJWT(adminData._id, adminData.role, adminData.email, adminData.name)
+                localStorage.setItem('token', newToken)
+                localStorage.setItem('accessToken', newToken)
+                localStorage.setItem('adminToken', newToken)
+              }
+            }
+          } catch (error) {
+            console.error('Error validating admin token:', error)
+            clearAuthData()
+            localStorage.removeItem('adminUser')
+            localStorage.removeItem('adminToken')
+            setAuthState({
+              user: null,
+              isAuthenticated: false,
+              authInitialized: true,
+              isLoading: false
+            })
+            return
+          }
           
           setAuthState({
             user: adminData,
@@ -136,21 +216,32 @@ export const AuthProvider = ({ children }) => {
     initializeAuth()
   }, [hasInitialized])
 
+  // Helper function to check backend availability
+  const checkBackendHealth = useCallback(async (timeout = 3000) => {
+    try {
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:7000/api'
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), timeout)
+      
+      const healthCheck = await fetch(`${API_URL}/health`, {
+        method: 'GET',
+        signal: controller.signal
+      })
+      
+      clearTimeout(timeoutId)
+      return healthCheck.ok
+    } catch (error) {
+      return false
+    }
+  }, [])
+
   const login = useCallback(async (credentials) => {
     try {
       setAuthState(prev => ({ ...prev, isLoading: true }))
       
       // Check if backend is available
-      try {
-        const healthCheck = await fetch('http://localhost:7000/api/health', {
-          method: 'GET',
-          timeout: 3000
-        })
-        
-        if (!healthCheck.ok) {
-          throw new Error('Backend server not available')
-        }
-      } catch (error) {
+      const backendAvailable = await checkBackendHealth(3000)
+      if (!backendAvailable) {
         console.warn('Backend server not available, using mock login')
         // Mock login for development with proper JWT tokens
         const mockUser = createMockUser(credentials.email)
@@ -225,23 +316,15 @@ export const AuthProvider = ({ children }) => {
       message.error('Login failed. Please check your credentials and try again.')
       return { success: false, error: 'Login failed' }
     }
-  }, [])
+  }, [checkBackendHealth])
 
   const register = useCallback(async (userData) => {
     try {
       setAuthState(prev => ({ ...prev, isLoading: true }))
       
       // Check if backend is available
-      try {
-        const healthCheck = await fetch('http://localhost:7000/api/health', {
-          method: 'GET',
-          timeout: 5000
-        })
-        
-        if (!healthCheck.ok) {
-          throw new Error('Backend server not available')
-        }
-      } catch (error) {
+      const backendAvailable = await checkBackendHealth(5000)
+      if (!backendAvailable) {
         console.warn('Backend server not available, using mock registration')
         message.success('Registration successful! Please log in. (Mock mode)')
         return { success: true }
@@ -273,6 +356,113 @@ export const AuthProvider = ({ children }) => {
       setAuthState(prev => ({ ...prev, isLoading: false }))
     }
   }, [])
+
+  // Token refresh function
+  const refreshToken = useCallback(async () => {
+    try {
+      const refreshTokenValue = localStorage.getItem('refreshToken')
+      if (!refreshTokenValue) {
+        throw new Error('No refresh token available')
+      }
+
+      const response = await fetch('http://localhost:7000/api/auth/refresh', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ refreshToken: refreshTokenValue })
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        if (data.success) {
+          localStorage.setItem('token', data.tokens.accessToken)
+          localStorage.setItem('accessToken', data.tokens.accessToken)
+          localStorage.setItem('refreshToken', data.tokens.refreshToken)
+          return true
+        }
+      }
+      return false
+    } catch (error) {
+      console.error('Token refresh failed:', error)
+      return false
+    }
+  }, [])
+
+  // Check if token is expired and refresh if needed
+  const checkAndRefreshToken = useCallback(async () => {
+    try {
+      const token = localStorage.getItem('token') || localStorage.getItem('accessToken')
+      if (!token) return false
+
+      // For mock tokens, check if they're expired
+      if (token.includes('mock-')) {
+        try {
+          const payload = JSON.parse(atob(token.split('-')[1]))
+          const now = Math.floor(Date.now() / 1000)
+          if (payload.exp && payload.exp < now) {
+            console.log('Mock token expired, creating new one')
+            const user = JSON.parse(localStorage.getItem('user') || '{}')
+            const newToken = createMockJWT(user._id, user.role, user.email, user.name)
+            localStorage.setItem('token', newToken)
+            localStorage.setItem('accessToken', newToken)
+            return true
+          }
+          return true
+        } catch (error) {
+          console.error('Error parsing mock token:', error)
+          return false
+        }
+      }
+
+      // For real tokens, try to refresh
+      return await refreshToken()
+    } catch (error) {
+      console.error('Token check failed:', error)
+      return false
+    }
+  }, [refreshToken])
+
+  // Force refresh admin token
+  const forceRefreshAdminToken = useCallback(() => {
+    try {
+      const storedUser = localStorage.getItem('user')
+      if (storedUser) {
+        const userData = JSON.parse(storedUser)
+        if (userData.email === 'admin@itwos.ai' || userData.role === 'admin') {
+          console.log('🔄 Force refreshing admin token for:', userData.email)
+          
+          // Create new admin token
+          const newAdminToken = createMockJWT(userData._id, 'admin', userData.email, userData.name)
+          
+          // Update all token storage
+          localStorage.setItem('adminUser', JSON.stringify({ ...userData, role: 'admin' }))
+          localStorage.setItem('adminToken', newAdminToken)
+          localStorage.setItem('token', newAdminToken)
+          localStorage.setItem('accessToken', newAdminToken)
+          
+          console.log('✅ Admin token force refreshed')
+          return { success: true, token: newAdminToken }
+        }
+      }
+      return { success: false, error: 'No admin user found' }
+    } catch (error) {
+      console.error('❌ Force refresh admin token failed:', error)
+      return { success: false, error: error.message }
+    }
+  }, [])
+
+  // Global function for browser console debugging
+  if (typeof window !== 'undefined') {
+    window.forceRefreshAdminToken = forceRefreshAdminToken
+    window.clearAuthAndRefresh = () => {
+      console.log('🧹 Clearing auth data and refreshing...')
+      clearAuthData()
+      localStorage.removeItem('adminUser')
+      localStorage.removeItem('adminToken')
+      window.location.reload()
+    }
+  }
 
   const logout = useCallback(async () => {
     try {
@@ -353,20 +543,17 @@ export const AuthProvider = ({ children }) => {
   const adminLogout = useCallback(async () => {
     try {
       // Call admin logout API if backend is available
-      try {
-        const healthCheck = await fetch('http://localhost:7000/api/health', {
-          method: 'GET',
-          timeout: 5000
-        })
-        
-        if (healthCheck.ok) {
-          await fetch('http://localhost:7000/api/admin/auth/logout', {
+      const backendAvailable = await checkBackendHealth(5000)
+      if (backendAvailable) {
+        try {
+          const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:7000/api'
+          await fetch(`${API_URL}/admin/auth/logout`, {
             method: 'POST',
             credentials: 'include'
           })
+        } catch (error) {
+          // Silently fail - we'll clear local data anyway
         }
-      } catch (error) {
-        console.warn('Backend not available, clearing local data only')
       }
       
       // Clear admin data regardless of API response
@@ -424,16 +611,8 @@ export const AuthProvider = ({ children }) => {
       console.log('🔐 Google user info:', userInfo)
       
       // Check if backend is available
-      try {
-        const healthCheck = await fetch('http://localhost:7000/api/health', {
-          method: 'GET',
-          timeout: 3000
-        })
-        
-        if (!healthCheck.ok) {
-          throw new Error('Backend server not available')
-        }
-      } catch (error) {
+      const backendAvailable = await checkBackendHealth(3000)
+      if (!backendAvailable) {
         console.warn('Backend server not available, using mock Google login')
         
         // Mock Google login for development
@@ -586,61 +765,6 @@ export const AuthProvider = ({ children }) => {
     }
   }, [])
 
-  // Refresh token function
-  const refreshToken = useCallback(async () => {
-    try {
-      const storedRefreshToken = localStorage.getItem('refreshToken')
-      if (!storedRefreshToken) {
-        throw new Error('No refresh token available')
-      }
-
-      console.log('🔄 Attempting token refresh...')
-      
-      const response = await fetch('http://localhost:7000/api/auth/refresh', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ refreshToken: storedRefreshToken })
-      })
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`)
-      }
-
-      const data = await response.json()
-      
-      if (data.success && data.accessToken) {
-        localStorage.setItem('token', data.accessToken)
-        localStorage.setItem('accessToken', data.accessToken)
-        
-        if (data.refreshToken) {
-          localStorage.setItem('refreshToken', data.refreshToken)
-        }
-        
-        console.log('✅ Token refreshed successfully')
-        return { success: true, accessToken: data.accessToken }
-      } else {
-        throw new Error(data.message || 'Invalid refresh response')
-      }
-    } catch (error) {
-      console.error('❌ Token refresh failed:', error)
-      
-      // Clear all auth data on refresh failure
-      clearAuthData()
-      localStorage.removeItem('adminUser')
-      localStorage.removeItem('adminToken')
-      
-      setAuthState({
-        user: null,
-        isAuthenticated: false,
-        authInitialized: true,
-        isLoading: false
-      })
-      
-      return { success: false, error: error.message }
-    }
-  }, [])
 
   // Memoize the context value to prevent unnecessary re-renders
   const contextValue = useMemo(() => ({
@@ -653,6 +777,8 @@ export const AuthProvider = ({ children }) => {
     logout,
     googleLogin,
     refreshToken,
+    checkAndRefreshToken,
+    forceRefreshAdminToken,
     adminLogin,
     adminLogout,
     updateProfile,
@@ -663,19 +789,19 @@ export const AuthProvider = ({ children }) => {
       setAuthState(prev => {
         const newUser = { ...prev.user, ...updatedUser }
         console.log('🔄 AuthContext: New user state:', newUser)
+        
+        // Update localStorage immediately (0 delay) for persistence
+        localStorage.setItem('user', JSON.stringify(newUser))
+        console.log('🔄 AuthContext: Updated localStorage immediately')
+        
         return { 
           ...prev, 
           user: newUser
         }
       })
-      // Also update localStorage
-      const currentUser = user || {}
-      const newUserData = { ...currentUser, ...updatedUser }
-      localStorage.setItem('user', JSON.stringify(newUserData))
-      console.log('🔄 AuthContext: Updated localStorage with:', newUserData)
     },
     setIsAuthenticated: (isAuth) => setAuthState(prev => ({ ...prev, isAuthenticated: isAuth }))
-  }), [user, isLoading, isAuthenticated, authInitialized, login, register, logout, googleLogin, refreshToken, adminLogin, adminLogout, updateProfile, refreshAuth])
+  }), [user, isLoading, isAuthenticated, authInitialized, login, register, logout, googleLogin, refreshToken, checkAndRefreshToken, adminLogin, adminLogout, updateProfile, refreshAuth])
 
   return (
     <AuthContext.Provider value={contextValue}>
