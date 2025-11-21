@@ -35,6 +35,7 @@ import UserDiscovery from './pages/User/UserDiscovery'
 import UserNetwork from './pages/User/UserNetwork'
 import NewUsers from './pages/User/NewUsers'
 import MyPrebooks from './pages/User/MyPrebooks'
+import VerifiedBadge from './pages/User/VerifiedBadge'
 import AboutPage from './pages/AboutPage'
 import ContactPage from './pages/ContactPage'
 import AdminLoginPage from './pages/Admin/AdminLoginPage'
@@ -91,6 +92,11 @@ function App() {
                   <Route path="/dashboard" element={
                     <ProtectedRoute requiredRole="user">
                       <UserLayout><Dashboard /></UserLayout>
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/dashboard/products" element={
+                    <ProtectedRoute requiredRole="user">
+                      <UserLayout><VerifiedBadge /></UserLayout>
                     </ProtectedRoute>
                   } />
                   <Route path="/profile/:userId" element={

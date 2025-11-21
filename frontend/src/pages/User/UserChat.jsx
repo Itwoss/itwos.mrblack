@@ -11,7 +11,10 @@ import {
   Badge,
   Modal,
   Tag,
-  Divider
+  Divider,
+  Image,
+  Dropdown,
+  Popover
 } from 'antd'
 import { 
   SendOutlined,
@@ -21,13 +24,20 @@ import {
   SearchOutlined,
   MoreOutlined,
   CheckOutlined,
-  CheckCircleOutlined
+  CheckCircleOutlined,
+  PlayCircleOutlined,
+  SoundOutlined,
+  BgColorsOutlined,
+  EditOutlined,
+  DeleteOutlined,
+  CloseOutlined
 } from '@ant-design/icons'
 import { useAuth } from "../../contexts/AuthContextOptimized"
 import api from '../../services/api'
 import { threadsAPI, usersListAPI } from '../../services/api'
 import { getUserAvatarUrl, getUserInitials } from '../../utils/avatarUtils'
 import { io } from 'socket.io-client'
+import ChatInputWithMedia from '../../components/ChatInputWithMedia'
 
 const { Text } = Typography
 const { TextArea } = Input
@@ -50,6 +60,156 @@ const UserChat = () => {
   const [typingUsers, setTypingUsers] = useState({}) // { threadId: [userId1, userId2] }
   const [onlineUsers, setOnlineUsers] = useState({}) // { userId: true/false }
   const [userLastSeen, setUserLastSeen] = useState({}) // { userId: timestamp }
+  const [chatTheme, setChatTheme] = useState(() => {
+    // Load theme from localStorage or default to theme 1
+    const savedTheme = localStorage.getItem('chatTheme')
+    return savedTheme ? parseInt(savedTheme) : 1
+  })
+  const [editingMessageId, setEditingMessageId] = useState(null)
+  const [editText, setEditText] = useState('')
+  const [hoveredMessageId, setHoveredMessageId] = useState(null)
+
+  // iOS Messages Style Themes
+  const chatThemes = {
+    1: {
+      name: 'Default Blue iMessage',
+      background: 'linear-gradient(180deg, #E8F4F8 0%, #F5F5F5 100%)',
+      blurOverlay: 'rgba(255, 255, 255, 0.7)',
+      ownMessageBg: 'linear-gradient(180deg, #0A84FF 0%, #147BFF 100%)',
+      ownMessageText: '#FFFFFF',
+      otherMessageBg: 'rgba(255, 255, 255, 0.95)',
+      otherMessageText: '#000000',
+      sidebarBg: '#F2F2F7',
+      headerBg: 'rgba(255, 255, 255, 0.8)',
+      inputBg: 'rgba(255, 255, 255, 0.9)',
+      accentColor: '#0A84FF'
+    },
+    2: {
+      name: 'Mint Green Soft Blur',
+      background: 'linear-gradient(180deg, #E8F8F5 0%, #F0F9F7 100%)',
+      blurOverlay: 'rgba(255, 255, 255, 0.75)',
+      ownMessageBg: 'linear-gradient(180deg, #00C896 0%, #00B584 100%)',
+      ownMessageText: '#FFFFFF',
+      otherMessageBg: 'rgba(255, 255, 255, 0.95)',
+      otherMessageText: '#000000',
+      sidebarBg: '#F2F7F5',
+      headerBg: 'rgba(255, 255, 255, 0.8)',
+      inputBg: 'rgba(255, 255, 255, 0.9)',
+      accentColor: '#00C896'
+    },
+    3: {
+      name: 'Purple Lavender Gradient',
+      background: 'linear-gradient(180deg, #F5F0FF 0%, #FAF5FF 100%)',
+      blurOverlay: 'rgba(255, 255, 255, 0.7)',
+      ownMessageBg: 'linear-gradient(180deg, #AF52DE 0%, #9B4DD6 100%)',
+      ownMessageText: '#FFFFFF',
+      otherMessageBg: 'rgba(255, 255, 255, 0.95)',
+      otherMessageText: '#000000',
+      sidebarBg: '#F7F2FF',
+      headerBg: 'rgba(255, 255, 255, 0.8)',
+      inputBg: 'rgba(255, 255, 255, 0.9)',
+      accentColor: '#AF52DE'
+    },
+    4: {
+      name: 'Midnight Black OLED',
+      background: 'linear-gradient(180deg, #000000 0%, #1C1C1E 100%)',
+      blurOverlay: 'rgba(0, 0, 0, 0.6)',
+      ownMessageBg: 'linear-gradient(180deg, #0A84FF 0%, #147BFF 100%)',
+      ownMessageText: '#FFFFFF',
+      otherMessageBg: 'rgba(44, 44, 46, 0.95)',
+      otherMessageText: '#FFFFFF',
+      sidebarBg: '#1C1C1E',
+      headerBg: 'rgba(28, 28, 30, 0.9)',
+      inputBg: 'rgba(44, 44, 46, 0.9)',
+      accentColor: '#0A84FF'
+    },
+    5: {
+      name: 'Rose Pink Soft Gradient',
+      background: 'linear-gradient(180deg, #FFF0F5 0%, #FFF5F8 100%)',
+      blurOverlay: 'rgba(255, 255, 255, 0.75)',
+      ownMessageBg: 'linear-gradient(180deg, #FF2D55 0%, #FF1744 100%)',
+      ownMessageText: '#FFFFFF',
+      otherMessageBg: 'rgba(255, 255, 255, 0.95)',
+      otherMessageText: '#000000',
+      sidebarBg: '#FFF5F8',
+      headerBg: 'rgba(255, 255, 255, 0.8)',
+      inputBg: 'rgba(255, 255, 255, 0.9)',
+      accentColor: '#FF2D55'
+    },
+    6: {
+      name: 'Ocean Teal Glass',
+      background: 'linear-gradient(180deg, #E0F7FA 0%, #F0FDFF 100%)',
+      blurOverlay: 'rgba(255, 255, 255, 0.7)',
+      ownMessageBg: 'linear-gradient(180deg, #00BCD4 0%, #00ACC1 100%)',
+      ownMessageText: '#FFFFFF',
+      otherMessageBg: 'rgba(255, 255, 255, 0.95)',
+      otherMessageText: '#000000',
+      sidebarBg: '#F0FDFF',
+      headerBg: 'rgba(255, 255, 255, 0.8)',
+      inputBg: 'rgba(255, 255, 255, 0.9)',
+      accentColor: '#00BCD4'
+    },
+    7: {
+      name: 'Warm Beige Minimal',
+      background: 'linear-gradient(180deg, #FAF8F3 0%, #F5F3ED 100%)',
+      blurOverlay: 'rgba(255, 255, 255, 0.8)',
+      ownMessageBg: 'linear-gradient(180deg, #D4A574 0%, #C8965A 100%)',
+      ownMessageText: '#FFFFFF',
+      otherMessageBg: 'rgba(255, 255, 255, 0.95)',
+      otherMessageText: '#000000',
+      sidebarBg: '#F5F3ED',
+      headerBg: 'rgba(255, 255, 255, 0.8)',
+      inputBg: 'rgba(255, 255, 255, 0.9)',
+      accentColor: '#D4A574'
+    },
+    8: {
+      name: 'Silver Frost Blur',
+      background: 'linear-gradient(180deg, #F5F5F7 0%, #E8E8ED 100%)',
+      blurOverlay: 'rgba(255, 255, 255, 0.8)',
+      ownMessageBg: 'linear-gradient(180deg, #8E8E93 0%, #7A7A7F 100%)',
+      ownMessageText: '#FFFFFF',
+      otherMessageBg: 'rgba(255, 255, 255, 0.95)',
+      otherMessageText: '#000000',
+      sidebarBg: '#E8E8ED',
+      headerBg: 'rgba(255, 255, 255, 0.8)',
+      inputBg: 'rgba(255, 255, 255, 0.9)',
+      accentColor: '#8E8E93'
+    },
+    9: {
+      name: 'Sunset Orange/Pink',
+      background: 'linear-gradient(180deg, #FFF5E6 0%, #FFE8D6 100%)',
+      blurOverlay: 'rgba(255, 255, 255, 0.7)',
+      ownMessageBg: 'linear-gradient(180deg, #FF9500 0%, #FF8C00 100%)',
+      ownMessageText: '#FFFFFF',
+      otherMessageBg: 'rgba(255, 255, 255, 0.95)',
+      otherMessageText: '#000000',
+      sidebarBg: '#FFE8D6',
+      headerBg: 'rgba(255, 255, 255, 0.8)',
+      inputBg: 'rgba(255, 255, 255, 0.9)',
+      accentColor: '#FF9500'
+    },
+    10: {
+      name: 'Space Gray Professional',
+      background: 'linear-gradient(180deg, #F2F2F7 0%, #E5E5EA 100%)',
+      blurOverlay: 'rgba(255, 255, 255, 0.75)',
+      ownMessageBg: 'linear-gradient(180deg, #48484A 0%, #3A3A3C 100%)',
+      ownMessageText: '#FFFFFF',
+      otherMessageBg: 'rgba(255, 255, 255, 0.95)',
+      otherMessageText: '#000000',
+      sidebarBg: '#E5E5EA',
+      headerBg: 'rgba(255, 255, 255, 0.8)',
+      inputBg: 'rgba(255, 255, 255, 0.9)',
+      accentColor: '#48484A'
+    }
+  }
+
+  const currentTheme = chatThemes[chatTheme] || chatThemes[1]
+
+  const handleThemeChange = (themeId) => {
+    setChatTheme(themeId)
+    localStorage.setItem('chatTheme', themeId.toString())
+    message.success(`Theme changed to ${chatThemes[themeId].name}`)
+  }
   
   const messagesEndRef = useRef(null)
   const messagesContainerRef = useRef(null)
@@ -97,10 +257,10 @@ const UserChat = () => {
   }, [isAuthenticated, currentUser, initialized])
 
   useEffect(() => {
-    if (selectedRoom) {
+    if (selectedRoom && isAuthenticated && currentUser) {
       loadMessages(selectedRoom._id)
     }
-  }, [selectedRoom])
+  }, [selectedRoom, isAuthenticated, currentUser])
 
   useEffect(() => {
     scrollToBottom()
@@ -256,6 +416,24 @@ const UserChat = () => {
       }))
     })
 
+    // Listen for message edited
+    socket.on('message_edited', (data) => {
+      const { threadId, messageId, message: updatedMessage } = data
+      if (selectedRoom && selectedRoom._id === threadId) {
+        setMessages(prev => prev.map(msg => 
+          msg._id === messageId ? { ...msg, ...updatedMessage } : msg
+        ))
+      }
+    })
+
+    // Listen for message deleted
+    socket.on('message_deleted', (data) => {
+      const { threadId, messageId } = data
+      if (selectedRoom && selectedRoom._id === threadId) {
+        setMessages(prev => prev.filter(msg => msg._id !== messageId))
+      }
+    })
+
     // Cleanup on unmount
     return () => {
       if (socket) {
@@ -301,7 +479,82 @@ const UserChat = () => {
   }, [selectedRoom])
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+    try {
+      if (messagesEndRef.current) {
+        messagesEndRef.current.scrollIntoView({ behavior: 'smooth' })
+      } else if (messagesContainerRef.current) {
+        messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight
+      }
+    } catch (err) {
+      console.error('Error scrolling to bottom:', err)
+    }
+  }
+
+  const handleEditMessage = (msg) => {
+    if (msg.messageType !== 'text') {
+      message.warning('Only text messages can be edited')
+      return
+    }
+    setEditingMessageId(msg._id)
+    setEditText(msg.text || msg.ciphertext || msg.message || '')
+  }
+
+  const handleSaveEdit = async () => {
+    if (!editingMessageId || !selectedRoom || !editText.trim()) return
+
+    try {
+      const response = await threadsAPI.editMessage(selectedRoom._id, editingMessageId, {
+        text: editText.trim()
+      })
+
+      if (response.data.success) {
+        setMessages(prev => prev.map(msg => 
+          msg._id === editingMessageId 
+            ? { ...msg, text: editText.trim(), ciphertext: editText.trim(), isEdited: true, editedAt: new Date() }
+            : msg
+        ))
+        setEditingMessageId(null)
+        setEditText('')
+        message.success('Message edited')
+      } else {
+        message.error(response.data.message || 'Failed to edit message')
+      }
+    } catch (error) {
+      console.error('Error editing message:', error)
+      message.error(error.response?.data?.message || 'Failed to edit message')
+    }
+  }
+
+  const handleCancelEdit = () => {
+    setEditingMessageId(null)
+    setEditText('')
+  }
+
+  const handleDeleteMessage = async (messageId) => {
+    if (!selectedRoom || !messageId) return
+
+    Modal.confirm({
+      title: 'Unsend message?',
+      content: 'This message will be removed for everyone.',
+      okText: 'Unsend',
+      okType: 'danger',
+      cancelText: 'Cancel',
+      onOk: async () => {
+        try {
+          const response = await threadsAPI.deleteMessage(selectedRoom._id, messageId)
+
+          if (response.data.success) {
+            setMessages(prev => prev.filter(msg => msg._id !== messageId))
+            message.success('Message unsent')
+          } else {
+            message.error(response.data.message || 'Failed to delete message')
+          }
+        } catch (error) {
+          console.error('Error deleting message:', error)
+          message.error(error.response?.data?.message || 'Failed to delete message')
+        }
+      }
+    })
   }
 
   const loadChatRooms = async () => {
@@ -315,7 +568,8 @@ const UserChat = () => {
     
     try {
       // Load only threads (direct messages only - Instagram style)
-      const threadsResponse = await threadsAPI.getThreads({ userId: currentUser._id })
+      // Don't pass userId - let backend use authenticated user's ID
+      const threadsResponse = await threadsAPI.getThreads({})
       
       const allRooms = []
       
@@ -349,16 +603,29 @@ const UserChat = () => {
         setSelectedRoom(allRooms[0])
       }
     } catch (error) {
-      console.error('Error loading messages:', error)
+      console.error('❌ Error loading chat rooms:', error)
+      console.error('Error details:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+        code: error.code
+      })
       
       if (error.response?.status === 401) {
         console.log('Authentication error in chat')
+        message.error('Please login again')
+        return
+      }
+      
+      if (error.response?.status === 403) {
+        console.log('Access denied')
+        message.error('Access denied')
         return
       }
       
       setRooms([])
-      if (error.code !== 'ERR_NETWORK') {
-        message.error('Failed to load messages')
+      if (error.code !== 'ERR_NETWORK' && error.code !== 'ECONNREFUSED') {
+        message.error(error.response?.data?.message || 'Failed to load conversations')
       }
     } finally {
       setLoading(false)
@@ -366,32 +633,57 @@ const UserChat = () => {
   }
 
   const loadMessages = async (roomId) => {
-    if (!isAuthenticated || !currentUser) {
-      console.log('Not authenticated, skipping messages API call')
+    if (!isAuthenticated || !currentUser || !roomId) {
+      console.log('Not authenticated or no roomId, skipping messages API call')
       return
     }
     
     try {
+      console.log('📨 Loading messages for room:', roomId)
       // Use threads API for messages
       const response = await threadsAPI.getMessages(roomId, { page: 1, limit: 100 })
+      
       if (response.data.success) {
         const messagesList = response.data.messages || []
+        console.log(`✅ Loaded ${messagesList.length} messages`)
         // Reverse to show oldest first (or adjust based on your preference)
         setMessages(messagesList.reverse())
+        // Scroll to bottom after messages load
+        setTimeout(() => scrollToBottom(), 100)
       } else {
+        console.warn('⚠️ API returned success=false:', response.data)
         setMessages([])
       }
     } catch (error) {
-      console.error('Error loading messages:', error)
+      console.error('❌ Error loading messages:', error)
+      console.error('Error details:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+        roomId: roomId
+      })
       
       if (error.response?.status === 401) {
         console.log('Authentication error loading messages')
+        message.error('Please login again')
+        return
+      }
+      
+      if (error.response?.status === 403) {
+        console.log('Access denied for this thread')
+        message.error('You do not have access to this conversation')
+        return
+      }
+      
+      if (error.response?.status === 404) {
+        console.log('Thread not found')
+        message.error('Conversation not found')
         return
       }
       
       setMessages([])
-      if (error.code !== 'ERR_NETWORK') {
-        message.error('Failed to load messages')
+      if (error.code !== 'ERR_NETWORK' && error.code !== 'ECONNREFUSED') {
+        message.error(error.response?.data?.message || 'Failed to load messages')
       }
     }
   }
@@ -423,24 +715,136 @@ const UserChat = () => {
     }
   }
 
-  const handleSendMessage = async () => {
-    if (!newMessage.trim() || !selectedRoom) return
+  const handleSendMessage = async (payload) => {
+    if (!selectedRoom) return
 
-    const messageText = newMessage.trim()
+    // Handle different message types from ChatInputWithMedia
+    let messageData = {}
+    
+    if (payload.type === 'text') {
+      if (!payload.text?.trim()) return
+      messageData = {
+        text: payload.text.trim(),
+        messageType: 'text'
+      }
+    } else if (payload.type === 'sticker') {
+      messageData = {
+        text: payload.sticker,
+        messageType: 'sticker'
+      }
+    } else if (payload.type === 'image') {
+      if (!payload.file) return
+      // Upload image first, then send message with image URL
+      try {
+        const formData = new FormData()
+        formData.append('image', payload.file)
+        
+        const uploadResponse = await api.post('/upload/image', formData, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        })
+        
+        if (uploadResponse.data.success) {
+          messageData = {
+            text: payload.text || '',
+            messageType: 'image',
+            imageUrl: uploadResponse.data.url || uploadResponse.data.data?.url
+          }
+        } else {
+          message.error('Failed to upload image')
+          return
+        }
+      } catch (uploadError) {
+        console.error('Image upload error:', uploadError)
+        message.error('Failed to upload image')
+        return
+      }
+    } else if (payload.type === 'audio') {
+      if (!payload.file) return
+      // Upload audio first, then send message with audio URL
+      try {
+        console.log('📤 Uploading audio file:', {
+          fileName: payload.file.name,
+          fileSize: payload.file.size,
+          fileType: payload.file.type,
+          title: payload.title,
+          note: payload.note
+        })
+        
+        const formData = new FormData()
+        formData.append('audio', payload.file)
+        if (payload.title) formData.append('title', payload.title)
+        if (payload.note) formData.append('note', payload.note)
+        
+        // Don't set Content-Type header - let axios set it automatically with boundary
+        const uploadResponse = await api.post('/upload/audio', formData)
+        
+        console.log('📤 Audio upload response:', uploadResponse.data)
+        
+        if (uploadResponse.data.success) {
+          const audioUrl = uploadResponse.data.url || uploadResponse.data.data?.url
+          if (!audioUrl) {
+            console.error('❌ No audio URL in response:', uploadResponse.data)
+            message.error('Upload succeeded but no URL returned')
+            return
+          }
+          
+          messageData = {
+            text: payload.note || '',
+            messageType: 'audio',
+            audioUrl: audioUrl,
+            audioTitle: payload.title,
+            audioDuration: payload.duration
+          }
+        } else {
+          const errorMsg = uploadResponse.data.message || 'Failed to upload audio'
+          console.error('❌ Audio upload failed:', errorMsg)
+          message.error(errorMsg)
+          return
+        }
+      } catch (uploadError) {
+        console.error('❌ Audio upload error:', uploadError)
+        console.error('❌ Error details:', {
+          message: uploadError.message,
+          response: uploadError.response?.data,
+          status: uploadError.response?.status,
+          statusText: uploadError.response?.statusText
+        })
+        
+        let errorMsg = 'Failed to upload audio'
+        if (uploadError.response?.status === 413) {
+          errorMsg = 'Audio file too large. Maximum size is 10MB.'
+        } else if (uploadError.response?.status === 400) {
+          errorMsg = uploadError.response?.data?.message || 'Invalid audio file'
+        } else if (uploadError.response?.status === 401) {
+          errorMsg = 'Authentication required. Please login again.'
+        } else if (uploadError.response?.data?.message) {
+          errorMsg = uploadError.response.data.message
+        } else if (uploadError.message) {
+          errorMsg = uploadError.message
+        }
+        
+        message.error(errorMsg)
+        return
+      }
+    } else {
+      // Fallback to text message
+      if (!newMessage.trim()) return
+      messageData = {
+        text: newMessage.trim(),
+        messageType: 'text'
+      }
+    }
+
     setSending(true)
     
     try {
       console.log('Sending message:', {
         threadId: selectedRoom._id,
-        text: messageText,
-        messageType: 'text'
+        ...messageData
       })
 
       // Use threads API to send message
-      const response = await threadsAPI.sendMessage(selectedRoom._id, {
-        text: messageText,
-        messageType: 'text'
-      })
+      const response = await threadsAPI.sendMessage(selectedRoom._id, messageData)
 
       console.log('Send message response:', response.data)
 
@@ -682,6 +1086,44 @@ const UserChat = () => {
             opacity: 1;
           }
         }
+        @keyframes bubblePop {
+          0% {
+            transform: scale(0.8);
+            opacity: 0;
+          }
+          50% {
+            transform: scale(1.05);
+          }
+          100% {
+            transform: scale(1);
+            opacity: 1;
+          }
+        }
+        @keyframes bounce {
+          0%, 80%, 100% {
+            transform: scale(0);
+            opacity: 0.5;
+          }
+          40% {
+            transform: scale(1);
+            opacity: 1;
+          }
+        }
+        .ios-message-bubble {
+          animation: bubblePop 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+        }
+        .ios-typing-dot {
+          animation: bounce 1.4s infinite ease-in-out;
+        }
+        .ios-typing-dot:nth-child(1) {
+          animation-delay: -0.32s;
+        }
+        .ios-typing-dot:nth-child(2) {
+          animation-delay: -0.16s;
+        }
+        .ios-typing-dot:nth-child(3) {
+          animation-delay: 0s;
+        }
       `}</style>
       <div style={{ 
         display: 'flex',
@@ -689,21 +1131,26 @@ const UserChat = () => {
         background: '#fff',
         overflow: 'hidden'
       }}>
-      {/* Left Sidebar - Conversations List (Instagram Style) */}
+      {/* iOS Style Left Sidebar - Conversations List */}
       <div style={{
         width: '350px',
-        borderRight: '1px solid #dbdbdb',
+        borderRight: '0.5px solid rgba(0,0,0,0.1)',
         display: 'flex',
         flexDirection: 'column',
-        background: '#fff'
+        background: currentTheme.sidebarBg,
+        backdropFilter: 'blur(20px) saturate(180%)',
+        WebkitBackdropFilter: 'blur(20px) saturate(180%)'
       }}>
-        {/* Header */}
+        {/* iOS Style Header */}
         <div style={{
-          padding: '16px',
-          borderBottom: '1px solid #dbdbdb',
+          padding: '12px 16px',
+          borderBottom: '0.5px solid rgba(0,0,0,0.1)',
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'space-between'
+          justifyContent: 'space-between',
+          background: currentTheme.sidebarBg,
+          backdropFilter: 'blur(20px) saturate(180%)',
+          WebkitBackdropFilter: 'blur(20px) saturate(180%)'
         }}>
           <Text strong style={{ fontSize: '16px' }}>{currentUser?.name || 'Messages'}</Text>
           <Button 
@@ -714,17 +1161,20 @@ const UserChat = () => {
           />
         </div>
 
-        {/* Search */}
-        <div style={{ padding: '8px' }}>
+        {/* iOS Style Search */}
+        <div style={{ padding: '8px 12px' }}>
           <Input
-            prefix={<SearchOutlined style={{ color: '#8e8e8e' }} />}
+            prefix={<SearchOutlined style={{ color: '#8E8E93' }} />}
             placeholder="Search"
             value={conversationSearch}
             onChange={(e) => setConversationSearch(e.target.value)}
             style={{
-              borderRadius: '8px',
-              background: '#fafafa',
-              border: 'none'
+              borderRadius: '10px',
+              background: 'rgba(142, 142, 147, 0.12)',
+              border: 'none',
+              fontSize: '15px',
+              fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif',
+              height: '36px'
             }}
           />
         </div>
@@ -767,19 +1217,19 @@ const UserChat = () => {
                   style={{
                     padding: '12px 16px',
                     cursor: 'pointer',
-                    background: isSelected ? '#fafafa' : '#fff',
-                    borderLeft: isSelected ? '2px solid #262626' : '2px solid transparent',
+                    background: isSelected ? 'rgba(0,0,0,0.05)' : 'transparent',
                     display: 'flex',
                     alignItems: 'center',
                     gap: '12px',
-                    transition: 'background 0.2s',
-                    borderBottom: '1px solid #fafafa'
+                    transition: 'background 0.15s ease-out',
+                    borderBottom: '0.5px solid rgba(0,0,0,0.05)',
+                    fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif'
                   }}
                   onMouseEnter={(e) => {
-                    if (!isSelected) e.currentTarget.style.background = '#fafafa'
+                    if (!isSelected) e.currentTarget.style.background = 'rgba(0,0,0,0.03)'
                   }}
                   onMouseLeave={(e) => {
-                    if (!isSelected) e.currentTarget.style.background = '#fff'
+                    if (!isSelected) e.currentTarget.style.background = 'transparent'
                   }}
                 >
                   <div style={{ position: 'relative', flexShrink: 0 }}>
@@ -848,23 +1298,42 @@ const UserChat = () => {
         </div>
       </div>
 
-      {/* Right Side - Chat Messages (Instagram Style) */}
+      {/* Right Side - iOS Style Chat Messages */}
       <div style={{
         flex: 1,
         display: 'flex',
         flexDirection: 'column',
-        background: '#fff'
+        position: 'relative',
+        background: currentTheme.background,
+        overflow: 'hidden'
       }}>
+        {/* iOS Style Blur overlay */}
+        <div style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: currentTheme.blurOverlay,
+          backdropFilter: 'blur(40px) saturate(180%)',
+          WebkitBackdropFilter: 'blur(40px) saturate(180%)',
+          pointerEvents: 'none',
+          zIndex: 0
+        }} />
         {selectedRoom ? (
           <>
-            {/* Chat Header */}
+            {/* iOS Style Chat Header */}
             <div style={{
-              padding: '12px 16px',
-              borderBottom: '1px solid #dbdbdb',
+              padding: '10px 16px',
+              borderBottom: '0.5px solid rgba(0,0,0,0.1)',
               display: 'flex',
               alignItems: 'center',
               gap: '12px',
-              background: '#fff'
+              background: currentTheme.headerBg,
+              backdropFilter: 'blur(20px) saturate(180%)',
+              WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+              position: 'relative',
+              zIndex: 10
             }}>
               <div style={{ position: 'relative' }}>
                 <Avatar
@@ -892,7 +1361,8 @@ const UserChat = () => {
                   )
                 })()}
               </div>
-              <div style={{ flex: 1 }}>
+              <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div>
                 <Text strong style={{ fontSize: '14px', display: 'block' }}>
                   {getRoomDisplayName(selectedRoom)}
                 </Text>
@@ -904,6 +1374,70 @@ const UserChat = () => {
                     </Text>
                   )
                 })()}
+                </div>
+                <Popover
+                  content={
+                    <div style={{ width: '240px', maxHeight: '400px', overflowY: 'auto' }}>
+                      <div style={{ 
+                        marginBottom: '12px', 
+                        fontWeight: 600, 
+                        fontSize: '15px',
+                        fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif'
+                      }}>
+                        Choose Theme
+                      </div>
+                      <Space direction="vertical" style={{ width: '100%' }} size="small">
+                        {Object.keys(chatThemes).map((themeId) => (
+                          <Button
+                            key={themeId}
+                            type={chatTheme === parseInt(themeId) ? 'primary' : 'default'}
+                            block
+                            onClick={() => handleThemeChange(parseInt(themeId))}
+                            style={{
+                              height: '44px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              background: chatTheme === parseInt(themeId) 
+                                ? chatThemes[themeId].ownMessageBg 
+                                : 'transparent',
+                              border: chatTheme === parseInt(themeId) 
+                                ? 'none' 
+                                : '0.5px solid rgba(0,0,0,0.1)',
+                              borderRadius: '10px',
+                              fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif',
+                              fontSize: '15px',
+                              fontWeight: chatTheme === parseInt(themeId) ? 600 : 400,
+                              color: chatTheme === parseInt(themeId) ? '#fff' : '#000',
+                              transition: 'all 0.2s ease-out'
+                            }}
+                          >
+                            <span>{chatThemes[themeId].name}</span>
+                            <div
+                              style={{
+                                width: '24px',
+                                height: '24px',
+                                borderRadius: '6px',
+                                background: chatThemes[themeId].background,
+                                border: '0.5px solid rgba(0,0,0,0.1)',
+                                boxShadow: '0 1px 2px rgba(0,0,0,0.1)'
+                              }}
+                            />
+                          </Button>
+                        ))}
+                      </Space>
+                    </div>
+                  }
+                  title={null}
+                  trigger="click"
+                  placement="bottomRight"
+                >
+                  <Button
+                    type="text"
+                    icon={<BgColorsOutlined />}
+                    style={{ padding: '4px 8px' }}
+                  />
+                </Popover>
               </div>
               <Button 
                 type="text"
@@ -912,17 +1446,20 @@ const UserChat = () => {
               />
             </div>
 
-            {/* Messages Area */}
+            {/* iOS Style Messages Area */}
             <div 
               ref={messagesContainerRef}
               style={{
                 flex: 1,
                 overflowY: 'auto',
-                padding: '20px',
-                background: '#fafafa',
+                padding: '12px 16px',
+                background: 'transparent',
                 display: 'flex',
                 flexDirection: 'column',
-                gap: '4px'
+                gap: '2px',
+                position: 'relative',
+                zIndex: 1,
+                fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif'
               }}
             >
               {messages.length === 0 ? (
@@ -931,13 +1468,23 @@ const UserChat = () => {
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  flexDirection: 'column'
+                  flexDirection: 'column',
+                  opacity: 0.4
                 }}>
-                  <MessageOutlined style={{ fontSize: '64px', color: '#dbdbdb', marginBottom: '16px' }} />
-                  <Text type="secondary" style={{ fontSize: '14px' }}>
+                  <MessageOutlined style={{ fontSize: '64px', color: '#8E8E93', marginBottom: '16px' }} />
+                  <Text type="secondary" style={{ 
+                    fontSize: '17px',
+                    fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif',
+                    color: '#8E8E93'
+                  }}>
                     No messages yet
                   </Text>
-                  <Text type="secondary" style={{ fontSize: '14px', marginTop: '4px' }}>
+                  <Text type="secondary" style={{ 
+                    fontSize: '15px', 
+                    marginTop: '8px',
+                    fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif',
+                    color: '#8E8E93'
+                  }}>
                     Send a message to get started
                   </Text>
                 </div>
@@ -956,9 +1503,14 @@ const UserChat = () => {
                         display: 'flex',
                         justifyContent: isOwnMessage ? 'flex-end' : 'flex-start',
                         alignItems: 'flex-end',
-                        gap: '8px',
-                        marginBottom: showAvatar ? '8px' : '2px'
+                        gap: '6px',
+                        marginBottom: showAvatar ? '12px' : '1px',
+                        paddingLeft: isOwnMessage ? '60px' : '0',
+                        paddingRight: isOwnMessage ? '0' : '60px',
+                        position: 'relative'
                       }}
+                      onMouseEnter={() => isOwnMessage && !msg.isDeleted && setHoveredMessageId(msg._id)}
+                      onMouseLeave={() => setHoveredMessageId(null)}
                     >
                       {!isOwnMessage && (
                         <Avatar
@@ -974,25 +1526,249 @@ const UserChat = () => {
                         </Avatar>
                       )}
                       <div style={{
-                        maxWidth: '65%',
+                        maxWidth: '75%',
                         display: 'flex',
                         flexDirection: 'column',
-                        alignItems: isOwnMessage ? 'flex-end' : 'flex-start'
+                        alignItems: isOwnMessage ? 'flex-end' : 'flex-start',
+                        minWidth: '50px'
                       }}>
                         <div
+                          className="ios-message-bubble"
                           style={{
-                            background: isOwnMessage ? '#0095f6' : '#fff',
-                            color: isOwnMessage ? '#fff' : '#262626',
-                            padding: '8px 12px',
-                            borderRadius: isOwnMessage ? '18px 18px 4px 18px' : '18px 18px 18px 4px',
-                            boxShadow: '0 1px 2px rgba(0,0,0,0.1)',
+                            background: isOwnMessage 
+                              ? currentTheme.ownMessageBg 
+                              : currentTheme.otherMessageBg,
+                            color: isOwnMessage 
+                              ? currentTheme.ownMessageText 
+                              : currentTheme.otherMessageText,
+                            padding: '10px 16px',
+                            borderRadius: isOwnMessage ? '22px 22px 4px 22px' : '22px 22px 22px 4px',
+                            boxShadow: isOwnMessage 
+                              ? '0 1px 2px rgba(0,0,0,0.1), 0 2px 4px rgba(0,0,0,0.05)' 
+                              : '0 1px 2px rgba(0,0,0,0.08)',
                             wordWrap: 'break-word',
-                            fontSize: '14px',
-                            lineHeight: '1.4'
+                            fontSize: '17px',
+                            lineHeight: '1.35',
+                            maxWidth: '100%',
+                            backdropFilter: isOwnMessage ? 'none' : 'blur(20px) saturate(180%)',
+                            WebkitBackdropFilter: isOwnMessage ? 'none' : 'blur(20px) saturate(180%)',
+                            border: isOwnMessage ? 'none' : '0.5px solid rgba(0,0,0,0.08)',
+                            fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif',
+                            fontWeight: 400,
+                            transition: 'transform 0.2s ease-out'
                           }}
                         >
-                          {msg.text || msg.ciphertext || msg.message || ''}
+                          {/* Show deleted message indicator */}
+                          {msg.isDeleted ? (
+                            <div style={{ 
+                              fontSize: '15px', 
+                              opacity: 0.5, 
+                              fontStyle: 'italic',
+                              color: isOwnMessage ? '#fff' : '#8E8E93'
+                            }}>
+                              This message was unsent
+                            </div>
+                          ) : editingMessageId === msg._id ? (
+                            /* Text content - Show edit input if editing */
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%' }}>
+                              <Input.TextArea
+                                value={editText}
+                                onChange={(e) => setEditText(e.target.value)}
+                                autoFocus
+                                autoSize={{ minRows: 1, maxRows: 6 }}
+                                onPressEnter={(e) => {
+                                  if (e.shiftKey) return
+                                  e.preventDefault()
+                                  handleSaveEdit()
+                                }}
+                                style={{
+                                  background: 'transparent',
+                                  border: 'none',
+                                  padding: 0,
+                                  fontSize: '17px',
+                                  lineHeight: '1.35',
+                                  color: isOwnMessage ? '#fff' : '#262626',
+                                  resize: 'none'
+                                }}
+                              />
+                              <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                                <Button
+                                  size="small"
+                                  icon={<CloseOutlined />}
+                                  onClick={handleCancelEdit}
+                                  style={{ fontSize: '13px', height: '28px' }}
+                                >
+                                  Cancel
+                                </Button>
+                                <Button
+                                  type="primary"
+                                  size="small"
+                                  icon={<CheckOutlined />}
+                                  onClick={handleSaveEdit}
+                                  style={{ fontSize: '13px', height: '28px' }}
+                                >
+                                  Save
+                                </Button>
+                              </div>
+                            </div>
+                          ) : (
+                            <>
+                              {/* Sticker */}
+                              {msg.messageType === 'sticker' && (
+                                <div style={{ fontSize: '48px', textAlign: 'center' }}>
+                                  {msg.text || msg.message}
+                                </div>
+                              )}
+                              
+                              {/* Image */}
+                              {msg.messageType === 'image' && msg.imageUrl && (
+                                <div style={{ marginBottom: msg.text ? '8px' : '0' }}>
+                                  <Image
+                                    src={
+                                      msg.imageUrl.startsWith('http') 
+                                        ? msg.imageUrl 
+                                        : `${api.defaults.baseURL.replace('/api', '')}${msg.imageUrl}`
+                                    }
+                                    alt="Shared image"
+                                    style={{
+                                      maxWidth: '280px',
+                                      maxHeight: '280px',
+                                      borderRadius: '12px',
+                                      objectFit: 'cover',
+                                      display: 'block'
+                                    }}
+                                    preview={{
+                                      mask: 'View'
+                                    }}
+                                  />
+                                </div>
+                              )}
+                              
+                              {/* Audio */}
+                              {msg.messageType === 'audio' && msg.audioUrl && (
+                                <div style={{ 
+                                  marginBottom: msg.text ? '8px' : '0', 
+                                  minWidth: '200px',
+                                  maxWidth: '280px'
+                                }}>
+                                  <audio
+                                    controls
+                                    controlsList="nodownload"
+                                    preload="metadata"
+                                    style={{
+                                      width: '100%',
+                                      height: '36px',
+                                      outline: 'none',
+                                      borderRadius: '8px'
+                                    }}
+                                  >
+                                    <source 
+                                      src={
+                                        msg.audioUrl.startsWith('http') 
+                                          ? msg.audioUrl 
+                                          : `${api.defaults.baseURL.replace('/api', '')}${msg.audioUrl}`
+                                      } 
+                                      type="audio/wav"
+                                    />
+                                    <source 
+                                      src={
+                                        msg.audioUrl.startsWith('http') 
+                                          ? msg.audioUrl 
+                                          : `${api.defaults.baseURL.replace('/api', '')}${msg.audioUrl}`
+                                      } 
+                                      type="audio/wave"
+                                    />
+                                    <source 
+                                      src={
+                                        msg.audioUrl.startsWith('http') 
+                                          ? msg.audioUrl 
+                                          : `${api.defaults.baseURL.replace('/api', '')}${msg.audioUrl}`
+                                      } 
+                                      type="audio/mpeg"
+                                    />
+                                    Your browser does not support the audio element.
+                                  </audio>
+                                  {msg.audioTitle && (
+                                    <div style={{ 
+                                      fontSize: '12px', 
+                                      opacity: 0.9, 
+                                      marginTop: '4px',
+                                      fontWeight: 500,
+                                      color: isOwnMessage ? '#fff' : '#262626'
+                                    }}>
+                                      {msg.audioTitle}
+                                    </div>
+                                  )}
+                                  {msg.audioDuration && (
+                                    <div style={{ 
+                                      fontSize: '11px', 
+                                      opacity: 0.7, 
+                                      marginTop: '2px',
+                                      color: isOwnMessage ? '#fff' : '#666'
+                                    }}>
+                                      {Math.floor(msg.audioDuration)}s
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                              
+                              {/* Text content */}
+                              {(msg.text || msg.ciphertext || msg.message) && 
+                               msg.messageType !== 'sticker' && (
+                                <div>
+                                  {msg.text || msg.ciphertext || msg.message}
+                                  {msg.isEdited && (
+                                    <span style={{ 
+                                      fontSize: '12px', 
+                                      opacity: 0.7, 
+                                      marginLeft: '6px',
+                                      fontStyle: 'italic'
+                                    }}>
+                                      (edited)
+                                    </span>
+                                  )}
+                                </div>
+                              )}
+                            </>
+                          )}
                         </div>
+                        {/* Edit/Unsend Menu - Show on hover for own messages */}
+                        {isOwnMessage && !msg.isDeleted && hoveredMessageId === msg._id && editingMessageId !== msg._id && (
+                          <Dropdown
+                            menu={{
+                              items: [
+                                {
+                                  key: 'edit',
+                                  label: 'Edit',
+                                  icon: <EditOutlined />,
+                                  onClick: () => handleEditMessage(msg),
+                                  disabled: msg.messageType !== 'text'
+                                },
+                                {
+                                  key: 'unsend',
+                                  label: 'Unsend',
+                                  icon: <DeleteOutlined />,
+                                  danger: true,
+                                  onClick: () => handleDeleteMessage(msg._id)
+                                }
+                              ]
+                            }}
+                            trigger={['click']}
+                            placement="bottomRight"
+                          >
+                            <Button
+                              type="text"
+                              icon={<MoreOutlined />}
+                              size="small"
+                              style={{
+                                padding: '4px',
+                                minWidth: '24px',
+                                height: '24px',
+                                opacity: 0.7
+                              }}
+                            />
+                          </Dropdown>
+                        )}
                         {(index === messages.length - 1 || 
                           (messages[index + 1] && 
                            (messages[index + 1].sender?._id?.toString() !== senderId?.toString()))) && (
@@ -1000,14 +1776,17 @@ const UserChat = () => {
                             type="secondary" 
                             style={{ 
                               fontSize: '11px',
-                              marginTop: '4px',
+                              marginTop: '2px',
                               padding: '0 4px',
-                              color: '#8e8e8e'
+                              color: '#8E8E93',
+                              fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif',
+                              fontWeight: 400,
+                              letterSpacing: '-0.01em'
                             }}
                           >
                             {formatMessageTimeFull(msg.createdAt)}
                             {isOwnMessage && (
-                              <span style={{ marginLeft: '4px' }}>
+                              <span style={{ marginLeft: '4px', opacity: 0.6 }}>
                                 <CheckCircleOutlined style={{ fontSize: '10px' }} />
                               </span>
                             )}
@@ -1029,7 +1808,7 @@ const UserChat = () => {
                 })
               )}
               
-              {/* Typing Indicator */}
+              {/* iOS Style Typing Indicator */}
               {selectedRoom && typingUsers[selectedRoom._id] && typingUsers[selectedRoom._id].length > 0 && (
                 <div style={{
                   display: 'flex',
@@ -1045,40 +1824,35 @@ const UserChat = () => {
                     <UserOutlined />
                   </Avatar>
                   <div style={{
-                    background: '#fff',
-                    padding: '8px 12px',
-                    borderRadius: '18px 18px 18px 4px',
-                    boxShadow: '0 1px 2px rgba(0,0,0,0.1)',
+                    background: currentTheme.otherMessageBg,
+                    padding: '12px 16px',
+                    borderRadius: '22px 22px 22px 4px',
+                    boxShadow: '0 1px 2px rgba(0,0,0,0.08)',
                     display: 'flex',
-                    gap: '4px',
-                    alignItems: 'center'
+                    gap: '6px',
+                    alignItems: 'center',
+                    backdropFilter: 'blur(20px) saturate(180%)',
+                    WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+                    border: '0.5px solid rgba(0,0,0,0.08)'
                   }}>
-                    <div style={{
-                      display: 'flex',
-                      gap: '3px'
-                    }}>
-                      <div style={{
-                        width: '6px',
-                        height: '6px',
-                        background: '#8e8e8e',
-                        borderRadius: '50%',
-                        animation: 'typing 1.4s infinite'
-                      }} />
-                      <div style={{
-                        width: '6px',
-                        height: '6px',
-                        background: '#8e8e8e',
-                        borderRadius: '50%',
-                        animation: 'typing 1.4s infinite 0.2s'
-                      }} />
-                      <div style={{
-                        width: '6px',
-                        height: '6px',
-                        background: '#8e8e8e',
-                        borderRadius: '50%',
-                        animation: 'typing 1.4s infinite 0.4s'
-                      }} />
-                    </div>
+                    <div className="ios-typing-dot" style={{
+                      width: '8px',
+                      height: '8px',
+                      background: '#8E8E93',
+                      borderRadius: '50%'
+                    }} />
+                    <div className="ios-typing-dot" style={{
+                      width: '8px',
+                      height: '8px',
+                      background: '#8E8E93',
+                      borderRadius: '50%'
+                    }} />
+                    <div className="ios-typing-dot" style={{
+                      width: '8px',
+                      height: '8px',
+                      background: '#8E8E93',
+                      borderRadius: '50%'
+                    }} />
                   </div>
                 </div>
               )}
@@ -1086,60 +1860,23 @@ const UserChat = () => {
               <div ref={messagesEndRef} />
             </div>
 
-            {/* Message Input */}
+            {/* iOS Style Message Input */}
             <div style={{
-              padding: '12px 16px',
-              borderTop: '1px solid #dbdbdb',
-              background: '#fff'
+              padding: '8px 16px',
+              paddingBottom: 'max(8px, env(safe-area-inset-bottom))',
+              background: currentTheme.inputBg,
+              backdropFilter: 'blur(20px) saturate(180%)',
+              WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+              borderTop: '0.5px solid rgba(0,0,0,0.1)',
+              position: 'relative',
+              zIndex: 10
             }}>
-              <div style={{
-                display: 'flex',
-                alignItems: 'flex-end',
-                gap: '8px',
-                background: '#fafafa',
-                borderRadius: '22px',
-                padding: '8px 12px',
-                border: '1px solid #dbdbdb'
-              }}>
-                <TextArea
-                  value={newMessage}
-                  onChange={(e) => {
-                    setNewMessage(e.target.value)
-                    // Trigger typing indicator
-                    handleTyping()
-                  }}
+              <ChatInputWithMedia
+                onSend={handleSendMessage}
+                disabled={sending || !selectedRoom}
                   placeholder="Message..."
-                  autoSize={{ minRows: 1, maxRows: 4 }}
-                  onPressEnter={(e) => {
-                    if (!e.shiftKey) {
-                      e.preventDefault()
-                      if (newMessage.trim()) {
-                        handleSendMessage()
-                      }
-                    }
-                  }}
-                  style={{
-                    border: 'none',
-                    background: 'transparent',
-                    boxShadow: 'none',
-                    resize: 'none',
-                    fontSize: '14px',
-                    padding: 0
-                  }}
-                />
-                <Button 
-                  type="text"
-                  icon={<SendOutlined />}
-                  onClick={handleSendMessage}
-                  loading={sending}
-                  disabled={!newMessage.trim()}
-                  style={{
-                    flexShrink: 0,
-                    color: newMessage.trim() ? '#0095f6' : '#c7c7c7',
-                    padding: '4px 8px'
-                  }}
-                />
-              </div>
+                theme={currentTheme}
+              />
             </div>
           </>
         ) : (
@@ -1149,13 +1886,39 @@ const UserChat = () => {
             alignItems: 'center',
             justifyContent: 'center',
             flexDirection: 'column',
-            background: '#fafafa'
+            background: currentTheme.background,
+            position: 'relative'
           }}>
-            <MessageOutlined style={{ fontSize: '96px', color: '#dbdbdb', marginBottom: '24px' }} />
-            <Text strong style={{ fontSize: '22px', marginBottom: '8px' }}>
+            <div style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              background: currentTheme.blurOverlay,
+              backdropFilter: 'blur(40px) saturate(180%)',
+              WebkitBackdropFilter: 'blur(40px) saturate(180%)',
+              pointerEvents: 'none',
+              zIndex: 0
+            }} />
+            <div style={{ position: 'relative', zIndex: 1, textAlign: 'center', opacity: 0.6 }}>
+              <MessageOutlined style={{ fontSize: '96px', color: '#8E8E93', marginBottom: '24px' }} />
+              <Text strong style={{ 
+                fontSize: '22px', 
+                marginBottom: '8px',
+                fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif',
+                color: '#000',
+                display: 'block'
+              }}>
               Your Messages
             </Text>
-            <Text type="secondary" style={{ fontSize: '14px', marginBottom: '24px' }}>
+              <Text type="secondary" style={{ 
+                fontSize: '15px', 
+                marginBottom: '24px',
+                fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif',
+                color: '#8E8E93',
+                display: 'block'
+              }}>
               Send private photos and messages to a friend or group.
             </Text>
             <Button 
@@ -1164,13 +1927,20 @@ const UserChat = () => {
               onClick={() => setCreateRoomModal(true)}
               size="large"
               style={{
-                borderRadius: '4px',
-                height: '32px',
-                padding: '0 16px'
+                  borderRadius: '20px',
+                  height: '44px',
+                  padding: '0 24px',
+                  fontSize: '17px',
+                  fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif',
+                  fontWeight: 600,
+                  background: currentTheme.accentColor || '#0A84FF',
+                  border: 'none',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.15)'
               }}
             >
               Send Message
             </Button>
+            </div>
           </div>
         )}
       </div>

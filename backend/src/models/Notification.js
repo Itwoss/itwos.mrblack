@@ -22,7 +22,8 @@ const notificationSchema = new mongoose.Schema({
       'payment_success',
       'prebook_confirmed',
       'prebook_rejected',
-      'prebook_status_update'
+      'prebook_status_update',
+      'subscription_purchase'
     ],
     index: true
   },

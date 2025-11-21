@@ -34,7 +34,7 @@ import {
 } from '@ant-design/icons'
 import { useAuth } from "../../contexts/AuthContextOptimized"
 import api from '../../services/api'
-import { usersListAPI, threadsAPI } from '../../services/api'
+import { usersListAPI, threadsAPI, followAPI } from '../../services/api'
 import { getUserAvatarUrl, getUserInitials } from '../../utils/avatarUtils'
 import { useNavigate } from 'react-router-dom'
 
@@ -60,6 +60,13 @@ const UserDiscovery = () => {
       loadRecommendedUsers()
     }
   }, [searchQuery])
+
+  // Load follow statuses when users change
+  useEffect(() => {
+    if (users.length > 0) {
+      loadFollowStatuses()
+    }
+  }, [users.length])
 
   const loadNewUsers = async () => {
     try {
@@ -148,6 +155,33 @@ const UserDiscovery = () => {
     }
   }
 
+  const loadFollowStatuses = async () => {
+    try {
+      // Get current user's following list
+      const response = await followAPI.getFollowing()
+      if (response.data.success && response.data.following) {
+        const followingList = response.data.following || []
+        const followingIds = new Set(
+          followingList.map(user => user._id?.toString() || user._id)
+        )
+        
+        // Update users list with follow status
+        setUsers(prev => 
+          prev.map(user => {
+            const userIdStr = user._id?.toString() || user._id
+            const isFollowing = followingIds.has(userIdStr)
+            return {
+              ...user,
+              isFollowing: isFollowing || user.isFollowing || false
+            }
+          })
+        )
+      }
+    } catch (error) {
+      console.error('Load follow statuses error:', error)
+    }
+  }
+
   const handleFollowRequest = async (userId) => {
     try {
       console.log('📤 Sending follow request to user:', userId)
@@ -170,12 +204,44 @@ const UserDiscovery = () => {
                   ...user, 
                   isFollowing: isAccepted,
                   isFollowRequestSent: isPending,
-                  hasFollowRequest: isPending // Also set this for button check
+                  hasFollowRequest: isPending, // Also set this for button check
+                  // Update follow counts if accepted
+                  ...(isAccepted && {
+                    followersCount: (user.followersCount || 0) + 1
+                  })
                 }
               : user
           )
         )
+        
+        // Also update newUsers list if this user is in it
+        setNewUsers(prev => 
+          prev.map(user => 
+            user._id === userId 
+              ? { 
+                  ...user, 
+                  isFollowing: isAccepted,
+                  isFollowRequestSent: isPending,
+                  hasFollowRequest: isPending,
+                  ...(isAccepted && {
+                    followersCount: (user.followersCount || 0) + 1
+                  })
+                }
+              : user
+          )
+        )
+        
         message.success(response.data.message || (isPending ? 'Follow request sent!' : 'User followed successfully!'))
+        
+        // Refresh follow statuses to ensure consistency across all pages
+        setTimeout(() => {
+          loadFollowStatuses()
+          if (searchQuery) {
+            handleSearch(searchQuery)
+          } else {
+            loadRecommendedUsers()
+          }
+        }, 500)
       } else {
         message.error(response.data.message || 'Failed to send follow request')
       }
@@ -349,25 +415,6 @@ const UserDiscovery = () => {
                       message.error('Invalid user ID')
                     }
                   }}
-                  actions={[
-                    <Button 
-                      type="link" 
-                      icon={<EyeOutlined />}
-                      onClick={(e) => {
-                        e.preventDefault()
-                        e.stopPropagation()
-                        console.log('🔍 UserDiscovery: Clicked View Profile button, navigating to:', `/profile/${user._id}`)
-                        if (user._id) {
-                          navigate(`/profile/${user._id}`)
-                        } else {
-                          console.error('No user._id found:', user)
-                          message.error('Invalid user ID')
-                        }
-                      }}
-                    >
-                      View Profile
-                    </Button>
-                  ]}
                 >
                   <div style={{ textAlign: 'center' }}>
                     <div style={{ position: 'relative' }}>
@@ -468,18 +515,6 @@ const UserDiscovery = () => {
                       <div onClick={(e) => e.stopPropagation()}>
                         {getFollowButton(user)}
                       </div>
-                      <Button 
-                        type="primary"
-                        icon={<MessageOutlined />}
-                        onClick={(e) => {
-                          e.preventDefault()
-                          e.stopPropagation()
-                          handleStartChat(user._id)
-                        }}
-                        style={{ width: '100%' }}
-                      >
-                        Start Chat
-                      </Button>
                     </Space>
                   </div>
                 </Card>
@@ -573,25 +608,6 @@ const UserDiscovery = () => {
                         message.error('Invalid user ID')
                       }
                     }}
-                    actions={[
-                      <Button 
-                        type="link" 
-                        icon={<EyeOutlined />}
-                        onClick={(e) => {
-                          e.preventDefault()
-                          e.stopPropagation()
-                          console.log('🔍 UserDiscovery Search: Clicked View Profile button, navigating to:', `/profile/${user._id}`)
-                          if (user._id) {
-                            navigate(`/profile/${user._id}`)
-                          } else {
-                            console.error('No user._id found:', user)
-                            message.error('Invalid user ID')
-                          }
-                        }}
-                      >
-                        View Profile
-                      </Button>
-                    ]}
                   >
                     <div style={{ textAlign: 'center' }}>
                       <div style={{ position: 'relative' }}>
@@ -662,17 +678,6 @@ const UserDiscovery = () => {
                       )}
                       <Space direction="vertical" style={{ width: '100%' }}>
                         {getFollowButton(user)}
-                        <Button 
-                          icon={<MessageOutlined />}
-                          onClick={(e) => {
-                            e.preventDefault()
-                            e.stopPropagation()
-                            handleStartChat(user._id)
-                          }}
-                          style={{ width: '100%' }}
-                        >
-                          Message
-                        </Button>
                       </Space>
                     </div>
                   </Card>
@@ -709,14 +714,6 @@ const UserDiscovery = () => {
           setSelectedUser(null)
         }}
         footer={[
-          <Button key="chat" type="primary" icon={<MessageOutlined />} onClick={() => {
-            if (selectedUser) {
-              handleStartChat(selectedUser._id)
-              setProfileModalVisible(false)
-            }
-          }}>
-            Start Chat
-          </Button>,
           <Button key="close" onClick={() => {
             setProfileModalVisible(false)
             setSelectedUser(null)

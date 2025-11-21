@@ -97,73 +97,11 @@ const createDemoUsers = async () => {
   }
 };
 
-// Create sample products (only with prebook amounts, no demo products)
+// Create sample products - DISABLED (demo products removed)
 const createSampleProducts = async () => {
-  try {
-    const sampleProducts = [
-      {
-        title: 'AI Task Manager Pro',
-        slug: 'ai-task-manager-pro',
-        websiteUrl: 'https://aitaskmanager.example.com',
-        websiteTitle: 'AI Task Manager Pro - Intelligent Task Management',
-        websiteLink: 'https://aitaskmanager.example.com',
-        thumbnailUrl: 'https://via.placeholder.com/400x300/1890ff/ffffff?text=AI+Task+Manager',
-        descriptionManual: 'Advanced AI-powered task management system with intelligent scheduling and priority optimization.',
-        category: 'AI Tools',
-        prebookAmount: 99.99,
-        currency: 'USD',
-        status: 'published',
-        trending: true,
-        stock: 50,
-        images: ['https://via.placeholder.com/400x300/1890ff/ffffff?text=AI+Task+Manager'],
-        features: ['AI Scheduling', 'Priority Optimization', 'Team Collaboration'],
-        tags: ['AI', 'Productivity', 'Management']
-      },
-      {
-        title: 'Smart Analytics Dashboard',
-        slug: 'smart-analytics-dashboard',
-        websiteUrl: 'https://analytics.example.com',
-        websiteTitle: 'Smart Analytics Dashboard - Real-time Data Visualization',
-        websiteLink: 'https://analytics.example.com',
-        thumbnailUrl: 'https://via.placeholder.com/400x300/52c41a/ffffff?text=Analytics+Dashboard',
-        descriptionManual: 'Comprehensive analytics dashboard with real-time data visualization and predictive insights.',
-        category: 'Analytics',
-        prebookAmount: 149.99,
-        currency: 'USD',
-        status: 'published',
-        trending: true,
-        stock: 25,
-        images: ['https://via.placeholder.com/400x300/52c41a/ffffff?text=Analytics+Dashboard'],
-        features: ['Real-time Data', 'Predictive Analytics', 'Custom Reports'],
-        tags: ['Analytics', 'Dashboard', 'Data Visualization']
-      },
-      {
-        title: 'AI Content Generator',
-        slug: 'ai-content-generator',
-        websiteUrl: 'https://contentgen.example.com',
-        websiteTitle: 'AI Content Generator - Advanced Content Creation',
-        websiteLink: 'https://contentgen.example.com',
-        thumbnailUrl: 'https://via.placeholder.com/400x300/fa8c16/ffffff?text=Content+Generator',
-        descriptionManual: 'Advanced AI content generation tool for blogs, articles, and marketing materials.',
-        category: 'Content Creation',
-        prebookAmount: 199.99,
-        currency: 'USD',
-        status: 'published',
-        trending: false,
-        stock: 15,
-        images: ['https://via.placeholder.com/400x300/fa8c16/ffffff?text=Content+Generator'],
-        features: ['AI Writing', 'SEO Optimization', 'Multi-language Support'],
-        tags: ['AI', 'Content', 'Writing']
-      }
-    ];
-
-    const products = await Product.insertMany(sampleProducts);
-    console.log(`📦 Created ${products.length} sample products`);
-    return products;
-  } catch (error) {
-    console.error('Error creating sample products:', error);
-    return [];
-  }
+  // Demo products removed - no sample products will be created
+  console.log('📦 Sample products creation disabled');
+  return [];
 };
 
 // Create sample notifications
@@ -284,7 +222,7 @@ const seedDatabase = async () => {
     
     const adminUser = await createAdminUser();
     const demoUsers = await createDemoUsers();
-    const products = await createSampleProducts();
+    const products = await createSampleProducts(); // Returns empty array - demo products disabled
     const orders = await createSampleOrders([adminUser, ...demoUsers], products);
     await createSampleNotifications([adminUser, ...demoUsers]);
     
@@ -292,7 +230,7 @@ const seedDatabase = async () => {
     console.log('\n📋 Summary:');
     console.log('- Admin user: admin@itwos.ai / admin123');
     console.log('- Demo users: john@example.com, jane@example.com, mike@example.com (password: password123)');
-    console.log(`- Products: ${products.length} sample products created`);
+    console.log(`- Products: ${products.length} (demo products disabled)`);
     console.log(`- Orders: ${orders.length} sample orders created`);
     console.log('- Notifications: Sample notifications created');
     

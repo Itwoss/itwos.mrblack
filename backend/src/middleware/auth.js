@@ -37,12 +37,12 @@ const authenticateToken = async (req, res, next) => {
           tokenData = { role: 'user', userId: 'mock-user-id' };
         }
         
-        // Find a real user in the database that matches the role
+        // Find a real user in the database that matches the role (exclude deleted users)
         let realUser = null;
         if (tokenData.role === 'admin') {
-          realUser = await User.findOne({ role: 'admin' }).select('_id email name role');
+          realUser = await User.findOne({ role: 'admin', deletedAt: null }).select('_id email name role');
         } else {
-          realUser = await User.findOne({ role: 'user' }).select('_id email name role');
+          realUser = await User.findOne({ role: 'user', deletedAt: null }).select('_id email name role');
         }
         
         if (realUser) {
@@ -117,12 +117,22 @@ const authenticateToken = async (req, res, next) => {
     }
 
     const decoded = jwt.verify(token, process.env.JWT_ACCESS_SECRET);
-    const user = await User.findById(decoded.userId).select('-passwordHash');
+    const user = await User.findOne({ 
+      _id: decoded.userId, 
+      deletedAt: null 
+    }).select('-passwordHash');
     
     if (!user) {
       return res.status(401).json({
         success: false,
-        message: 'User not found'
+        message: 'User not found or account has been deleted'
+      });
+    }
+    
+    if (!user.isActive) {
+      return res.status(401).json({
+        success: false,
+        message: 'User account is inactive'
       });
     }
 

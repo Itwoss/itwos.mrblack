@@ -11,7 +11,27 @@ const router = express.Router();
 router.post('/', authenticateToken, requireUser, async (req, res) => {
   try {
     const { memberIds } = req.body;
-    const currentUserId = req.user._id.toString();
+    const mongoose = require('mongoose');
+    const authenticatedUserId = req.user._id ? req.user._id.toString() : null;
+    
+    // Get actual MongoDB user ID for current user
+    let currentUserId = authenticatedUserId;
+    if (!mongoose.Types.ObjectId.isValid(authenticatedUserId)) {
+      const currentUser = await User.findOne({ 
+        $or: [
+          { googleId: authenticatedUserId },
+          { _id: authenticatedUserId }
+        ]
+      });
+      if (currentUser) {
+        currentUserId = currentUser._id.toString();
+      } else {
+        return res.status(400).json({
+          success: false,
+          message: 'Current user not found'
+        });
+      }
+    }
     
     if (!memberIds || !Array.isArray(memberIds) || memberIds.length < 1) {
       return res.status(400).json({
@@ -21,16 +41,27 @@ router.post('/', authenticateToken, requireUser, async (req, res) => {
     }
     
     // Ensure current user is included (for direct messages, we only need 1 other user)
-    const allMembers = [...new Set([currentUserId, ...memberIds.map(id => id.toString())])];
+    const allMemberIds = [...new Set([currentUserId, ...memberIds.map(id => id.toString())])];
     
-    // Validate all members exist
-    const members = await User.find({ _id: { $in: allMembers } });
-    if (members.length !== allMembers.length) {
+    // Validate all members exist - handle both ObjectIds and Google IDs
+    const memberQueries = allMemberIds.map(id => {
+      if (mongoose.Types.ObjectId.isValid(id)) {
+        return { _id: id };
+      } else {
+        return { googleId: id };
+      }
+    });
+    
+    const members = await User.find({ $or: memberQueries });
+    if (members.length !== allMemberIds.length) {
       return res.status(400).json({
         success: false,
         message: 'One or more member IDs are invalid'
       });
     }
+    
+    // Use MongoDB ObjectIds for participants
+    const allMembers = members.map(m => m._id.toString());
     
     // For direct messages (2 members), find existing thread
     if (allMembers.length === 2) {
@@ -38,11 +69,16 @@ router.post('/', authenticateToken, requireUser, async (req, res) => {
         participants: { $all: allMembers },
         isGroup: false,
         isActive: true
-      }).populate('participants', 'name username email avatarUrl profilePic');
+      }).populate('participants', 'name username email avatarUrl profilePic isVerified verifiedTill isOnline lastSeen');
       
       if (existingThread) {
         // Initialize unread counts if not present
-        const unreadCount = existingThread.getUnreadCount(currentUserId);
+        let unreadCount = 0;
+        try {
+          unreadCount = existingThread.getUnreadCount(currentUserId);
+        } catch (err) {
+          console.error('Error getting unread count:', err);
+        }
         
         return res.json({
           success: true,
@@ -70,7 +106,7 @@ router.post('/', authenticateToken, requireUser, async (req, res) => {
       await thread.resetUnread(memberId);
     }
     
-    await thread.populate('participants', 'name username email avatarUrl profilePic');
+    await thread.populate('participants', 'name username email avatarUrl profilePic isVerified verifiedTill isOnline lastSeen');
     
     res.status(201).json({
       success: true,
@@ -94,10 +130,44 @@ router.post('/', authenticateToken, requireUser, async (req, res) => {
 router.get('/', authenticateToken, requireUser, validatePagination, async (req, res) => {
   try {
     const { userId, page = 1, limit = 20 } = req.query;
-    const currentUserId = userId || req.user._id.toString();
+    const mongoose = require('mongoose');
+    
+    // Get the authenticated user's ID (could be ObjectId or Google ID)
+    const authenticatedUserId = req.user._id ? req.user._id.toString() : null;
+    const authenticatedGoogleId = req.user.googleId || null;
+    
+    // Determine which user ID to use
+    let currentUserId;
+    if (userId) {
+      currentUserId = userId;
+    } else {
+      // Use authenticated user's ID
+      currentUserId = authenticatedUserId || authenticatedGoogleId;
+    }
+    
+    console.log('📨 GET /api/threads:', {
+      userId: userId,
+      currentUserId: currentUserId,
+      authenticatedUserId: authenticatedUserId,
+      authenticatedGoogleId: authenticatedGoogleId,
+      reqUserGoogleId: req.user.googleId,
+      page,
+      limit
+    });
     
     // Only allow users to see their own threads (unless admin)
-    if (userId && userId !== req.user._id.toString() && req.user.role !== 'admin') {
+    // Check both ObjectId and Google ID for comparison
+    const isOwnThread = userId === authenticatedUserId || 
+                        userId === authenticatedGoogleId ||
+                        (!userId && authenticatedUserId) ||
+                        (!userId && authenticatedGoogleId);
+    
+    if (userId && !isOwnThread && req.user.role !== 'admin') {
+      console.log('❌ Access denied - userId mismatch:', {
+        requestedUserId: userId,
+        authenticatedUserId: authenticatedUserId,
+        authenticatedGoogleId: authenticatedGoogleId
+      });
       return res.status(403).json({
         success: false,
         message: 'You can only view your own threads'
@@ -106,27 +176,75 @@ router.get('/', authenticateToken, requireUser, validatePagination, async (req, 
     
     const skip = (parseInt(page) - 1) * parseInt(limit);
     
+    // Handle both ObjectId and string user IDs (for Google users)
+    let participantQuery;
+    if (mongoose.Types.ObjectId.isValid(currentUserId)) {
+      participantQuery = { participants: currentUserId };
+    } else {
+      // For non-ObjectId user IDs (like Google user IDs), find user first
+      const user = await User.findOne({ 
+        $or: [
+          { googleId: currentUserId },
+          { _id: currentUserId }
+        ]
+      });
+      if (user) {
+        participantQuery = { participants: user._id };
+      } else {
+        // If user not found, return empty threads
+        return res.json({
+          success: true,
+          threads: [],
+          pagination: {
+            page: parseInt(page),
+            limit: parseInt(limit),
+            total: 0,
+            pages: 0
+          }
+        });
+      }
+    }
+    
     // Find all threads for this user
     const threads = await ChatRoom.find({
-      participants: currentUserId,
+      ...participantQuery,
       isActive: true
     })
-    .populate('participants', 'name username email avatarUrl profilePic isOnline lastSeen')
+    .populate('participants', 'name username email avatarUrl profilePic isOnline lastSeen isVerified verifiedTill')
     .populate('lastMessage', 'text messageType createdAt sender')
     .sort({ lastMessageAt: -1 })
     .limit(parseInt(limit))
     .skip(skip);
     
+    // Get the actual MongoDB user ID for unread count and total count
+    let actualUserId = currentUserId;
+    if (!mongoose.Types.ObjectId.isValid(currentUserId)) {
+      const user = await User.findOne({ 
+        $or: [
+          { googleId: currentUserId },
+          { _id: currentUserId }
+        ]
+      });
+      if (user) {
+        actualUserId = user._id;
+      }
+    }
+    
     // Add unread counts to each thread
     const threadsWithUnread = threads.map(thread => {
       const threadObj = thread.toObject();
-      threadObj.unreadCount = thread.getUnreadCount(currentUserId);
+      try {
+        threadObj.unreadCount = thread.getUnreadCount(actualUserId);
+      } catch (err) {
+        console.error('Error getting unread count:', err);
+        threadObj.unreadCount = 0;
+      }
       return threadObj;
     });
     
-    // Get total count
+    // Get total count using the same query as threads
     const total = await ChatRoom.countDocuments({
-      participants: currentUserId,
+      ...participantQuery,
       isActive: true
     });
     
@@ -154,8 +272,23 @@ router.get('/', authenticateToken, requireUser, validatePagination, async (req, 
 router.get('/:threadId/messages', authenticateToken, requireUser, validateObjectId('threadId'), validatePagination, async (req, res) => {
   try {
     const { threadId } = req.params;
-    const { skip = 0, limit = 50 } = req.query;
-    const currentUserId = req.user._id.toString();
+    const { skip = 0, limit = 50, page = 1 } = req.query;
+    const mongoose = require('mongoose');
+    const authenticatedUserId = req.user._id ? req.user._id.toString() : null;
+    
+    // Get the actual MongoDB user ID (handle Google users)
+    let currentUserId = authenticatedUserId;
+    if (!mongoose.Types.ObjectId.isValid(authenticatedUserId)) {
+      const user = await User.findOne({ 
+        $or: [
+          { googleId: authenticatedUserId },
+          { _id: authenticatedUserId }
+        ]
+      });
+      if (user) {
+        currentUserId = user._id.toString();
+      }
+    }
     
     // Check if user has access to this thread
     const thread = await ChatRoom.findById(threadId);
@@ -166,6 +299,7 @@ router.get('/:threadId/messages', authenticateToken, requireUser, validateObject
       });
     }
     
+    // Check participant access using actual MongoDB ID
     if (!thread.isParticipant(currentUserId)) {
       return res.status(403).json({
         success: false,
@@ -173,30 +307,41 @@ router.get('/:threadId/messages', authenticateToken, requireUser, validateObject
       });
     }
     
+    // Calculate skip from page if provided
+    const actualSkip = skip ? parseInt(skip) : (parseInt(page) - 1) * parseInt(limit || 50);
+    
     // Fetch messages
     const messages = await Message.find({
       chatRoom: threadId,
       isDeleted: false
     })
-    .populate('sender', 'name username email avatarUrl profilePic')
+    .populate('sender', 'name username email avatarUrl profilePic isVerified verifiedTill')
     .populate('readBy.userId', 'name username avatarUrl')
     .sort({ createdAt: -1 })
-    .limit(parseInt(limit))
-    .skip(parseInt(skip));
+    .limit(parseInt(limit || 50))
+    .skip(actualSkip);
     
     // Mark messages as read for current user
     const messageIds = messages
-      .filter(msg => msg.sender._id.toString() !== currentUserId)
+      .filter(msg => {
+        if (!msg.sender || !msg.sender._id) return false;
+        return msg.sender._id.toString() !== currentUserId;
+      })
       .map(msg => msg._id);
     
     if (messageIds.length > 0) {
-      await Message.updateMany(
-        { _id: { $in: messageIds }, 'readBy.userId': { $ne: currentUserId } },
-        { $push: { readBy: { userId: currentUserId, readAt: new Date() } } }
-      );
-      
-      // Reset unread count for this thread
-      await thread.resetUnread(currentUserId);
+      try {
+        await Message.updateMany(
+          { _id: { $in: messageIds }, 'readBy.userId': { $ne: currentUserId } },
+          { $push: { readBy: { userId: currentUserId, readAt: new Date() } } }
+        );
+        
+        // Reset unread count for this thread
+        await thread.resetUnread(currentUserId);
+      } catch (readError) {
+        console.error('Error marking messages as read:', readError);
+        // Continue even if read marking fails
+      }
     }
     
     res.json({
@@ -216,17 +361,245 @@ router.get('/:threadId/messages', authenticateToken, requireUser, validateObject
   }
 });
 
+// PUT /api/threads/:threadId/messages/:messageId - Edit a message (MUST come before POST route)
+router.put('/:threadId/messages/:messageId', authenticateToken, requireUser, validateObjectId('threadId'), validateObjectId('messageId'), async (req, res) => {
+  try {
+    const { threadId, messageId } = req.params;
+    const { text, ciphertext, iv } = req.body;
+    const mongoose = require('mongoose');
+    const authenticatedUserId = req.user._id ? req.user._id.toString() : null;
+    
+    // Get the actual MongoDB user ID (handle Google users)
+    let currentUserId = authenticatedUserId;
+    if (!mongoose.Types.ObjectId.isValid(authenticatedUserId)) {
+      const user = await User.findOne({ 
+        $or: [
+          { googleId: authenticatedUserId },
+          { _id: authenticatedUserId }
+        ]
+      });
+      if (user) {
+        currentUserId = user._id.toString();
+      } else {
+        return res.status(400).json({
+          success: false,
+          message: 'User not found'
+        });
+      }
+    }
+    
+    // Find message
+    const message = await Message.findById(messageId);
+    if (!message) {
+      return res.status(404).json({
+        success: false,
+        message: 'Message not found'
+      });
+    }
+    
+    // Verify message belongs to thread
+    if (message.chatRoom.toString() !== threadId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Message does not belong to this thread'
+      });
+    }
+    
+    // Only allow editing text messages
+    if (message.messageType !== 'text') {
+      return res.status(400).json({
+        success: false,
+        message: 'Only text messages can be edited'
+      });
+    }
+    
+    // Check if user is the sender
+    const messageSenderId = message.sender.toString();
+    if (messageSenderId !== currentUserId && messageSenderId !== authenticatedUserId) {
+      return res.status(403).json({
+        success: false,
+        message: 'You can only edit your own messages'
+      });
+    }
+    
+    // Check if message is deleted
+    if (message.isDeleted) {
+      return res.status(400).json({
+        success: false,
+        message: 'Cannot edit deleted message'
+      });
+    }
+    
+    // Update message
+    if (text !== undefined) {
+      message.text = text;
+      message.ciphertext = ciphertext || text;
+      if (iv !== undefined) message.iv = iv || '';
+    } else if (ciphertext !== undefined) {
+      message.ciphertext = ciphertext;
+      message.text = text || '';
+      if (iv !== undefined) message.iv = iv || '';
+    } else {
+      return res.status(400).json({
+        success: false,
+        message: 'Text or ciphertext is required'
+      });
+    }
+    
+    message.isEdited = true;
+    message.editedAt = new Date();
+    await message.save();
+    
+    // Populate sender
+    await message.populate('sender', 'name username email avatarUrl profilePic isVerified verifiedTill');
+    
+    // Emit via Socket.IO if available
+    const io = req.app.get('io');
+    if (io) {
+      io.to(threadId).emit('message_edited', {
+        threadId: threadId,
+        messageId: messageId,
+        message: message.toObject()
+      });
+    }
+    
+    res.json({
+      success: true,
+      message: 'Message edited successfully',
+      data: message.toObject()
+    });
+  } catch (error) {
+    console.error('Edit message error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to edit message',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+    });
+  }
+});
+
+// DELETE /api/threads/:threadId/messages/:messageId - Delete (unsend) a message (MUST come before POST route)
+router.delete('/:threadId/messages/:messageId', authenticateToken, requireUser, validateObjectId('threadId'), validateObjectId('messageId'), async (req, res) => {
+  try {
+    const { threadId, messageId } = req.params;
+    const mongoose = require('mongoose');
+    const authenticatedUserId = req.user._id ? req.user._id.toString() : null;
+    
+    // Get the actual MongoDB user ID (handle Google users)
+    let currentUserId = authenticatedUserId;
+    if (!mongoose.Types.ObjectId.isValid(authenticatedUserId)) {
+      const user = await User.findOne({ 
+        $or: [
+          { googleId: authenticatedUserId },
+          { _id: authenticatedUserId }
+        ]
+      });
+      if (user) {
+        currentUserId = user._id.toString();
+      } else {
+        return res.status(400).json({
+          success: false,
+          message: 'User not found'
+        });
+      }
+    }
+    
+    // Find message
+    const message = await Message.findById(messageId);
+    if (!message) {
+      return res.status(404).json({
+        success: false,
+        message: 'Message not found'
+      });
+    }
+    
+    // Verify message belongs to thread
+    if (message.chatRoom.toString() !== threadId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Message does not belong to this thread'
+      });
+    }
+    
+    // Check if user is the sender
+    const messageSenderId = message.sender.toString();
+    if (messageSenderId !== currentUserId && messageSenderId !== authenticatedUserId) {
+      return res.status(403).json({
+        success: false,
+        message: 'You can only delete your own messages'
+      });
+    }
+    
+    // Soft delete message
+    message.isDeleted = true;
+    message.deletedAt = new Date();
+    await message.save();
+    
+    // Emit via Socket.IO if available
+    const io = req.app.get('io');
+    if (io) {
+      io.to(threadId).emit('message_deleted', {
+        threadId: threadId,
+        messageId: messageId
+      });
+    }
+    
+    res.json({
+      success: true,
+      message: 'Message deleted successfully'
+    });
+  } catch (error) {
+    console.error('Delete message error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to delete message',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+    });
+  }
+});
+
 // POST /api/threads/:threadId/messages - Send a message
 router.post('/:threadId/messages', authenticateToken, requireUser, validateObjectId('threadId'), async (req, res) => {
   try {
     const { threadId } = req.params;
-    const { senderId, text, ciphertext, iv, messageType = 'text' } = req.body;
-    const currentUserId = req.user._id.toString();
+    const { 
+      senderId, 
+      text, 
+      ciphertext, 
+      iv, 
+      messageType = 'text',
+      imageUrl,
+      audioUrl,
+      audioTitle,
+      audioDuration
+    } = req.body;
+    const mongoose = require('mongoose');
+    const authenticatedUserId = req.user._id ? req.user._id.toString() : null;
+    
+    // Get the actual MongoDB user ID (handle Google users)
+    let currentUserId = authenticatedUserId;
+    if (!mongoose.Types.ObjectId.isValid(authenticatedUserId)) {
+      const user = await User.findOne({ 
+        $or: [
+          { googleId: authenticatedUserId },
+          { _id: authenticatedUserId }
+        ]
+      });
+      if (user) {
+        currentUserId = user._id.toString();
+      } else {
+        return res.status(400).json({
+          success: false,
+          message: 'User not found'
+        });
+      }
+    }
     
     // Use current user as sender if not specified
     const actualSenderId = senderId || currentUserId;
     
-    if (actualSenderId !== currentUserId) {
+    // Validate sender matches authenticated user
+    if (actualSenderId !== currentUserId && actualSenderId !== authenticatedUserId) {
       return res.status(403).json({
         success: false,
         message: 'You can only send messages as yourself'
@@ -242,6 +615,7 @@ router.post('/:threadId/messages', authenticateToken, requireUser, validateObjec
       });
     }
     
+    // Check participant access using actual MongoDB ID
     if (!thread.isParticipant(currentUserId)) {
       return res.status(403).json({
         success: false,
@@ -249,12 +623,28 @@ router.post('/:threadId/messages', authenticateToken, requireUser, validateObjec
       });
     }
     
-    // For E2EE, ciphertext and iv are required
-    // For plain text messages, text is required
-    if (!ciphertext && !text) {
+    // For sticker and audio messages, text/ciphertext is optional
+    // For image messages, imageUrl is required
+    // For audio messages, audioUrl is required
+    if (messageType === 'image' && !imageUrl) {
       return res.status(400).json({
         success: false,
-        message: 'Either text or ciphertext is required'
+        message: 'imageUrl is required for image messages'
+      });
+    }
+    
+    if (messageType === 'audio' && !audioUrl) {
+      return res.status(400).json({
+        success: false,
+        message: 'audioUrl is required for audio messages'
+      });
+    }
+    
+    // For text/sticker messages, text is required
+    if ((messageType === 'text' || messageType === 'sticker') && !ciphertext && !text) {
+      return res.status(400).json({
+        success: false,
+        message: 'Text is required for text/sticker messages'
       });
     }
     
@@ -268,6 +658,8 @@ router.post('/:threadId/messages', authenticateToken, requireUser, validateObjec
       status: 'sent'
     };
     
+    // Handle text content
+    // For image/audio messages, text/ciphertext is optional but we need to set ciphertext for validation
     if (text && !ciphertext) {
       // Plain text message
       messageData.text = text;
@@ -278,11 +670,29 @@ router.post('/:threadId/messages', authenticateToken, requireUser, validateObjec
       messageData.ciphertext = ciphertext;
       messageData.iv = iv || '';
       messageData.text = text || ''; // Store plain text preview if available
-    } else {
+    } else if (text) {
       // Fallback: use text as ciphertext
-      messageData.text = text || '';
-      messageData.ciphertext = text || '';
+      messageData.text = text;
+      messageData.ciphertext = text;
       messageData.iv = '';
+    } else {
+      // For image/audio/sticker messages without text, set empty ciphertext
+      // The validation allows ciphertext to be empty if text is provided, but we need to set it
+      messageData.text = text || '';
+      messageData.ciphertext = text || ''; // Set empty string for media messages
+      messageData.iv = '';
+    }
+    
+    // Handle image messages
+    if (messageType === 'image' && imageUrl) {
+      messageData.imageUrl = imageUrl;
+    }
+    
+    // Handle audio messages
+    if (messageType === 'audio' && audioUrl) {
+      messageData.audioUrl = audioUrl;
+      if (audioTitle) messageData.audioTitle = audioTitle;
+      if (audioDuration !== undefined) messageData.audioDuration = audioDuration;
     }
     
     const message = new Message(messageData);
@@ -305,7 +715,7 @@ router.post('/:threadId/messages', authenticateToken, requireUser, validateObjec
     }
     
     // Populate sender
-    await message.populate('sender', 'name username email avatarUrl profilePic');
+    await message.populate('sender', 'name username email avatarUrl profilePic isVerified verifiedTill');
     
     // Emit via Socket.IO if available
     const io = req.app.get('io');

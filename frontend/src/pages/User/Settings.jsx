@@ -19,6 +19,7 @@ import {
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from "../../contexts/AuthContextOptimized"
 import api from '../../services/api'
+import ImageEditor from '../../components/ImageEditor'
 
 const { Title, Paragraph, Text } = Typography
 const { Option } = Select
@@ -32,6 +33,7 @@ const Settings = () => {
   const [notificationForm] = Form.useForm()
   const [loading, setLoading] = useState(false)
   const [profileLoading, setProfileLoading] = useState(false)
+  const [uploading, setUploading] = useState(false)
   const { user, isAuthenticated, logout, updateUser } = useAuth()
   const navigate = useNavigate()
 
@@ -46,6 +48,9 @@ const Settings = () => {
   })
   const [isPrivate, setIsPrivate] = useState(false)
   const [isActiveStatusVisible, setIsActiveStatusVisible] = useState(true)
+  const [imageEditorVisible, setImageEditorVisible] = useState(false)
+  const [selectedImageFile, setSelectedImageFile] = useState(null)
+  const [selectedImagePreview, setSelectedImagePreview] = useState(null)
 
   // Debug: Log when component renders
   useEffect(() => {
@@ -86,15 +91,28 @@ const Settings = () => {
     }
   }, [profileData])
 
-  // Update form when profileData changes
+  // Update form only when user data initially loads (not on every profileData change)
+  // This prevents overwriting user input while typing
   useEffect(() => {
-    if (profileData) {
-      if (import.meta.env.MODE === 'development') {
-        console.log('📝 Settings: Updating form with profileData:', profileData)
+    if (user && profileForm) {
+      const initialValues = {
+        name: user.name || '',
+        email: user.email || '',
+        phone: user.phone || '',
+        location: user.location || '',
+        website: user.website || '',
+        bio: user.bio || ''
       }
-      profileForm.setFieldsValue(profileData)
+      
+      // Only set initial values if form is empty or user ID changed
+      const currentValues = profileForm.getFieldsValue()
+      const isFormEmpty = !currentValues.name && !currentValues.email
+      
+      if (isFormEmpty || currentValues.name !== initialValues.name) {
+        profileForm.setFieldsValue(initialValues)
+      }
     }
-  }, [profileData, profileForm])
+  }, [user?._id, profileForm]) // Only update when user ID changes
 
   // Fetch user profile data from backend
   useEffect(() => {
@@ -217,15 +235,36 @@ const Settings = () => {
     setProfileLoading(true)
     try {
       console.log('📝 Settings: Updating profile with values:', values)
-      const response = await api.put('/users/me', values)
+      
+      // Clean up values - remove empty strings and convert to null/undefined
+      const cleanedValues = {}
+      Object.keys(values).forEach(key => {
+        const value = values[key]
+        // Skip email as it shouldn't be updated via profile update
+        if (key === 'email') return
+        
+        // Convert empty strings to null for optional fields
+        if (value === '' || value === null || value === undefined) {
+          // Only include if it's a field that can be cleared (like avatarUrl, bio, etc.)
+          if (['avatarUrl', 'bio', 'phone', 'location', 'website', 'company', 'jobTitle'].includes(key)) {
+            cleanedValues[key] = null
+          }
+        } else {
+          cleanedValues[key] = value
+        }
+      })
+      
+      console.log('📝 Settings: Cleaned values being sent:', cleanedValues)
+      
+      const response = await api.put('/users/me', cleanedValues)
       console.log('📝 Settings: Profile update response:', response.data)
       
       if (response.data.success) {
-        setProfileData(prev => ({ ...prev, ...values }))
+        setProfileData(prev => ({ ...prev, ...cleanedValues }))
         
         // Update user context
         if (user && updateUser) {
-          const updatedUser = { ...user, ...values }
+          const updatedUser = { ...user, ...cleanedValues }
           updateUser(updatedUser)
           console.log('📝 Settings: Updated user context:', updatedUser)
         }
@@ -235,8 +274,37 @@ const Settings = () => {
         message.error(response.data.message || 'Failed to update profile')
       }
     } catch (error) {
-      console.error('Profile update error:', error)
-      message.error('Failed to update profile')
+      console.error('📝 Settings: Profile update error:', error)
+      console.error('📝 Settings: Error details:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+        statusText: error.response?.statusText
+      })
+      
+      if (error.response?.status === 401) {
+        message.error('Authentication failed. Please login again.')
+      } else if (error.response?.status === 403) {
+        message.error('Access denied. You do not have permission to update this profile.')
+      } else if (error.response?.status === 400) {
+        // Handle validation errors
+        const errorData = error.response.data
+        if (errorData?.errors && Array.isArray(errorData.errors)) {
+          const errorMessages = errorData.errors.map(err => err.message || err.msg || err.msg).join(', ')
+          message.error(`Validation failed: ${errorMessages}`)
+        } else {
+          message.error(errorData?.message || 'Invalid data provided. Please check your input.')
+        }
+      } else if (error.response?.status === 404) {
+        message.error('User not found. Please login again.')
+      } else if (error.response?.status === 500) {
+        message.error('Server error. Please try again later.')
+      } else if (error.code === 'ERR_NETWORK' || error.message === 'Network Error') {
+        message.error('Cannot connect to server. Please check your connection.')
+      } else {
+        const errorMsg = error.response?.data?.message || error.message || 'Failed to update profile. Please try again.'
+        message.error(errorMsg)
+      }
     } finally {
       setProfileLoading(false)
     }
@@ -284,66 +352,112 @@ const Settings = () => {
     }
   }
 
-  const handleAvatarUpload = async (info) => {
-    console.log('Avatar upload info:', info) // Debug log
-    if (info.file.status === 'uploading') {
-      // Upload in progress
-      return
-    } else if (info.file.status === 'done') {
-      // Try multiple ways to get the uploaded URL
-      const uploadedUrl = info.file.response?.url || 
-                         info.file.response?.data?.url || 
-                         (typeof info.file.response === 'string' ? info.file.response : null)
+  const handleImageSelect = (file) => {
+    // Check if file is an image
+    if (!file.type.startsWith('image/')) {
+      message.error('You can only upload image files!')
+      return false
+    }
+    
+    // Check file size (5MB limit)
+    const isLt5M = file.size / 1024 / 1024 < 5
+    if (!isLt5M) {
+      message.error('Image must be smaller than 5MB!')
+      return false
+    }
+
+    // Create preview URL
+    const previewUrl = URL.createObjectURL(file)
+    setSelectedImageFile(file)
+    setSelectedImagePreview(previewUrl)
+    setImageEditorVisible(true)
+    
+    return false // Prevent default upload
+  }
+
+  const handleImageEditorSave = async (editedFile, previewUrl) => {
+    try {
+      setImageEditorVisible(false)
+      setUploading(true)
       
-      console.log('📤 Uploaded URL:', uploadedUrl, 'Response:', info.file.response) // Debug log
+      // Upload the edited image
+      const formData = new FormData()
+      formData.append('avatar', editedFile)
       
-      if (uploadedUrl) {
-        // Construct full URL for display
+      const token = localStorage.getItem('token') || localStorage.getItem('accessToken')
+      if (!token) {
+        throw new Error('Authentication required. Please login again.')
+      }
+      
+      const response = await fetch('http://localhost:7000/api/upload/avatar', {
+        method: 'POST',
+        body: formData,
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: 'Upload failed' }))
+        throw new Error(errorData.message || `Upload failed: ${response.statusText}`)
+      }
+      
+      const data = await response.json()
+      
+      if (data.success) {
+        const uploadedUrl = data.url || data.data?.url
         const fullAvatarUrl = uploadedUrl.startsWith('http') 
           ? uploadedUrl 
           : `http://localhost:7000${uploadedUrl}`
-        
-        console.log('🖼️ Settings: Updating profileData with new avatar:', fullAvatarUrl)
         
         // Update profileData immediately for instant display
         setProfileData(prev => ({ ...prev, avatar: fullAvatarUrl }))
         
         // Save avatar URL to backend
-        try {
-          console.log('💾 Saving avatar URL to backend:', fullAvatarUrl)
+        const updateResponse = await api.put('/users/me', { avatarUrl: fullAvatarUrl })
+        
+        if (updateResponse.data.success) {
+          message.success('Avatar updated successfully')
           
-          const response = await api.put('/users/me', { avatarUrl: fullAvatarUrl })
-          console.log('🖼️ Settings: Backend response:', response.data)
-          
-          if (response.data.success) {
-            message.success('Avatar updated successfully')
-            
-            // Update the user context to persist the change
-            if (user && updateUser) {
-              const updatedUser = { ...user, avatarUrl: fullAvatarUrl }
-              console.log('🖼️ Settings: Updating user context with:', updatedUser)
-              updateUser(updatedUser)
-              console.log('✅ Updated user with new avatar:', updatedUser)
-            }
-          } else {
-            message.error(response.data.message || 'Failed to save avatar to profile')
+          // Update the user context to persist the change
+          if (user && updateUser) {
+            const updatedUser = { ...user, avatarUrl: fullAvatarUrl }
+            updateUser(updatedUser)
           }
-        } catch (error) {
-          console.error('❌ Failed to save avatar:', error)
-          const errorMsg = error.response?.data?.message || error.message || 'Failed to save avatar to profile'
-          message.error(errorMsg)
+        } else {
+          message.error(updateResponse.data.message || 'Failed to save avatar to profile')
         }
       } else {
-        console.error('❌ No uploaded URL found in response:', info.file.response)
-        message.error('Failed to get uploaded image URL. Please try again.')
+        throw new Error(data.message || 'Upload failed')
       }
-    } else if (info.file.status === 'error') {
-      const errorMsg = info.file.error?.message || 
-                       info.file.response?.message || 
-                       'Failed to upload profile picture'
-      console.error('❌ Avatar upload error:', info.file.error, info.file.response)
+    } catch (error) {
+      console.error('❌ Failed to upload edited avatar:', error)
+      const errorMsg = error.response?.data?.message || error.message || 'Failed to upload avatar'
       message.error(errorMsg)
+    } finally {
+      setUploading(false)
+      // Clean up preview URL
+      if (selectedImagePreview) {
+        URL.revokeObjectURL(selectedImagePreview)
+      }
+      setSelectedImageFile(null)
+      setSelectedImagePreview(null)
     }
+  }
+
+  const handleImageEditorCancel = () => {
+    setImageEditorVisible(false)
+    // Clean up preview URL
+    if (selectedImagePreview) {
+      URL.revokeObjectURL(selectedImagePreview)
+    }
+    setSelectedImageFile(null)
+    setSelectedImagePreview(null)
+  }
+
+  const handleAvatarUpload = async (info) => {
+    // Legacy handler - kept for backward compatibility
+    console.log('Avatar upload info:', info)
   }
 
   const handleLogout = () => {
@@ -385,9 +499,9 @@ const Settings = () => {
                       <Card title="Profile Picture" size="small" style={{ borderRadius: '8px' }}>
                         <div style={{ textAlign: 'center' }}>
                           {profileData.avatar ? (
-                            <div style={{ position: 'relative' }}>
+                            <div style={{ position: 'relative', display: 'inline-block' }}>
                               <img
-                                key={`avatar-${profileData.avatar}-${Date.now()}`} // Force re-render with timestamp
+                                key={`avatar-${profileData.avatar}`}
                                 src={profileData.avatar}
                                 alt="User Avatar"
                                 style={{
@@ -397,26 +511,46 @@ const Settings = () => {
                                   objectFit: 'cover',
                                   marginBottom: 16,
                                   display: 'block',
-                                  margin: '0 auto 16px auto',
                                   border: '2px solid #f0f0f0',
                                   backgroundColor: '#f5f5f5'
                                 }}
                                 onError={(e) => {
                                   console.log('🖼️ Image load error:', e)
-                                  console.log('🖼️ Image src was:', profileData.avatar)
-                                  console.log('🖼️ Error details:', e.target.error)
-                                  // Show error message instead of hiding
                                   e.target.style.display = 'none'
                                   const errorDiv = document.createElement('div')
                                   errorDiv.innerHTML = '❌ Image failed to load'
                                   errorDiv.style.cssText = 'color: red; font-size: 12px; text-align: center;'
                                   e.target.parentNode.appendChild(errorDiv)
                                 }}
-                                onLoad={() => {
-                                  console.log('🖼️ Image loaded successfully:', profileData.avatar)
-                                }}
-                                crossOrigin="anonymous" // Allow cross-origin loading
+                                crossOrigin="anonymous"
                               />
+                              <div style={{ marginTop: '8px' }}>
+                                <Button 
+                                  icon={<EditOutlined />} 
+                                  type="primary"
+                                  onClick={async () => {
+                                    try {
+                                      // Fetch the existing image
+                                      const response = await fetch(profileData.avatar, { mode: 'cors' })
+                                      if (!response.ok) {
+                                        throw new Error('Failed to load image')
+                                      }
+                                      const blob = await response.blob()
+                                      const file = new File([blob], 'current-avatar.jpg', { type: blob.type })
+                                      const previewUrl = URL.createObjectURL(file)
+                                      setSelectedImageFile(file)
+                                      setSelectedImagePreview(previewUrl)
+                                      setImageEditorVisible(true)
+                                    } catch (error) {
+                                      console.error('Error loading existing avatar:', error)
+                                      message.error('Failed to load image for editing')
+                                    }
+                                  }}
+                                  loading={uploading}
+                                >
+                                  Edit
+                                </Button>
+                              </div>
                             </div>
                           ) : (
                             <div style={{ textAlign: 'center' }}>
@@ -425,72 +559,37 @@ const Settings = () => {
                                 icon={<UserOutlined />}
                                 style={{ marginBottom: 16 }}
                               />
-                              <div style={{ fontSize: '12px', color: '#666' }}>
+                              <div style={{ fontSize: '12px', color: '#666', marginBottom: '8px' }}>
                                 No avatar set
                               </div>
                             </div>
                           )}
-                          <div>
+                          <div style={{ marginTop: profileData.avatar ? '8px' : '0' }}>
                             <Upload
                               name="avatar"
                               listType="picture-card"
                               showUploadList={false}
-                              action="http://localhost:7000/api/upload/avatar"
-                              onChange={handleAvatarUpload}
-                              customRequest={async ({ file, onSuccess, onError, onProgress }) => {
-                                try {
-                                  console.log('📤 Starting avatar upload:', file.name, 'Size:', file.size)
-                                  const formData = new FormData()
-                                  formData.append('avatar', file)
-                                  
-                                  // Simulate progress
-                                  onProgress({ percent: 10 })
-                                  
-                                  const token = localStorage.getItem('token') || localStorage.getItem('accessToken')
-                                  if (!token) {
-                                    throw new Error('Authentication required. Please login again.')
-                                  }
-                                  
-                                  const response = await fetch('http://localhost:7000/api/upload/avatar', {
-                                    method: 'POST',
-                                    body: formData,
-                                    headers: {
-                                      'Authorization': `Bearer ${token}`
-                                    }
-                                  })
-                                  
-                                  if (!response.ok) {
-                                    const errorData = await response.json().catch(() => ({ message: 'Upload failed' }))
-                                    throw new Error(errorData.message || `Upload failed: ${response.statusText}`)
-                                  }
-                                  
-                                  const data = await response.json()
-                                  console.log('📤 Upload response:', data)
-                                  
-                                  if (data.success) {
-                                    const uploadedUrl = data.url || data.data?.url
-                                    console.log('✅ Upload successful, URL:', uploadedUrl)
-                                    onProgress({ percent: 100 })
-                                    onSuccess({ url: uploadedUrl }, data)
-                                  } else {
-                                    const errorMsg = data.message || 'Upload failed'
-                                    console.error('❌ Upload failed:', errorMsg)
-                                    onError(new Error(errorMsg))
-                                  }
-                                } catch (error) {
-                                  console.error('❌ Upload error:', error)
-                                  console.error('❌ Error details:', {
-                                    message: error.message,
-                                    name: error.name
-                                  })
-                                  const errorMsg = error.message || 'Failed to upload avatar. Please check your connection and try again.'
-                                  onError(new Error(errorMsg))
-                                }
-                              }}
+                              beforeUpload={handleImageSelect}
+                              accept="image/*"
                             >
-                              <Button icon={<CameraOutlined />}>Change Avatar</Button>
+                              <Button icon={<CameraOutlined />} loading={uploading}>
+                                {uploading ? 'Uploading...' : profileData.avatar ? 'Change' : 'Upload Avatar'}
+                              </Button>
                             </Upload>
+                            <div style={{ marginTop: '8px', fontSize: '12px', color: '#666' }}>
+                              {profileData.avatar ? 'Click to upload a new image' : 'Click to select and edit your profile image'}
+                            </div>
                           </div>
+                          
+                          {/* Image Editor Modal */}
+                          <ImageEditor
+                            visible={imageEditorVisible}
+                            imageSrc={selectedImagePreview}
+                            onCancel={handleImageEditorCancel}
+                            onSave={handleImageEditorSave}
+                            aspect={1}
+                            circularCrop={true}
+                          />
                         </div>
                       </Card>
                     </Col>
@@ -516,9 +615,16 @@ const Settings = () => {
                               <Form.Item
                                 name="email"
                                 label="Email"
-                                rules={[{ required: true, message: 'Please enter your email' }]}
                               >
-                                <Input prefix={<MailOutlined />} placeholder="Enter your email" />
+                                <Input 
+                                  prefix={<MailOutlined />} 
+                                  placeholder="Enter your email" 
+                                  disabled
+                                  style={{ cursor: 'not-allowed', backgroundColor: '#f5f5f5' }}
+                                />
+                                <Text type="secondary" style={{ fontSize: '12px', display: 'block', marginTop: '4px' }}>
+                                  Email cannot be changed here. Contact support to change your email.
+                                </Text>
                               </Form.Item>
                             </Col>
                           </Row>
@@ -648,18 +754,29 @@ const Settings = () => {
                                   
                                   // Save to backend (async, no blocking)
                                   try {
-                                    await api.patch('/users/me', { 
+                                    const response = await api.put('/users/me', { 
                                       activeStatusVisible: checked 
                                     })
-                                    message.success(`Active status ${checked ? 'enabled' : 'disabled'}`)
+                                    console.log('✅ Active status update response:', response.data)
+                                    if (response.data.success) {
+                                      message.success(`Active status ${checked ? 'enabled' : 'disabled'}`)
+                                    } else {
+                                      throw new Error(response.data.message || 'Update failed')
+                                    }
                                   } catch (error) {
-                                    console.error('Error updating active status:', error)
+                                    console.error('❌ Error updating active status:', error)
+                                    console.error('❌ Error details:', {
+                                      message: error.message,
+                                      response: error.response?.data,
+                                      status: error.response?.status
+                                    })
                                     // Revert on error
                                     setIsActiveStatusVisible(!checked)
                                     if (updateUser) {
                                       updateUser({ activeStatusVisible: !checked })
                                     }
-                                    message.error('Failed to update active status')
+                                    const errorMsg = error.response?.data?.message || error.message || 'Failed to update active status'
+                                    message.error(errorMsg)
                                   }
                                 }}
                                 checkedChildren="ON"
@@ -941,15 +1058,26 @@ const Settings = () => {
                               updateUser({ activeStatusVisible: checked })
                             }
                             try {
-                              await api.patch('/users/me', { activeStatusVisible: checked })
-                              message.success(`Active status ${checked ? 'enabled' : 'disabled'}`)
+                              const response = await api.put('/users/me', { activeStatusVisible: checked })
+                              console.log('✅ Active status update response:', response.data)
+                              if (response.data.success) {
+                                message.success(`Active status ${checked ? 'enabled' : 'disabled'}`)
+                              } else {
+                                throw new Error(response.data.message || 'Update failed')
+                              }
                             } catch (error) {
-                              console.error('Error updating active status:', error)
+                              console.error('❌ Error updating active status:', error)
+                              console.error('❌ Error details:', {
+                                message: error.message,
+                                response: error.response?.data,
+                                status: error.response?.status
+                              })
                               setIsActiveStatusVisible(!checked)
                               if (updateUser) {
                                 updateUser({ activeStatusVisible: !checked })
                               }
-                              message.error('Failed to update active status')
+                              const errorMsg = error.response?.data?.message || error.message || 'Failed to update active status'
+                              message.error(errorMsg)
                             }
                           }}
                           style={{ minWidth: '60px', marginLeft: '20px' }}
@@ -1028,18 +1156,29 @@ const Settings = () => {
                                 
                                 // Save to backend (async, no blocking)
                                 try {
-                                  await api.patch('/users/me', { 
+                                  const response = await api.put('/users/me', { 
                                     activeStatusVisible: checked 
                                   })
-                                  message.success(`Active status ${checked ? 'enabled' : 'disabled'}`)
+                                  console.log('✅ Active status update response:', response.data)
+                                  if (response.data.success) {
+                                    message.success(`Active status ${checked ? 'enabled' : 'disabled'}`)
+                                  } else {
+                                    throw new Error(response.data.message || 'Update failed')
+                                  }
                                 } catch (error) {
-                                  console.error('Error updating active status:', error)
+                                  console.error('❌ Error updating active status:', error)
+                                  console.error('❌ Error details:', {
+                                    message: error.message,
+                                    response: error.response?.data,
+                                    status: error.response?.status
+                                  })
                                   // Revert on error
                                   setIsActiveStatusVisible(!checked)
                                   if (updateUser) {
                                     updateUser({ activeStatusVisible: !checked })
                                   }
-                                  message.error('Failed to update active status')
+                                  const errorMsg = error.response?.data?.message || error.message || 'Failed to update active status'
+                                  message.error(errorMsg)
                                 }
                               }}
                               style={{ minWidth: '50px', marginLeft: '16px' }}

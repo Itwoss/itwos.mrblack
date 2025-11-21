@@ -130,10 +130,10 @@ router.put('/:id', authenticateToken, requireAdmin, async (req, res) => {
   }
 })
 
-// Delete user
-router.delete('/:id', authenticateToken, requireAdmin, async (req, res) => {
+// Request user deletion (Step 1 of 3)
+router.post('/:id/request-deletion', authenticateToken, requireAdmin, async (req, res) => {
   try {
-    const user = await User.findByIdAndDelete(req.params.id)
+    const user = await User.findById(req.params.id)
     
     if (!user) {
       return res.status(404).json({
@@ -142,9 +142,153 @@ router.delete('/:id', authenticateToken, requireAdmin, async (req, res) => {
       })
     }
 
+    // Check if user is already deleted
+    if (user.deletedAt) {
+      return res.status(400).json({
+        success: false,
+        message: 'User is already deleted'
+      })
+    }
+
+    // Check if this is a demo user (can be deleted immediately)
+    const demoEmails = ['john@example.com', 'jane@example.com', 'mike@example.com']
+    if (demoEmails.includes(user.email.toLowerCase())) {
+      // Demo users can be deleted immediately
+      user.deletedAt = new Date()
+      user.isActive = false
+      await user.save()
+      
+      return res.json({
+        success: true,
+        message: 'Demo user deleted successfully',
+        deleted: true
+      })
+    }
+
+    // For real users, start deletion confirmation process
+    user.deletionConfirmationCount = 1
+    user.deletionRequestedAt = new Date()
+    await user.save()
+
     res.json({
       success: true,
-      message: 'User deleted successfully'
+      message: 'Deletion request initiated. This is confirmation 1 of 3.',
+      confirmationCount: 1,
+      remainingConfirmations: 2
+    })
+  } catch (error) {
+    console.error('Error requesting user deletion:', error)
+    res.status(500).json({
+      success: false,
+      message: 'Failed to request user deletion',
+      error: error.message
+    })
+  }
+})
+
+// Confirm user deletion (Step 2 and 3)
+router.post('/:id/confirm-deletion', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const { confirmationText } = req.body
+    const user = await User.findById(req.params.id)
+    
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      })
+    }
+
+    // Check if user is already deleted
+    if (user.deletedAt) {
+      return res.status(400).json({
+        success: false,
+        message: 'User is already deleted'
+      })
+    }
+
+    // Verify confirmation text
+    if (confirmationText !== `DELETE ${user.email}`) {
+      return res.status(400).json({
+        success: false,
+        message: `Confirmation text must be exactly: DELETE ${user.email}`
+      })
+    }
+
+    // Increment confirmation count
+    const newCount = (user.deletionConfirmationCount || 0) + 1
+
+    if (newCount < 3) {
+      // Not yet at 3 confirmations
+      user.deletionConfirmationCount = newCount
+      await user.save()
+
+      return res.json({
+        success: true,
+        message: `Deletion confirmed. This is confirmation ${newCount} of 3.`,
+        confirmationCount: newCount,
+        remainingConfirmations: 3 - newCount
+      })
+    }
+
+    // 3rd confirmation - proceed with soft deletion
+    user.deletedAt = new Date()
+    user.isActive = false
+    user.deletionConfirmationCount = 3
+    await user.save()
+
+    res.json({
+      success: true,
+      message: 'User account has been deleted successfully',
+      deleted: true,
+      deletedAt: user.deletedAt
+    })
+  } catch (error) {
+    console.error('Error confirming user deletion:', error)
+    res.status(500).json({
+      success: false,
+      message: 'Failed to confirm user deletion',
+      error: error.message
+    })
+  }
+})
+
+// Cancel deletion request
+router.post('/:id/cancel-deletion', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id)
+    
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      })
+    }
+
+    user.deletionConfirmationCount = 0
+    user.deletionRequestedAt = null
+    await user.save()
+
+    res.json({
+      success: true,
+      message: 'Deletion request cancelled'
+    })
+  } catch (error) {
+    console.error('Error cancelling deletion request:', error)
+    res.status(500).json({
+      success: false,
+      message: 'Failed to cancel deletion request',
+      error: error.message
+    })
+  }
+})
+
+// Delete user (DEPRECATED - Use request-deletion and confirm-deletion instead)
+router.delete('/:id', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    return res.status(400).json({
+      success: false,
+      message: 'This endpoint is deprecated. Please use POST /:id/request-deletion and POST /:id/confirm-deletion with 3-step confirmation instead.'
     })
   } catch (error) {
     console.error('Error deleting user:', error)

@@ -47,7 +47,18 @@ io.on('connection', async (socket) => {
       
       // Update user online status
       const User = require('./src/models/User')
-      await User.findByIdAndUpdate(userId, {
+      const mongoose = require('mongoose')
+      
+      // Check if userId is a valid MongoDB ObjectId
+      let userQuery
+      if (mongoose.Types.ObjectId.isValid(userId)) {
+        userQuery = { _id: userId }
+      } else {
+        // If not a valid ObjectId, try to find by googleId or other identifier
+        userQuery = { googleId: userId }
+      }
+      
+      await User.findOneAndUpdate(userQuery, {
         isOnline: true,
         lastSeen: new Date()
       })
@@ -237,7 +248,15 @@ io.on('connection', async (socket) => {
     // Update user offline status
     if (currentUserId) {
       const User = require('./src/models/User')
-      await User.findByIdAndUpdate(currentUserId, {
+      // Check if currentUserId is a valid MongoDB ObjectId
+      let userQueryForDisconnect
+      if (mongoose.Types.ObjectId.isValid(currentUserId)) {
+        userQueryForDisconnect = { _id: currentUserId }
+      } else {
+        userQueryForDisconnect = { googleId: currentUserId }
+      }
+      
+      await User.findOneAndUpdate(userQueryForDisconnect, {
         isOnline: false,
         lastSeen: new Date()
       })
@@ -351,6 +370,8 @@ app.use('/api/upload', require('./src/routes/upload'))
 app.use('/api/notifications', require('./src/routes/notifications'))
 app.use('/api/follow', require('./src/routes/followNew')) // New follow/unfollow endpoints
 app.use('/api/threads', require('./src/routes/threads')) // Thread and messaging endpoints
+app.use('/api/subscriptions', require('./src/routes/subscriptions')) // Subscription endpoints
+app.use('/api/payment-tracking', require('./src/routes/paymentTracking')) // Payment tracking endpoints
 
 // Admin routes
 app.use('/api/admin', require('./src/routes/admin'))
@@ -358,6 +379,11 @@ app.use('/api/admin/auth', require('./src/routes/adminAuth'))
 app.use('/api/admin/users', require('./src/routes/adminUsers'))
 app.use('/api/admin/orders', require('./src/routes/adminOrders'))
 app.use('/api/admin/products', require('./src/routes/adminProducts'))
+app.use('/api/admin', require('./src/routes/testUsers'))
+
+// Initialize subscription cron job
+const { startSubscriptionCron } = require('./src/services/subscriptionCron');
+startSubscriptionCron();
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

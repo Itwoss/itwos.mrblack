@@ -117,18 +117,6 @@ const UserNetwork = () => {
       style={{ height: '100%', cursor: 'pointer' }}
       hoverable
       onClick={() => navigate(`/profile/${user._id}`)}
-      actions={[
-        <Button 
-          type="link" 
-          icon={<EyeOutlined />}
-          onClick={(e) => {
-            e.stopPropagation()
-            navigate(`/profile/${user._id}`)
-          }}
-        >
-          View Profile
-        </Button>
-      ]}
     >
       <div style={{ textAlign: 'center' }}>
         <div style={{ position: 'relative' }}>

@@ -2,6 +2,7 @@ const express = require('express');
 const User = require('../models/User');
 const Product = require('../models/Product');
 const Purchase = require('../models/Purchase');
+const Subscription = require('../models/Subscription');
 const ChatRoom = require('../models/ChatRoom');
 const Message = require('../models/Message');
 const { authenticateToken, requireAdmin } = require('../middleware/auth');
@@ -630,6 +631,99 @@ router.post('/notifications/send', authenticateToken, requireAdmin, async (req, 
     res.status(500).json({
       success: false,
       message: 'Failed to send notifications',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+    });
+  }
+});
+
+// Get all verified badge subscriptions (admin)
+router.get('/subscriptions', authenticateToken, requireAdmin, validatePagination, async (req, res) => {
+  try {
+    const { page = 1, limit = 50, status, search } = req.query;
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+
+    // Build query
+    const query = {};
+    if (status) {
+      query.status = status;
+    }
+
+    // Get subscriptions with user details
+    const subscriptions = await Subscription.find(query)
+      .populate('userId', 'name username email avatarUrl profilePic isVerified verifiedTill')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(parseInt(limit));
+
+    // If search query, filter by user name or email
+    let filteredSubscriptions = subscriptions;
+    if (search) {
+      const searchLower = search.toLowerCase();
+      filteredSubscriptions = subscriptions.filter(sub => {
+        const user = sub.userId;
+        if (!user) return false;
+        return (
+          (user.name && user.name.toLowerCase().includes(searchLower)) ||
+          (user.username && user.username.toLowerCase().includes(searchLower)) ||
+          (user.email && user.email.toLowerCase().includes(searchLower))
+        );
+      });
+    }
+
+    // Get total count
+    const total = await Subscription.countDocuments(query);
+
+    // Format response
+    const formattedSubscriptions = filteredSubscriptions.map(sub => {
+      // Debug log to check payment details
+      console.log('📋 Subscription payment details:', {
+        _id: sub._id,
+        paymentId: sub.paymentId,
+        razorpayOrderId: sub.razorpayOrderId,
+        razorpayPaymentId: sub.razorpayPaymentId,
+        paymentMethod: sub.paymentMethod,
+        userId: sub.userId?._id,
+        userName: sub.userId?.name
+      });
+      
+      return {
+        _id: sub._id,
+        userId: sub.userId?._id,
+        userName: sub.userId?.name || 'Unknown User',
+        username: sub.userId?.username || '',
+        userEmail: sub.userId?.email || '',
+        userAvatar: sub.userId?.avatarUrl || sub.userId?.profilePic || '',
+        planMonths: sub.planMonths,
+        price: sub.price,
+        currency: sub.currency || 'INR',
+        startDate: sub.startDate,
+        expiryDate: sub.expiryDate,
+        status: sub.status,
+        paymentId: sub.paymentId || null,
+        razorpayOrderId: sub.razorpayOrderId || null,
+        razorpayPaymentId: sub.razorpayPaymentId || sub.paymentId || null,
+        paymentMethod: sub.paymentMethod || 'card',
+        createdAt: sub.createdAt,
+        updatedAt: sub.updatedAt,
+        isActive: sub.isActive ? sub.isActive() : false
+      };
+    });
+
+    res.json({
+      success: true,
+      subscriptions: formattedSubscriptions,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total: search ? filteredSubscriptions.length : total,
+        pages: Math.ceil((search ? filteredSubscriptions.length : total) / parseInt(limit))
+      }
+    });
+  } catch (error) {
+    console.error('Get subscriptions error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get subscriptions',
       error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
     });
   }

@@ -151,7 +151,13 @@ chatRoomSchema.methods.removeParticipant = function(userId) {
 
 // Instance method to check if user is participant
 chatRoomSchema.methods.isParticipant = function(userId) {
-  return this.participants.some(id => id.equals(userId));
+  if (!userId) return false;
+  // Handle both ObjectId and string comparisons
+  const userIdStr = userId.toString();
+  return this.participants.some(id => {
+    const idStr = id.toString ? id.toString() : String(id);
+    return idStr === userIdStr || (id.equals && id.equals(userId));
+  });
 };
 
 // Instance method to check if user is admin

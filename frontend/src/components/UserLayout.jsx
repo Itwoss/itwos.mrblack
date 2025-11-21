@@ -24,9 +24,19 @@ const { Sider, Content } = Layout
 
 const UserLayout = ({ children }) => {
   const [mobileMenuVisible, setMobileMenuVisible] = useState(false)
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768)
   const { user, logout } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
+
+  // Handle window resize
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768)
+    }
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
 
   // Get current path to determine active menu item
   const getCurrentMenuKey = () => {
@@ -132,7 +142,7 @@ const UserLayout = ({ children }) => {
         navigate('/dashboard')
         break
       case 'products':
-        navigate('/products')
+        navigate('/dashboard/products')
         break
       case 'purchases':
         navigate('/purchases')
@@ -201,21 +211,33 @@ const UserLayout = ({ children }) => {
           type="text" 
           icon={<MenuOutlined />}
           onClick={() => setMobileMenuVisible(true)}
-          style={{ display: window.innerWidth < 768 ? 'block' : 'none' }}
+          style={{ 
+            display: isMobile ? 'block' : 'none',
+            position: 'absolute',
+            left: '16px'
+          }}
         />
       </div>
 
       <Layout style={{ background: '#f5f5f5' }}>
-        {/* Sidebar */}
-        <Sider 
-          width={250} 
-          style={{ 
-            background: '#fff', 
-            borderRight: '1px solid #e8e8e8',
-            padding: '2rem 0',
-            display: window.innerWidth < 768 ? 'none' : 'block'
-          }}
-        >
+        {/* Sidebar - Always visible on desktop, hidden on mobile */}
+        {!isMobile && (
+          <Sider 
+            width={250} 
+            style={{ 
+              background: '#fff', 
+              borderRight: '1px solid #e8e8e8',
+              padding: '2rem 0',
+              position: 'fixed',
+              left: 0,
+              top: '80px',
+              bottom: 0,
+              height: 'calc(100vh - 80px)',
+              overflowY: 'auto',
+              zIndex: 100
+            }}
+            collapsible={false}
+          >
           <Menu
             mode="vertical"
             items={sidebarItems}
@@ -226,15 +248,18 @@ const UserLayout = ({ children }) => {
               border: 'none'
             }}
           />
-        </Sider>
+          </Sider>
+        )}
 
-        {/* Main Content */}
+        {/* Main Content - Offset for fixed sidebar on desktop */}
         <Content style={{ 
-          padding: window.innerWidth < 768 ? '1rem' : '2rem', 
+          marginLeft: isMobile ? '0' : '250px',
+          padding: isMobile ? '1rem' : '2rem', 
           background: '#f5f5f5',
           minHeight: 'calc(100vh - 80px)',
           overflow: 'visible',
-          height: 'auto'
+          height: 'auto',
+          transition: 'margin-left 0.2s ease'
         }}>
           {children}
         </Content>

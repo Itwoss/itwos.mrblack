@@ -50,9 +50,38 @@ const userSchema = new mongoose.Schema({
     type: Boolean,
     default: true
   },
+  deletedAt: {
+    type: Date,
+    default: null,
+    index: true
+  },
+  deletionConfirmationCount: {
+    type: Number,
+    default: 0,
+    min: 0,
+    max: 3
+  },
+  deletionRequestedAt: {
+    type: Date,
+    default: null
+  },
   isPrivate: {
     type: Boolean,
     default: false
+  },
+  activeStatusVisible: {
+    type: Boolean,
+    default: true
+  },
+  isVerified: {
+    type: Boolean,
+    default: false,
+    index: true
+  },
+  verifiedTill: {
+    type: Date,
+    default: null,
+    index: true
   },
   followersCount: {
     type: Number,
@@ -214,10 +243,21 @@ const userSchema = new mongoose.Schema({
 
 // Indexes for better performance
 // email and googleId indexes are already defined by unique: true in schema
+// username index is already defined by unique: true in schema
 userSchema.index({ role: 1 });
 userSchema.index({ createdAt: -1 });
-userSchema.index({ username: 1 });
 userSchema.index({ isPrivate: 1 });
+userSchema.index({ deletedAt: 1 });
+
+// Query helper to exclude deleted users
+userSchema.query.notDeleted = function() {
+  return this.where({ deletedAt: null });
+};
+
+// Query helper to include only active users
+userSchema.query.active = function() {
+  return this.where({ isActive: true, deletedAt: null });
+};
 
 // Hash password before saving
 userSchema.pre('save', async function(next) {
@@ -258,6 +298,9 @@ userSchema.methods.comparePassword = async function(candidatePassword) {
 
 // Instance method to get public profile (without sensitive data)
 userSchema.methods.getPublicProfile = function() {
+  // Check if verification is still valid
+  const isCurrentlyVerified = this.isVerified && this.verifiedTill && this.verifiedTill > new Date();
+  
   return {
     _id: this._id,
     name: this.name,
@@ -273,12 +316,17 @@ userSchema.methods.getPublicProfile = function() {
     location: this.location,
     website: this.website,
     company: this.company,
-    jobTitle: this.jobTitle
+    jobTitle: this.jobTitle,
+    isVerified: isCurrentlyVerified,
+    verifiedTill: this.verifiedTill
   };
 };
 
 // Instance method to get full profile (for admin or self)
 userSchema.methods.getFullProfile = function() {
+  // Check if verification is still valid
+  const isCurrentlyVerified = this.isVerified && this.verifiedTill && this.verifiedTill > new Date();
+  
   return {
     _id: this._id,
     name: this.name,
@@ -293,12 +341,15 @@ userSchema.methods.getFullProfile = function() {
     publicKey: this.publicKey,
     isEmailVerified: this.isEmailVerified,
     isPrivate: this.isPrivate,
+    activeStatusVisible: this.activeStatusVisible,
     followersCount: this.followersCount,
     followingCount: this.followingCount,
     location: this.location,
     website: this.website,
     company: this.company,
     jobTitle: this.jobTitle,
+    isVerified: isCurrentlyVerified,
+    verifiedTill: this.verifiedTill,
     createdAt: this.createdAt,
     updatedAt: this.updatedAt
   };

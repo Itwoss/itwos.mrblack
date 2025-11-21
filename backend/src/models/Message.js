@@ -15,6 +15,11 @@ const messageSchema = new mongoose.Schema({
   ciphertext: {
     type: String,
     required: function() {
+      // Only required if text is not provided and messageType is not image/audio/sticker
+      // For media messages, ciphertext can be empty
+      if (['image', 'audio', 'sticker'].includes(this.messageType)) {
+        return false; // Not required for media messages
+      }
       // Only required if text is not provided (E2EE mode)
       return !this.text;
     }
@@ -29,7 +34,7 @@ const messageSchema = new mongoose.Schema({
   // Message metadata (not encrypted)
   messageType: {
     type: String,
-    enum: ['text', 'image', 'file', 'system'],
+    enum: ['text', 'image', 'file', 'system', 'audio', 'sticker'],
     default: 'text'
   },
   // For file messages
@@ -46,10 +51,44 @@ const messageSchema = new mongoose.Schema({
     validate: {
       validator: function(v) {
         if (!v) return true;
-        return /^https:\/\/res\.cloudinary\.com\//.test(v);
+        // Allow both Cloudinary URLs and local upload URLs
+        return /^(https:\/\/res\.cloudinary\.com\/|\/uploads\/)/.test(v);
       },
-      message: 'File URL must be a valid Cloudinary URL'
+      message: 'File URL must be a valid Cloudinary URL or local upload URL'
     }
+  },
+  // For image messages
+  imageUrl: {
+    type: String,
+    validate: {
+      validator: function(v) {
+        if (!v) return true;
+        // Allow both Cloudinary URLs and local upload URLs
+        return /^(https:\/\/res\.cloudinary\.com\/|\/uploads\/)/.test(v);
+      },
+      message: 'Image URL must be a valid Cloudinary URL or local upload URL'
+    }
+  },
+  // For audio messages
+  audioUrl: {
+    type: String,
+    validate: {
+      validator: function(v) {
+        if (!v) return true;
+        // Allow both Cloudinary URLs and local upload URLs
+        return /^(https:\/\/res\.cloudinary\.com\/|\/uploads\/)/.test(v);
+      },
+      message: 'Audio URL must be a valid Cloudinary URL or local upload URL'
+    }
+  },
+  audioTitle: {
+    type: String,
+    trim: true,
+    maxlength: [200, 'Audio title cannot exceed 200 characters']
+  },
+  audioDuration: {
+    type: Number,
+    min: [0, 'Audio duration cannot be negative']
   },
   // Message status
   status: {
@@ -207,11 +246,16 @@ messageSchema.methods.getPublicData = function() {
     sender: this.sender,
     ciphertext: this.ciphertext,
     iv: this.iv,
+    text: this.text,
     messageType: this.messageType,
     fileName: this.fileName,
     fileSize: this.fileSize,
     formattedFileSize: this.formattedFileSize,
     fileUrl: this.fileUrl,
+    imageUrl: this.imageUrl,
+    audioUrl: this.audioUrl,
+    audioTitle: this.audioTitle,
+    audioDuration: this.audioDuration,
     status: this.status,
     reactions: this.reactions,
     reactionCount: this.reactionCount,

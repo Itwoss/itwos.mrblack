@@ -16,7 +16,8 @@ import {
   Empty,
   message,
   Grid,
-  Dropdown
+  Dropdown,
+  Tooltip
 } from 'antd'
 import {
   UserOutlined,
@@ -31,10 +32,10 @@ import {
   MoreOutlined,
   HeartOutlined,
   BookOutlined,
-  ShoppingCartOutlined
+  ShoppingCartOutlined,
 } from '@ant-design/icons'
 import { useAuth } from '../../contexts/AuthContextOptimized'
-import api, { usersListAPI, threadsAPI } from '../../services/api'
+import api, { usersListAPI, threadsAPI, followAPI } from '../../services/api'
 import { getUserAvatarUrl, getUserInitials } from '../../utils/avatarUtils'
 import UserLayout from '../../components/UserLayout'
 
@@ -51,10 +52,13 @@ const UserProfile = () => {
   const [followingCount, setFollowingCount] = useState(0)
   const [postsCount, setPostsCount] = useState(0)
   const [activeTab, setActiveTab] = useState('posts')
+  const [bioExpanded, setBioExpanded] = useState(false)
+  const BIO_MAX_LENGTH = 150 // Characters to show before "View More"
 
   useEffect(() => {
     console.log('UserProfile useEffect - userId:', userId)
     if (userId) {
+      setBioExpanded(false) // Reset bio expansion when user changes
       loadUserProfile()
       checkFollowStatus()
       loadStats()
@@ -64,6 +68,44 @@ const UserProfile = () => {
       navigate('/discover')
     }
   }, [userId])
+
+  // Refresh profile when viewing own profile and currentUser verification status changes
+  useEffect(() => {
+    const isOwnProfile = currentUser?._id?.toString() === userId?.toString() || 
+                         currentUser?.id?.toString() === userId?.toString();
+    
+    if (isOwnProfile && currentUser && profileUser) {
+      // Update profileUser with latest verification status from context
+      const currentUserVerified = currentUser.isVerified;
+      const currentUserVerifiedTill = currentUser.verifiedTill;
+      const profileUserVerified = profileUser.isVerified;
+      const profileUserVerifiedTill = profileUser.verifiedTill;
+      
+      if (currentUserVerified !== profileUserVerified || 
+          currentUserVerifiedTill !== profileUserVerifiedTill) {
+        console.log('🔄 Updating profile verification status from context:', {
+          currentUser: { isVerified: currentUserVerified, verifiedTill: currentUserVerifiedTill },
+          profileUser: { isVerified: profileUserVerified, verifiedTill: profileUserVerifiedTill }
+        });
+        setProfileUser(prev => ({
+          ...prev,
+          isVerified: currentUserVerified,
+          verifiedTill: currentUserVerifiedTill
+        }));
+      }
+    }
+  }, [currentUser?.isVerified, currentUser?.verifiedTill, userId, currentUser?._id, profileUser])
+  
+  // Also reload profile when viewing own profile and user context changes significantly
+  useEffect(() => {
+    const isOwnProfile = currentUser?._id?.toString() === userId?.toString() || 
+                         currentUser?.id?.toString() === userId?.toString();
+    
+    if (isOwnProfile && currentUser?.isVerified && !profileUser?.isVerified) {
+      console.log('🔄 Reloading profile to get verification status');
+      loadUserProfile();
+    }
+  }, [currentUser?.isVerified])
 
   const loadUserProfile = async () => {
     if (!userId) {
@@ -98,7 +140,14 @@ const UserProfile = () => {
       if (response.data.success) {
         // Backend returns response.data.user (from users.js route line 178)
         const userData = response.data.user || response.data.data || response.data
-        console.log('Setting profile user:', userData)
+        console.log('✅ Setting profile user:', userData)
+        console.log('🔍 Verification fields:', {
+          isVerified: userData?.isVerified,
+          verifiedTill: userData?.verifiedTill,
+          verifiedTillType: typeof userData?.verifiedTill,
+          verifiedTillValue: userData?.verifiedTill ? new Date(userData.verifiedTill) : null
+        })
+        console.log('📋 All user fields:', Object.keys(userData || {}))
         
         if (!userData || (!userData._id && !userData.id)) {
           console.error('Invalid user data received:', userData)
@@ -107,7 +156,24 @@ const UserProfile = () => {
           return
         }
         
-        setProfileUser(userData)
+        // Ensure bio and verification status are included
+        const profileData = {
+          ...userData,
+          bio: userData.bio || null, // Explicitly set bio
+          website: userData.website || null,
+          location: userData.location || null,
+          company: userData.company || null,
+          jobTitle: userData.jobTitle || null,
+          isVerified: userData.isVerified !== undefined ? userData.isVerified : false, // Include verification status
+          verifiedTill: userData.verifiedTill || null // Include verification expiry
+        }
+        console.log('✅ Profile data with verification:', {
+          isVerified: profileData.isVerified,
+          verifiedTill: profileData.verifiedTill,
+          verifiedTillDate: profileData.verifiedTill ? new Date(profileData.verifiedTill) : null,
+          isCurrentlyVerified: profileData.isVerified && profileData.verifiedTill && new Date(profileData.verifiedTill) > new Date()
+        })
+        setProfileUser(profileData)
       } else {
         console.error('API returned success=false:', response.data)
         message.error(response.data.message || 'User not found')
@@ -130,12 +196,42 @@ const UserProfile = () => {
 
   const checkFollowStatus = async () => {
     try {
-      const response = await api.get(`/follow/check/${userId}`)
+      // Use dedicated check endpoint for accurate follow status
+      const response = await followAPI.checkFollowStatus(userId)
       if (response.data.success) {
-        setFollowing(response.data.isFollowing)
+        const isFollowing = response.data.isFollowing || false
+        setFollowing(isFollowing)
+        console.log('✅ Follow status checked:', { userId, isFollowing, followStatus: response.data.followStatus })
+      } else {
+        console.warn('Follow status check returned success=false:', response.data)
+        setFollowing(false)
       }
     } catch (error) {
-      console.error('Error checking follow status:', error)
+      console.error('❌ Error checking follow status:', error)
+      console.error('Error details:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status
+      })
+      // Fallback: try checking following list
+      try {
+        const fallbackResponse = await followAPI.getFollowing()
+        if (fallbackResponse.data.success && fallbackResponse.data.following) {
+          const followingList = fallbackResponse.data.following
+          const userIdStr = userId?.toString()
+          const isFollowing = Array.isArray(followingList) 
+            ? followingList.some(user => {
+                const useridStr = user._id?.toString() || user._id
+                return useridStr === userIdStr || user._id === userId
+              })
+            : false
+          setFollowing(isFollowing)
+          console.log('✅ Fallback follow status checked:', { userId, isFollowing })
+        }
+      } catch (fallbackError) {
+        console.error('Fallback check also failed:', fallbackError)
+        setFollowing(false) // Default to not following on error
+      }
     }
   }
 
@@ -164,19 +260,77 @@ const UserProfile = () => {
   const handleFollow = async () => {
     try {
       if (following) {
-        await api.delete(`/follow/${userId}`)
-        setFollowing(false)
-        setFollowersCount(prev => Math.max(0, prev - 1))
-        message.success('Unfollowed')
+        // Unfollow user
+        console.log('📤 Unfollowing user:', userId)
+        const response = await followAPI.unfollow(userId)
+        console.log('📤 Unfollow response:', response.data)
+        
+        if (response.data.success) {
+          setFollowing(false)
+          setFollowersCount(prev => Math.max(0, prev - 1))
+          message.success('Unfollowed successfully')
+          // Refresh follow status to ensure consistency
+          setTimeout(() => {
+            checkFollowStatus()
+            loadStats()
+          }, 500)
+        } else {
+          message.error(response.data.message || 'Failed to unfollow user')
+        }
       } else {
-        await api.post(`/follow/${userId}`)
-        setFollowing(true)
-        setFollowersCount(prev => prev + 1)
-        message.success('Following')
+        // Follow user (send follow request)
+        console.log('📤 Sending follow request to user:', userId)
+        const response = await followAPI.sendFollowRequest(userId)
+        console.log('📤 Follow request response:', response.data)
+        
+        if (response.data.success) {
+          // Check if follow was accepted immediately (public account) or pending (private account)
+          const followStatus = response.data.follow?.status
+          const isAccepted = followStatus === 'accepted'
+          
+          if (isAccepted) {
+            setFollowing(true)
+            setFollowersCount(prev => prev + 1)
+            message.success('Following successfully')
+          } else {
+            // Follow request sent but pending approval
+            message.success('Follow request sent! Waiting for approval.')
+          }
+          // Refresh follow status to ensure consistency across all pages
+          setTimeout(() => {
+            checkFollowStatus()
+            loadStats()
+          }, 500)
+        } else {
+          message.error(response.data.message || 'Failed to send follow request')
+        }
       }
     } catch (error) {
-      console.error('Error following/unfollowing:', error)
-      message.error('Failed to update follow status')
+      console.error('❌ Error following/unfollowing:', error)
+      console.error('❌ Error details:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+        statusText: error.response?.statusText
+      })
+      
+      if (error.response?.status === 401) {
+        message.error('Authentication failed. Please login again.')
+      } else if (error.response?.status === 403) {
+        message.error('Access denied. You do not have permission to perform this action.')
+      } else if (error.response?.status === 400) {
+        const errorMessage = error.response?.data?.message || 'Invalid request. Please check your input.'
+        message.error(errorMessage)
+      } else if (error.response?.status === 404) {
+        message.error('User not found.')
+      } else if (error.response?.status === 500) {
+        message.error('Server error. Please try again later.')
+      } else if (error.code === 'ERR_NETWORK' || error.message === 'Network Error') {
+        message.error('Cannot connect to server. Please check your connection.')
+      } else {
+        const errorMsg = error.response?.data?.message || error.message || 'Failed to update follow status. Please try again.'
+        message.error(errorMsg)
+      }
     }
   }
 
@@ -282,6 +436,85 @@ const UserProfile = () => {
                       <Title level={2} style={{ margin: 0, fontSize: '28px', fontWeight: 300 }}>
                         {profileUser.name}
                       </Title>
+                      {(() => {
+                        const isVerified = profileUser.isVerified === true || profileUser.isVerified === 'true';
+                        const verifiedTill = profileUser.verifiedTill;
+                        
+                        // Check if verification is still valid
+                        let isCurrentlyVerified = false;
+                        if (isVerified) {
+                          if (verifiedTill) {
+                            try {
+                              const expiryDate = new Date(verifiedTill);
+                              const now = new Date();
+                              isCurrentlyVerified = expiryDate > now;
+                            } catch (e) {
+                              console.error('Error parsing verifiedTill date:', e);
+                              // If date parsing fails but isVerified is true, show badge anyway
+                              isCurrentlyVerified = true;
+                            }
+                          } else {
+                            // If isVerified is true but no expiry date, show badge
+                            isCurrentlyVerified = true;
+                          }
+                        }
+                        
+                        console.log('🔍 Badge check:', {
+                          isVerified,
+                          verifiedTill,
+                          verifiedTillDate: verifiedTill ? new Date(verifiedTill) : null,
+                          currentDate: new Date(),
+                          isCurrentlyVerified,
+                          willShow: isCurrentlyVerified,
+                          profileUserKeys: Object.keys(profileUser || {})
+                        });
+                        
+                        return isCurrentlyVerified ? (
+                          <Tooltip title="Verified Account">
+                            <div style={{ 
+                              marginLeft: '8px',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              cursor: 'pointer',
+                              verticalAlign: 'middle'
+                            }}>
+                              <svg 
+                                width="20" 
+                                height="20" 
+                                viewBox="0 0 24 24" 
+                                fill="none" 
+                                xmlns="http://www.w3.org/2000/svg"
+                                style={{
+                                  filter: 'drop-shadow(0 2px 4px rgba(10, 132, 255, 0.4))'
+                                }}
+                              >
+                                <defs>
+                                  <linearGradient id={`verifiedBadgeGradient-${profileUser._id || 'default'}`} x1="0%" y1="0%" x2="100%" y2="100%">
+                                    <stop offset="0%" stopColor="#5AAFFF" />
+                                    <stop offset="50%" stopColor="#3A9EFF" />
+                                    <stop offset="100%" stopColor="#0A84FF" />
+                                  </linearGradient>
+                                </defs>
+                                {/* 12-pointed badge shape matching the design */}
+                                <path 
+                                  d="M12 2L13.09 6.26L17.5 6.26L14.21 9.09L15.32 13.5L12 10.68L8.68 13.5L9.79 9.09L6.5 6.26L10.91 6.26L12 2Z" 
+                                  fill={`url(#verifiedBadgeGradient-${profileUser._id || 'default'})`}
+                                />
+                                {/* White checkmark */}
+                                <path 
+                                  d="M9 12L11 14L15 10" 
+                                  stroke="white" 
+                                  strokeWidth="2.2" 
+                                  strokeLinecap="round" 
+                                  strokeLinejoin="round"
+                                  fill="none"
+                                />
+                              </svg>
+                            </div>
+                          </Tooltip>
+                        ) : null;
+                      })()}
                       {profileUser.isPrivate && (
                         <LockOutlined style={{ fontSize: '20px', color: '#999' }} />
                       )}
@@ -290,31 +523,45 @@ const UserProfile = () => {
                   {/* 3-dot menu in top right - Always visible */}
                   <Dropdown
                     menu={{
-                      items: !isOwnProfile ? [
-                        {
-                          key: 'startChat',
-                          label: (
-                            <Space>
-                              <MessageOutlined />
-                              <span>Start Chat</span>
-                            </Space>
-                          ),
-                          onClick: () => {
-                            console.log('🔍 Start Chat clicked from dropdown')
-                            handleStartChat()
+                      items: [
+                        ...(!isOwnProfile ? [
+                          {
+                            key: 'startChat',
+                            label: (
+                              <Space>
+                                <MessageOutlined />
+                                <span>Start Chat</span>
+                              </Space>
+                            ),
+                            onClick: () => {
+                              console.log('🔍 Start Chat clicked from dropdown')
+                              handleStartChat()
+                            }
                           }
-                        }
-                      ] : [
-                        {
-                          key: 'settings',
+                        ] : [
+                          {
+                            key: 'settings',
+                            label: (
+                              <Space>
+                                <EditOutlined />
+                                <span>Settings</span>
+                              </Space>
+                            ),
+                            onClick: () => navigate('/settings')
+                          }
+                        ]),
+                        // Joined date - always show
+                        ...(profileUser.createdAt ? [{
+                          key: 'joinedDate',
                           label: (
                             <Space>
-                              <EditOutlined />
-                              <span>Settings</span>
+                              <CalendarOutlined />
+                              <span>Joined {new Date(profileUser.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long' })}</span>
                             </Space>
                           ),
-                          onClick: () => navigate('/settings')
-                        }
+                          disabled: true,
+                          style: { cursor: 'default' }
+                        }] : [])
                       ]
                     }}
                     trigger={['click']}
@@ -386,37 +633,88 @@ const UserProfile = () => {
 
               {/* Bio and Details */}
               <div style={{ marginBottom: '12px' }}>
-                <Title level={5} style={{ marginBottom: '8px', fontSize: '16px', fontWeight: 600 }}>
-                  {profileUser.name}
-                </Title>
-                {profileUser.bio && (
-                  <Paragraph style={{ marginBottom: '12px', fontSize: '16px', lineHeight: '1.5' }}>
-                    {profileUser.bio}
-                  </Paragraph>
-                )}
+                {/* Bio Section - Always show (Instagram style) */}
+                <div style={{ marginBottom: '12px', minHeight: '24px' }}>
+                  {profileUser.bio && profileUser.bio.trim() ? (
+                    <div>
+                      <Paragraph 
+                        style={{ 
+                          marginBottom: '8px', 
+                          fontSize: '16px', 
+                          lineHeight: '1.5', 
+                          color: '#262626', 
+                          whiteSpace: 'pre-wrap', 
+                          wordBreak: 'break-word',
+                          margin: 0
+                        }}
+                      >
+                        {bioExpanded || profileUser.bio.length <= BIO_MAX_LENGTH 
+                          ? profileUser.bio 
+                          : `${profileUser.bio.substring(0, BIO_MAX_LENGTH)}...`}
+                      </Paragraph>
+                      {profileUser.bio.length > BIO_MAX_LENGTH && (
+                        <Button
+                          type="link"
+                          onClick={() => setBioExpanded(!bioExpanded)}
+                          style={{ 
+                            padding: 0, 
+                            height: 'auto', 
+                            fontSize: '16px',
+                            color: '#8e8e8e',
+                            fontWeight: 400
+                          }}
+                        >
+                          {bioExpanded ? 'Show less' : 'View more'}
+                        </Button>
+                      )}
+                    </div>
+                  ) : (
+                    // Show placeholder for empty bio (Instagram style)
+                    <Text 
+                      type="secondary" 
+                      style={{ 
+                        fontSize: '16px', 
+                        lineHeight: '1.5', 
+                        color: '#999',
+                        fontStyle: 'italic'
+                      }}
+                    >
+                      No bio yet
+                    </Text>
+                  )}
+                </div>
+                
+                {/* Website */}
                 {profileUser.website && (
                   <div style={{ marginBottom: '8px' }}>
                     <a
                       href={profileUser.website.startsWith('http') ? profileUser.website : `https://${profileUser.website}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      style={{ color: '#00376b', textDecoration: 'none', fontSize: '16px' }}
+                      style={{ color: '#00376b', textDecoration: 'none', fontSize: '16px', fontWeight: 500 }}
+                      onMouseEnter={(e) => e.target.style.textDecoration = 'underline'}
+                      onMouseLeave={(e) => e.target.style.textDecoration = 'none'}
                     >
                       <GlobalOutlined style={{ marginRight: '4px' }} />
-                      {profileUser.website}
+                      {profileUser.website.replace(/^https?:\/\//, '')}
                     </a>
                   </div>
                 )}
+                
+                {/* Location */}
                 {profileUser.location && (
-                  <div style={{ marginBottom: '8px', fontSize: '16px', color: '#666' }}>
-                    <EnvironmentOutlined style={{ marginRight: '4px' }} />
+                  <div style={{ marginBottom: '8px', fontSize: '16px', color: '#262626' }}>
+                    <EnvironmentOutlined style={{ marginRight: '4px', color: '#666' }} />
                     {profileUser.location}
                   </div>
                 )}
-                {profileUser.createdAt && (
-                  <div style={{ fontSize: '14px', color: '#999' }}>
-                    <CalendarOutlined style={{ marginRight: '4px' }} />
-                    Joined {new Date(profileUser.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long' })}
+                
+                {/* Company and Job Title */}
+                {(profileUser.company || profileUser.jobTitle) && (
+                  <div style={{ marginBottom: '8px', fontSize: '16px', color: '#262626' }}>
+                    {profileUser.company && <span>{profileUser.company}</span>}
+                    {profileUser.company && profileUser.jobTitle && <span> • </span>}
+                    {profileUser.jobTitle && <span>{profileUser.jobTitle}</span>}
                   </div>
                 )}
               </div>

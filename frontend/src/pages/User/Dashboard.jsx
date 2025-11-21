@@ -11,7 +11,8 @@ import {
   SettingOutlined,
   CheckCircleOutlined,
   EyeOutlined,
-  MoreOutlined
+  MoreOutlined,
+  CrownOutlined
 } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from "../../contexts/AuthContextOptimized"
@@ -92,18 +93,29 @@ const Dashboard = () => {
     
     // Save to backend asynchronously (non-blocking)
     try {
-      await api.patch('/users/me', { 
+      const response = await api.put('/users/me', { 
         activeStatusVisible: checked 
       })
-      message.success(`Active status ${checked ? 'enabled' : 'disabled'}`)
+      console.log('✅ Active status update response:', response.data)
+      if (response.data.success) {
+        message.success(`Active status ${checked ? 'enabled' : 'disabled'}`)
+      } else {
+        throw new Error(response.data.message || 'Update failed')
+      }
     } catch (error) {
-      console.error('Error updating active status:', error)
+      console.error('❌ Error updating active status:', error)
+      console.error('❌ Error details:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status
+      })
       // Revert on error
       setIsActiveStatusVisible(!checked)
       if (updateUser) {
         updateUser({ activeStatusVisible: !checked })
       }
-      message.error('Failed to update active status')
+      const errorMsg = error.response?.data?.message || error.message || 'Failed to update active status'
+      message.error(errorMsg)
     }
   }
 
@@ -255,86 +267,7 @@ const Dashboard = () => {
                       message.error('Invalid user ID')
                     }
                   }}
-                  actions={[
-                    <Button 
-                      type="link" 
-                      icon={<EyeOutlined />}
-                      size="small"
-                      onClick={(e) => {
-                        e.preventDefault()
-                        e.stopPropagation()
-                        console.log('🔍 Dashboard: Clicked View Profile button, navigating to:', `/profile/${newUser._id}`)
-                        if (newUser._id) {
-                          navigate(`/profile/${newUser._id}`)
-                        } else {
-                          console.error('No newUser._id found:', newUser)
-                          message.error('Invalid user ID')
-                        }
-                      }}
-                      style={{ 
-                        width: '100%',
-                        fontSize: '12px'
-                      }}
-                    >
-                      View Profile
-                    </Button>
-                  ]}
                 >
-                  {/* 3-dot menu in top right */}
-                  <div 
-                    style={{ 
-                      position: 'absolute',
-                      top: '8px',
-                      right: '8px',
-                      zIndex: 10
-                    }}
-                    onClick={(e) => {
-                      e.preventDefault()
-                      e.stopPropagation()
-                    }}
-                  >
-                    <Dropdown
-                      menu={{
-                        items: [
-                          {
-                            key: 'startChat',
-                            label: (
-                              <Space>
-                                <MessageOutlined />
-                                <span>Start Chat</span>
-                              </Space>
-                            ),
-                            onClick: () => {
-                              handleStartChat(newUser._id)
-                            }
-                          }
-                        ]
-                      }}
-                      trigger={['click']}
-                      placement="bottomRight"
-                    >
-                      <Button
-                        type="text"
-                        shape="circle"
-                        icon={<MoreOutlined />}
-                        size="small"
-                        style={{ 
-                          width: '28px',
-                          height: '28px',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          backgroundColor: 'rgba(255, 255, 255, 0.9)',
-                          border: '1px solid #d9d9d9',
-                          boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                        }}
-                        onClick={(e) => {
-                          e.preventDefault()
-                          e.stopPropagation()
-                        }}
-                      />
-                    </Dropdown>
-                  </div>
 
                   <div 
                     style={{ position: 'relative', display: 'inline-block', cursor: 'pointer' }}
@@ -574,6 +507,59 @@ const Dashboard = () => {
               </Card>
             </Col>
           </Row>
+        </Card>
+      </div>
+
+      {/* Verified Badge Products Section */}
+      <div style={{ padding: '0 var(--container-padding-mobile)', marginBottom: 'var(--space-xl)' }}>
+        <Card
+          hoverable
+          onClick={() => navigate('/dashboard/products')}
+          style={{
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            borderRadius: '16px',
+            boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
+            border: 'none',
+            cursor: 'pointer',
+            color: '#fff'
+          }}
+          bodyStyle={{ padding: '24px' }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            <div style={{
+              width: '56px',
+              height: '56px',
+              borderRadius: '12px',
+              background: 'rgba(255,255,255,0.2)',
+              backdropFilter: 'blur(10px)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '28px'
+            }}>
+              <CheckCircleOutlined style={{ color: '#fff' }} />
+            </div>
+            <div style={{ flex: 1 }}>
+              <Title level={4} style={{ color: '#fff', margin: 0, marginBottom: '4px' }}>
+                Get Verified Badge
+              </Title>
+              <Paragraph style={{ color: 'rgba(255,255,255,0.9)', margin: 0 }}>
+                Show your authenticity with a blue checkmark badge
+              </Paragraph>
+            </div>
+            <Button
+              type="primary"
+              style={{
+                background: 'rgba(255,255,255,0.2)',
+                border: '1px solid rgba(255,255,255,0.3)',
+                color: '#fff',
+                borderRadius: '8px',
+                fontWeight: 600
+              }}
+            >
+              View Plans
+            </Button>
+          </div>
         </Card>
       </div>
 

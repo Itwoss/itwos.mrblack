@@ -38,86 +38,163 @@ const UserActivities = () => {
   const fetchUserActivities = async () => {
     setLoading(true)
     try {
-      const token = localStorage.getItem('adminToken') || localStorage.getItem('token')
+      const token = localStorage.getItem('adminToken') || localStorage.getItem('token') || localStorage.getItem('accessToken')
       
-      // Fetch users
-      const usersResponse = await fetch('http://localhost:7000/api/admin/users?limit=100', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      })
+      // Fetch users, prebooks, and purchases in parallel
+      const [usersResponse, prebooksResponse, purchasesResponse] = await Promise.all([
+        fetch('http://localhost:7000/api/admin/users?limit=100', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        }),
+        fetch('http://localhost:7000/api/prebook/admin/all?limit=100', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        }),
+        fetch('http://localhost:7000/api/admin/orders?limit=100', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        })
+      ])
       
-      // Fetch prebooks
-      const prebooksResponse = await fetch('http://localhost:7000/api/prebook/admin/all?limit=100', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      })
+      const allActivities = []
+      let fetchedUsers = []
       
-      if (usersResponse.ok && prebooksResponse.ok) {
+      // Process users data
+      if (usersResponse.ok) {
         const usersData = await usersResponse.json()
-        const prebooksData = await prebooksResponse.json()
-        
-        console.log('Users response:', usersData)
-        console.log('Prebooks response:', prebooksData)
-        
-        const fetchedUsers = usersData.users || []
-        const fetchedPrebooks = prebooksData.data?.prebooks || []
-        
+        fetchedUsers = usersData.users || usersData.data?.users || []
         setUsers(fetchedUsers)
         
-        // Create activities from prebooks
-        const userActivities = fetchedPrebooks.map(prebook => ({
-          id: prebook._id,
-          type: 'prebook',
-          user: {
-            name: prebook.contactInfo?.name || 'Unknown',
-            email: prebook.contactInfo?.email || 'No email'
-          },
-          product: prebook.productId || { title: 'Custom Project' },
-          action: 'Created prebook request',
-          status: prebook.status,
-          paymentStatus: prebook.paymentStatus,
-          amount: prebook.paymentAmount,
-          date: prebook.createdAt,
-          details: {
-            projectType: prebook.projectType,
-            budget: prebook.budget,
-            timeline: prebook.timeline,
-            features: prebook.features,
-            notes: prebook.notes,
-            contactInfo: prebook.contactInfo
+        // Create login activities from users
+        fetchedUsers.forEach(user => {
+          if (user.lastLoginAt) {
+            allActivities.push({
+              id: `login-${user._id}-${user.lastLoginAt}`,
+              type: 'login',
+              user: {
+                _id: user._id,
+                name: user.name,
+                email: user.email,
+                avatarUrl: user.avatarUrl || user.profilePic
+              },
+              product: null,
+              action: 'User logged in',
+              status: 'completed',
+              paymentStatus: null,
+              amount: null,
+              date: user.lastLoginAt,
+              details: {
+                loginMethod: user.googleId ? 'Google' : 'Email',
+                lastSeen: user.lastSeen
+              }
+            })
           }
-        }))
-        
-        // Sort by date (newest first)
-        userActivities.sort((a, b) => new Date(b.date) - new Date(a.date))
-        setActivities(userActivities)
-        
-        // Calculate stats
-        const totalUsers = fetchedUsers.length
-        const activeUsers = fetchedUsers.filter(u => u.lastLoginAt).length
-        const totalPrebooks = fetchedPrebooks.length
-        const totalPayments = fetchedPrebooks.filter(p => p.paymentStatus === 'completed').length
-        
-        setStats({
-          totalUsers,
-          activeUsers,
-          totalPrebooks,
-          totalPayments
         })
-      } else {
-        console.error('API responses not ok:', {
-          usersStatus: usersResponse.status,
-          prebooksStatus: prebooksResponse.status,
-          usersText: await usersResponse.text(),
-          prebooksText: await prebooksResponse.text()
-        })
-        messageApi.error('Failed to fetch user activities')
       }
+      
+      // Process prebooks data
+      if (prebooksResponse.ok) {
+        const prebooksData = await prebooksResponse.json()
+        const fetchedPrebooks = prebooksData.data?.prebooks || prebooksData.prebooks || []
+        
+        fetchedPrebooks.forEach(prebook => {
+          allActivities.push({
+            id: `prebook-${prebook._id}`,
+            type: 'prebook',
+            user: {
+              _id: prebook.userId?._id || prebook.userId,
+              name: prebook.contactInfo?.name || prebook.userId?.name || 'Unknown',
+              email: prebook.contactInfo?.email || prebook.userId?.email || 'No email',
+              avatarUrl: prebook.userId?.avatarUrl || prebook.userId?.profilePic
+            },
+            product: prebook.productId || { title: 'Custom Project', _id: null },
+            action: 'Created prebook request',
+            status: prebook.status,
+            paymentStatus: prebook.paymentStatus,
+            amount: prebook.paymentAmount,
+            date: prebook.createdAt,
+            details: {
+              projectType: prebook.projectType,
+              budget: prebook.budget,
+              timeline: prebook.timeline,
+              features: prebook.features,
+              notes: prebook.notes,
+              contactInfo: prebook.contactInfo
+            }
+          })
+        })
+      }
+      
+      // Process purchases/orders data
+      if (purchasesResponse.ok) {
+        const purchasesData = await purchasesResponse.json()
+        const fetchedPurchases = purchasesData.data?.purchases || purchasesData.purchases || purchasesData.data?.orders || purchasesData.orders || []
+        
+        fetchedPurchases.forEach(purchase => {
+          const buyer = purchase.buyer || purchase.userId || {}
+          const product = purchase.product || purchase.productId || {}
+          
+          // Handle buyer - could be ObjectId or populated object
+          const buyerId = buyer._id || buyer
+          const buyerName = buyer.name || 'Unknown User'
+          const buyerEmail = buyer.email || 'No email'
+          const buyerAvatar = buyer.avatarUrl || buyer.profilePic
+          
+          // Handle product - could be ObjectId or populated object
+          const productId = product._id || product
+          const productTitle = product.title || 'Product Deleted'
+          
+          allActivities.push({
+            id: `purchase-${purchase._id}`,
+            type: 'purchase',
+            user: {
+              _id: buyerId,
+              name: buyerName,
+              email: buyerEmail,
+              avatarUrl: buyerAvatar
+            },
+            product: {
+              _id: productId,
+              title: productTitle,
+              price: product.price,
+              thumbnailUrl: product.thumbnailUrl || product.images?.[0]
+            },
+            action: 'Purchased product',
+            status: purchase.status === 'paid' ? 'completed' : purchase.status,
+            paymentStatus: purchase.status === 'paid' ? 'completed' : purchase.status,
+            amount: purchase.amount,
+            date: purchase.createdAt,
+            details: {
+              razorpayOrderId: purchase.razorpayOrderId,
+              razorpayPaymentId: purchase.razorpayPaymentId,
+              paymentMethod: purchase.paymentMethod,
+              currency: purchase.currency || 'INR'
+            }
+          })
+        })
+      }
+      
+      // Sort all activities by date (newest first)
+      allActivities.sort((a, b) => new Date(b.date) - new Date(a.date))
+      setActivities(allActivities)
+      
+      // Calculate stats
+      const totalUsers = fetchedUsers.length
+      const activeUsers = fetchedUsers.filter(u => u.lastLoginAt).length
+      const totalPrebooks = allActivities.filter(a => a.type === 'prebook').length
+      const totalPurchases = allActivities.filter(a => a.type === 'purchase').length
+      const totalPayments = allActivities.filter(a => 
+        (a.type === 'prebook' && a.paymentStatus === 'completed') || 
+        (a.type === 'purchase' && (a.status === 'paid' || a.status === 'completed'))
+      ).length
+      
+      setStats({
+        totalUsers,
+        activeUsers,
+        totalPrebooks,
+        totalPayments: totalPayments
+      })
+      
     } catch (error) {
       console.error('Error fetching user activities:', error)
-      messageApi.error('Network error')
+      messageApi.error('Failed to fetch user activities')
     } finally {
       setLoading(false)
     }
@@ -160,6 +237,7 @@ const UserActivities = () => {
   const getActivityIcon = (type) => {
     switch (type) {
       case 'prebook': return <BookOutlined />
+      case 'purchase': return <ShoppingOutlined />
       case 'payment': return <DollarOutlined />
       case 'login': return <UserOutlined />
       default: return <ClockCircleOutlined />
@@ -223,13 +301,20 @@ const UserActivities = () => {
     {
       title: 'Amount',
       key: 'amount',
-      render: (_, record) => (
-        record.amount ? (
-          <Text strong style={{ color: '#52c41a' }}>₹{((record.amount || 0) / 100).toFixed(2)}</Text>
-        ) : (
-          <Text type="secondary">N/A</Text>
+      render: (_, record) => {
+        if (!record.amount) return <Text type="secondary">N/A</Text>
+        
+        // Handle amount - could be in paise (divide by 100) or already in rupees
+        const amount = record.amount > 10000 ? record.amount / 100 : record.amount
+        const currency = record.details?.currency || 'INR'
+        const symbol = currency === 'USD' ? '$' : currency === 'EUR' ? '€' : '₹'
+        
+        return (
+          <Text strong style={{ color: '#52c41a' }}>
+            {symbol}{amount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          </Text>
         )
-      )
+      }
     },
     {
       title: 'Date',
@@ -260,7 +345,7 @@ const UserActivities = () => {
       <div style={{ marginBottom: '24px' }}>
         <Title level={2}>User Activities</Title>
         <Paragraph type="secondary">
-          Monitor all user activities, prebook requests, and payment transactions
+          Monitor all user activities including logins, purchases, and prebook requests
         </Paragraph>
       </div>
 
@@ -298,9 +383,9 @@ const UserActivities = () => {
         <Col xs={24} sm={12} md={6}>
           <Card>
             <Statistic
-              title="Paid Prebooks"
+              title="Total Purchases"
               value={stats.totalPayments}
-              prefix={<DollarOutlined />}
+              prefix={<ShoppingOutlined />}
               valueStyle={{ color: '#52c41a' }}
             />
           </Card>
@@ -395,12 +480,32 @@ const UserActivities = () => {
                   
                   {selectedUser.details && (
                     <div style={{ marginTop: '16px' }}>
-                      <Title level={5}>Project Details:</Title>
-                      <p><strong>Project Type:</strong> {selectedUser.details.projectType || 'N/A'}</p>
-                      <p><strong>Budget:</strong> {selectedUser.details.budget || 'N/A'}</p>
-                      <p><strong>Timeline:</strong> {selectedUser.details.timeline || 'N/A'} days</p>
-                      <p><strong>Features:</strong> {selectedUser.details.features?.join(', ') || 'N/A'}</p>
-                      <p><strong>Notes:</strong> {selectedUser.details.notes || 'N/A'}</p>
+                      {selectedUser.type === 'prebook' && (
+                        <>
+                          <Title level={5}>Project Details:</Title>
+                          <p><strong>Project Type:</strong> {selectedUser.details.projectType || 'N/A'}</p>
+                          <p><strong>Budget:</strong> {selectedUser.details.budget || 'N/A'}</p>
+                          <p><strong>Timeline:</strong> {selectedUser.details.timeline || 'N/A'} days</p>
+                          <p><strong>Features:</strong> {selectedUser.details.features?.join(', ') || 'N/A'}</p>
+                          <p><strong>Notes:</strong> {selectedUser.details.notes || 'N/A'}</p>
+                        </>
+                      )}
+                      {selectedUser.type === 'purchase' && (
+                        <>
+                          <Title level={5}>Purchase Details:</Title>
+                          <p><strong>Order ID:</strong> {selectedUser.details.razorpayOrderId || 'N/A'}</p>
+                          <p><strong>Payment ID:</strong> {selectedUser.details.razorpayPaymentId || 'N/A'}</p>
+                          <p><strong>Payment Method:</strong> {selectedUser.details.paymentMethod?.toUpperCase() || 'N/A'}</p>
+                          <p><strong>Currency:</strong> {selectedUser.details.currency || 'INR'}</p>
+                        </>
+                      )}
+                      {selectedUser.type === 'login' && (
+                        <>
+                          <Title level={5}>Login Details:</Title>
+                          <p><strong>Login Method:</strong> {selectedUser.details.loginMethod || 'Email'}</p>
+                          <p><strong>Last Seen:</strong> {selectedUser.details.lastSeen ? new Date(selectedUser.details.lastSeen).toLocaleString() : 'N/A'}</p>
+                        </>
+                      )}
                     </div>
                   )}
                 </Card>

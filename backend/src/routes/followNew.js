@@ -758,6 +758,89 @@ router.post('/request/:userId',
   }
 });
 
+// GET /api/follow/search - Search users for following (MUST come before all other GET routes)
+router.get('/search', authenticateToken, requireUser, async (req, res) => {
+  try {
+    const { q, limit = 20 } = req.query;
+    const currentUserId = req.user._id.toString();
+
+    if (!q || q.trim().length < 2) {
+      return res.status(400).json({
+        success: false,
+        message: 'Search query must be at least 2 characters'
+      });
+    }
+
+    const searchQuery = q.trim();
+    const limitNum = parseInt(limit) || 20;
+
+    // Search users by name or email (exclude current user and deleted users)
+    const users = await User.find({
+      $and: [
+        { _id: { $ne: currentUserId } }, // Exclude current user
+        { deletedAt: null }, // Exclude deleted users
+        {
+          $or: [
+            { name: { $regex: searchQuery, $options: 'i' } },
+            { email: { $regex: searchQuery, $options: 'i' } },
+            { username: { $regex: searchQuery, $options: 'i' } }
+          ]
+        }
+      ]
+    })
+    .select('name email username avatarUrl bio isOnline lastSeen isVerified verifiedTill createdAt')
+    .limit(limitNum)
+    .sort({ createdAt: -1 });
+
+    // Get current user's following list to check follow status
+    const followingRelations = await Follow.find({
+      followerId: currentUserId,
+      status: 'accepted'
+    }).select('followeeId');
+
+    const followingIds = followingRelations.map(f => f.followeeId.toString());
+
+    // Get pending follow requests
+    const pendingRequests = await Follow.find({
+      followerId: currentUserId,
+      status: 'pending'
+    }).select('followeeId');
+
+    const pendingIds = pendingRequests.map(f => f.followeeId.toString());
+
+    // Add follow status for each user
+    const usersWithStatus = users.map(user => {
+      const userObj = user.toObject();
+      userObj.isFollowing = followingIds.includes(user._id.toString());
+      userObj.hasPendingRequest = pendingIds.includes(user._id.toString());
+      
+      // Check if verification is still valid
+      if (userObj.isVerified && userObj.verifiedTill) {
+        const expiryDate = new Date(userObj.verifiedTill);
+        const now = new Date();
+        userObj.isVerified = expiryDate > now;
+      } else {
+        userObj.isVerified = false;
+      }
+      
+      return userObj;
+    });
+
+    res.json({
+      success: true,
+      users: usersWithStatus,
+      count: usersWithStatus.length
+    });
+  } catch (error) {
+    console.error('Search users error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to search users',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+    });
+  }
+});
+
 // GET /api/follow/requests - Get pending follow requests for current user
 // NOTE: Must come AFTER /request/:userId route to avoid Express matching conflicts
 router.get('/requests', authenticateToken, requireUser, async (req, res) => {
@@ -786,6 +869,84 @@ router.get('/requests', authenticateToken, requireUser, async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to get follow requests',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+    });
+  }
+});
+
+// GET /api/follow/following - Get current user's following list
+router.get('/following', authenticateToken, requireUser, async (req, res) => {
+  try {
+    const currentUserId = req.user._id.toString();
+    
+    // Find all accepted follow relationships where current user is the follower
+    const followingList = await Follow.find({
+      followerId: currentUserId,
+      status: 'accepted'
+    }).populate('followeeId', 'name email avatarUrl bio isOnline lastSeen isVerified verifiedTill createdAt')
+      .sort({ createdAt: -1 });
+    
+    // Extract user data from populated followeeId
+    const following = followingList.map(follow => ({
+      ...follow.followeeId.toObject(),
+      _id: follow.followeeId._id,
+      followedAt: follow.createdAt
+    }));
+    
+    res.json({
+      success: true,
+      following: following,
+      count: following.length
+    });
+  } catch (error) {
+    console.error('Get following error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get following list',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+    });
+  }
+});
+
+// GET /api/follow/check/:userId - Check if current user is following a specific user
+router.get('/check/:userId', authenticateToken, requireUser, validateObjectId('userId'), async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const currentUserId = req.user._id.toString();
+    
+    console.log('🔍 Checking follow status:', {
+      currentUserId,
+      targetUserId: userId
+    });
+    
+    // Check if current user is following this user (accepted status)
+    const follow = await Follow.findOne({
+      followerId: currentUserId,
+      followeeId: userId
+    });
+    
+    const isFollowing = follow && follow.status === 'accepted';
+    const isPending = follow && follow.status === 'pending';
+    
+    console.log('✅ Follow status check result:', {
+      isFollowing,
+      isPending,
+      followStatus: follow?.status || 'none',
+      followId: follow?._id
+    });
+    
+    res.json({
+      success: true,
+      isFollowing: !!isFollowing,
+      isPending: !!isPending,
+      followStatus: follow ? follow.status : null,
+      followId: follow ? follow._id : null
+    });
+  } catch (error) {
+    console.error('❌ Check follow status error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to check follow status',
       error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
     });
   }

@@ -9,9 +9,19 @@ const router = express.Router();
 // Get current user profile
 router.get('/me', authenticateToken, async (req, res) => {
   try {
+    // Refresh user data from database to get latest verification status
+    const freshUser = await User.findById(req.user._id);
+    if (!freshUser) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+    
     res.json({
       success: true,
-      user: req.user.getFullProfile()
+      user: freshUser.getFullProfile(),
+      data: freshUser.getFullProfile() // Also include in data for consistency
     });
   } catch (error) {
     console.error('Get profile error:', error);
@@ -46,7 +56,8 @@ router.put('/me', authenticateToken, validateUserProfileUpdate, async (req, res)
       interests, 
       skills, 
       socialLinks,
-      isPrivate
+      isPrivate,
+      activeStatusVisible
     } = req.body;
     
     // Fetch fresh user from database to ensure we have the latest data
@@ -77,6 +88,10 @@ router.put('/me', authenticateToken, validateUserProfileUpdate, async (req, res)
     if (isPrivate !== undefined) {
       user.isPrivate = Boolean(isPrivate);
       console.log('🔒 Privacy setting updated:', { userId: user._id, isPrivate: user.isPrivate });
+    }
+    if (activeStatusVisible !== undefined) {
+      user.activeStatusVisible = Boolean(activeStatusVisible);
+      console.log('👁️ Active status visibility updated:', { userId: user._id, activeStatusVisible: user.activeStatusVisible });
     }
 
     // Validate before saving
@@ -133,7 +148,7 @@ router.put('/me', authenticateToken, validateUserProfileUpdate, async (req, res)
 // Get user by ID (public profile) - with privacy check
 router.get('/:id', validateObjectId('id'), async (req, res) => {
   try {
-    const user = await User.findById(req.params.id);
+    const user = await User.findOne({ _id: req.params.id, deletedAt: null });
     
     if (!user) {
       return res.status(404).json({
@@ -157,15 +172,28 @@ router.get('/:id', validateObjectId('id'), async (req, res) => {
       }) : false;
       
       if (!isFollowing) {
-        // Return limited profile for private accounts
+        // Check if verification is still valid
+        const isCurrentlyVerified = user.isVerified && user.verifiedTill && user.verifiedTill > new Date();
+        
+        // Return limited profile for private accounts (but include bio like Instagram)
         return res.json({
           success: true,
           user: {
             _id: user._id,
             name: user.name,
             avatarUrl: user.avatarUrl,
+            bio: user.bio || null, // Include bio for all users (Instagram style)
+            website: user.website || null, // Include website
+            location: user.location || null, // Include location
+            company: user.company || null,
+            jobTitle: user.jobTitle || null,
             isPrivate: true,
-            requiresFollow: true
+            requiresFollow: true,
+            isVerified: isCurrentlyVerified, // Include verification status
+            verifiedTill: user.verifiedTill, // Include verification expiry
+            followersCount: user.followersCount || 0,
+            followingCount: user.followingCount || 0,
+            createdAt: user.createdAt
           },
           message: 'This account is private. Follow to see their content.'
         });
@@ -316,15 +344,58 @@ router.get('/:id/followers', validateObjectId('id'), async (req, res) => {
   }
 });
 
-// Get user's purchases
+// Get user's purchases (including subscriptions)
 router.get('/:id/purchases', authenticateToken, validateObjectId('id'), requireOwnershipOrAdmin('id'), async (req, res) => {
   try {
     const Purchase = require('../models/Purchase');
+    const Subscription = require('../models/Subscription');
+    
+    // Get product purchases
     const purchases = await Purchase.findByBuyer(req.params.id);
+    
+    // Get subscriptions (verified badge purchases)
+    const subscriptions = await Subscription.find({ userId: req.params.id })
+      .sort({ createdAt: -1 });
+    
+    // Format purchases
+    const formattedPurchases = purchases.map(purchase => ({
+      ...purchase.getPublicData(),
+      type: 'product',
+      product: purchase.product
+    }));
+    
+    // Format subscriptions as purchases
+    const formattedSubscriptions = subscriptions.map(subscription => ({
+      _id: subscription._id,
+      type: 'subscription',
+      product: {
+        _id: 'verified-badge',
+        title: `Verified Badge - ${subscription.planMonths} Month${subscription.planMonths > 1 ? 's' : ''}`,
+        description: 'Blue Checkmark – Verified Badge Subscription'
+      },
+      amount: subscription.price,
+      currency: subscription.currency || 'INR',
+      status: subscription.status === 'active' ? 'paid' : subscription.status === 'expired' ? 'completed' : subscription.status,
+      paymentMethod: subscription.paymentMethod || 'card',
+      razorpayOrderId: subscription.razorpayOrderId || subscription.paymentId,
+      razorpayPaymentId: subscription.razorpayPaymentId || subscription.paymentId,
+      createdAt: subscription.createdAt,
+      updatedAt: subscription.updatedAt,
+      // Subscription-specific fields
+      planMonths: subscription.planMonths,
+      startDate: subscription.startDate,
+      expiryDate: subscription.expiryDate,
+      isSubscription: true
+    }));
+    
+    // Combine and sort by creation date (newest first)
+    const allPurchases = [...formattedPurchases, ...formattedSubscriptions].sort((a, b) => {
+      return new Date(b.createdAt) - new Date(a.createdAt);
+    });
 
     res.json({
       success: true,
-      purchases: purchases.map(purchase => purchase.getPublicData())
+      purchases: allPurchases
     });
   } catch (error) {
     console.error('Get purchases error:', error);
@@ -428,7 +499,7 @@ router.get('/search', async (req, res) => {
     }
 
     const skip = (parseInt(page) - 1) * parseInt(limit);
-    const users = await User.find(query)
+    const users = await User.find({ ...query, deletedAt: null })
       .select('name email avatarUrl bio role createdAt')
       .limit(parseInt(limit))
       .skip(skip)
@@ -518,13 +589,29 @@ router.get('/:id/stats', authenticateToken, validateObjectId('id'), requireOwner
   }
 });
 
-// Delete user account
-router.delete('/me', authenticateToken, async (req, res) => {
+// Request account deletion (Step 1 of 3)
+router.post('/me/request-deletion', authenticateToken, async (req, res) => {
   try {
     const { password } = req.body;
+    const user = await User.findById(req.user._id);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // Check if user is already deleted
+    if (user.deletedAt) {
+      return res.status(400).json({
+        success: false,
+        message: 'Account is already deleted'
+      });
+    }
 
     // Verify password for account deletion
-    if (!req.user.googleId) {
+    if (!user.googleId) {
       if (!password) {
         return res.status(400).json({
           success: false,
@@ -532,7 +619,7 @@ router.delete('/me', authenticateToken, async (req, res) => {
         });
       }
 
-      const isPasswordValid = await req.user.comparePassword(password);
+      const isPasswordValid = await user.comparePassword(password);
       if (!isPasswordValid) {
         return res.status(400).json({
           success: false,
@@ -541,13 +628,138 @@ router.delete('/me', authenticateToken, async (req, res) => {
       }
     }
 
-    // Soft delete - mark as inactive instead of actually deleting
-    req.user.isActive = false;
-    await req.user.save();
+    // Start deletion confirmation process
+    user.deletionConfirmationCount = 1;
+    user.deletionRequestedAt = new Date();
+    await user.save();
 
     res.json({
       success: true,
-      message: 'Account deleted successfully'
+      message: 'Deletion request initiated. This is confirmation 1 of 3. Please confirm 2 more times.',
+      confirmationCount: 1,
+      remainingConfirmations: 2
+    });
+  } catch (error) {
+    console.error('Request account deletion error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to request account deletion',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+    });
+  }
+});
+
+// Confirm account deletion (Step 2 and 3)
+router.post('/me/confirm-deletion', authenticateToken, async (req, res) => {
+  try {
+    const { confirmationText } = req.body;
+    const user = await User.findById(req.user._id);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // Check if user is already deleted
+    if (user.deletedAt) {
+      return res.status(400).json({
+        success: false,
+        message: 'Account is already deleted'
+      });
+    }
+
+    // Check if deletion was requested
+    if (!user.deletionRequestedAt) {
+      return res.status(400).json({
+        success: false,
+        message: 'No deletion request found. Please request deletion first.'
+      });
+    }
+
+    // Verify confirmation text
+    if (confirmationText !== `DELETE ${user.email}`) {
+      return res.status(400).json({
+        success: false,
+        message: `Confirmation text must be exactly: DELETE ${user.email}`
+      });
+    }
+
+    // Increment confirmation count
+    const newCount = (user.deletionConfirmationCount || 0) + 1;
+
+    if (newCount < 3) {
+      // Not yet at 3 confirmations
+      user.deletionConfirmationCount = newCount;
+      await user.save();
+
+      return res.json({
+        success: true,
+        message: `Deletion confirmed. This is confirmation ${newCount} of 3.`,
+        confirmationCount: newCount,
+        remainingConfirmations: 3 - newCount
+      });
+    }
+
+    // 3rd confirmation - proceed with soft deletion
+    user.deletedAt = new Date();
+    user.isActive = false;
+    user.deletionConfirmationCount = 3;
+    await user.save();
+
+    res.json({
+      success: true,
+      message: 'Your account has been deleted successfully',
+      deleted: true,
+      deletedAt: user.deletedAt
+    });
+  } catch (error) {
+    console.error('Confirm account deletion error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to confirm account deletion',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+    });
+  }
+});
+
+// Cancel deletion request
+router.post('/me/cancel-deletion', authenticateToken, async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    user.deletionConfirmationCount = 0;
+    user.deletionRequestedAt = null;
+    await user.save();
+
+    res.json({
+      success: true,
+      message: 'Deletion request cancelled'
+    });
+  } catch (error) {
+    console.error('Cancel deletion request error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to cancel deletion request',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+    });
+  }
+});
+
+// Delete user account (DEPRECATED - Use request-deletion and confirm-deletion instead)
+router.delete('/me', authenticateToken, async (req, res) => {
+  try {
+    return res.status(400).json({
+      success: false,
+      message: 'This endpoint is deprecated. Please use POST /me/request-deletion and POST /me/confirm-deletion with 3-step confirmation instead.'
     });
   } catch (error) {
     console.error('Delete account error:', error);

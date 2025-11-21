@@ -5,7 +5,7 @@ const PrebookRequest = require('../models/PrebookRequest')
 const Notification = require('../models/Notification')
 const User = require('../models/User')
 const { optionalAuth } = require('../middleware/auth')
-const { getPublishedProducts, getTrendingProducts } = require('../data/mockProducts')
+// Mock products removed - using database only
 const { sendPrebookConfirmationEmail, sendPrebookAdminNotificationEmail } = require('../services/mailjet')
 
 const router = express.Router()
@@ -188,24 +188,10 @@ router.get('/:slug', async (req, res) => {
     
     // Use mock data if MongoDB is not connected
     if (!isMongoConnected) {
-      console.log('⚠️  Using mock data for product fetch')
-      
-      // Get products from shared mock data store
-      const mockProducts = getPublishedProducts()
-      const product = mockProducts.find(p => p.slug === req.params.slug && p.status === 'published')
-      
-      if (!product) {
-        console.log('❌ Product not found in mock data:', req.params.slug)
-        return res.status(404).json({
-          success: false,
-          message: 'Product not found'
-        })
-      }
-      
-      console.log('✅ Product found in mock data:', product.title)
-      return res.json({
-        success: true,
-        data: { product }
+      console.log('❌ Database not connected')
+      return res.status(503).json({
+        success: false,
+        message: 'Database connection unavailable'
       })
     }
     
@@ -358,12 +344,6 @@ router.post('/:id/prebook', optionalAuth, async (req, res) => {
       console.log('⚠️ Product ID is not a valid MongoDB ObjectId, checking mock data')
     }
     
-    // If not found in database, check mock data
-    if (!product) {
-      const mockProducts = getPublishedProducts()
-      product = mockProducts.find(p => p._id === productId)
-    }
-    
     if (!product) {
       return res.status(404).json({
         success: false,
@@ -373,10 +353,10 @@ router.post('/:id/prebook', optionalAuth, async (req, res) => {
     
     console.log('✅ Product found:', product.title)
 
-    // Handle mock product IDs by using a placeholder ObjectId
+    // Use product ID from database
     let finalProductId = productId
-    if (productId.startsWith('mock-')) {
-      // Use a placeholder ObjectId for mock products
+    if (!mongoose.Types.ObjectId.isValid(productId)) {
+      // Invalid product ID format
       finalProductId = new mongoose.Types.ObjectId()
       console.log('🔄 Using placeholder ObjectId for mock product:', finalProductId)
     }
@@ -656,69 +636,12 @@ router.get('/tags/list', async (req, res) => {
   }
 })
 
-// Create new product (public - mock)
+// Create new product (public) - DISABLED (use admin panel instead)
 router.post('/', async (req, res) => {
-  try {
-    console.log('🔍 Public create product API called')
-    console.log('Product data:', req.body)
-    
-    const {
-      title,
-      websiteUrl,
-      description,
-      price,
-      currency,
-      tags,
-      categories,
-      developerName,
-      techStack
-    } = req.body
-
-    // Generate slug from title
-    const slug = title
-      .toLowerCase()
-      .replace(/[^a-z0-9\s-]/g, '')
-      .replace(/\s+/g, '-')
-      .replace(/-+/g, '-')
-      .trim('-')
-
-    // Create mock product
-    const newProduct = {
-      _id: `public-${Date.now()}`,
-      title: title || 'New Public Product',
-      slug: slug || 'new-public-product',
-      websiteUrl: websiteUrl || 'https://example.com',
-      websiteTitle: 'Public Website',
-      descriptionAuto: description || 'Public product description',
-      descriptionManual: description || 'Public product description',
-      price: price ? parseFloat(price) : 0,
-      currency: currency || 'USD',
-      trending: false,
-      tags: tags || [],
-      categories: categories || [],
-      developerName: developerName || 'Public Developer',
-      techStack: techStack || [],
-      status: 'published',
-      previewSaved: false,
-      createdAt: new Date(),
-      updatedAt: new Date()
-    }
-
-    console.log('🔍 Mock public product created:', newProduct.title)
-
-    res.status(201).json({
-      success: true,
-      message: 'Product created successfully',
-      data: newProduct
-    })
-  } catch (error) {
-    console.error('Mock create public product error:', error)
-    res.status(500).json({
-      success: false,
-      message: 'Failed to create product',
-      error: error.message
-    })
-  }
+  res.status(403).json({
+    success: false,
+    message: 'Public product creation is disabled. Please use the admin panel to create products.'
+  })
 })
 
 module.exports = router

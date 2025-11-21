@@ -60,14 +60,61 @@ const AdminDashboard = () => {
   const [recentOrders, setRecentOrders] = useState([])
   const [topProducts] = useState([])
   const [alerts, setAlerts] = useState([])
+  const [testUsers, setTestUsers] = useState([])
+  const [testUsersLoading, setTestUsersLoading] = useState(false)
+  const [verifiedBadgeSubscriptions, setVerifiedBadgeSubscriptions] = useState([])
+  const [subscriptionsLoading, setSubscriptionsLoading] = useState(false)
 
-  // Initialize component state - prevent blinking
-  useEffect(() => {
-    if (!isLoading && isAuthenticated && user) {
-      setIsInitialized(true)
-      loadDashboardData()
+  const loadTestUsers = useCallback(async () => {
+    try {
+      setTestUsersLoading(true)
+      const token = localStorage.getItem('accessToken') || localStorage.getItem('token') || localStorage.getItem('adminToken')
+      const response = await fetch('http://localhost:7000/api/admin/test-users', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        if (data.success && data.testUsers) {
+          setTestUsers(data.testUsers)
+        }
+      }
+    } catch (error) {
+      console.error('Error loading test users:', error)
+    } finally {
+      setTestUsersLoading(false)
     }
-  }, [isLoading, isAuthenticated, user])
+  }, [])
+
+  const handleResetTestUsers = async () => {
+    try {
+      setTestUsersLoading(true)
+      const token = localStorage.getItem('accessToken') || localStorage.getItem('token') || localStorage.getItem('adminToken')
+      const response = await fetch('http://localhost:7000/api/admin/test-users/reset', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        if (data.success) {
+          message.success('Test users have been reset successfully')
+          loadTestUsers()
+        }
+      }
+    } catch (error) {
+      console.error('Error resetting test users:', error)
+      message.error('Failed to reset test users')
+    } finally {
+      setTestUsersLoading(false)
+    }
+  }
 
   const loadDashboardData = useCallback(async () => {
     setLoading(true)
@@ -265,6 +312,56 @@ const AdminDashboard = () => {
     }
   }, [])
 
+  const loadVerifiedBadgeSubscriptions = useCallback(async () => {
+    try {
+      setSubscriptionsLoading(true)
+      const token = localStorage.getItem('accessToken') || localStorage.getItem('token') || localStorage.getItem('adminToken')
+      const response = await fetch('http://localhost:7000/api/admin/subscriptions?limit=10', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        console.log('📋 Admin Dashboard - Subscriptions data received:', data)
+        if (data.success && data.subscriptions) {
+          console.log('📋 Admin Dashboard - Subscriptions count:', data.subscriptions.length)
+          // Debug: Log first subscription's payment details
+          if (data.subscriptions.length > 0) {
+            console.log('📋 Admin Dashboard - First subscription payment details:', {
+              paymentId: data.subscriptions[0].paymentId,
+              razorpayOrderId: data.subscriptions[0].razorpayOrderId,
+              razorpayPaymentId: data.subscriptions[0].razorpayPaymentId,
+              paymentMethod: data.subscriptions[0].paymentMethod,
+              userName: data.subscriptions[0].userName
+            })
+          }
+          setVerifiedBadgeSubscriptions(data.subscriptions)
+        } else {
+          console.warn('⚠️ Admin Dashboard - No subscriptions in response:', data)
+        }
+      } else {
+        console.error('❌ Admin Dashboard - Failed to fetch subscriptions:', response.status, response.statusText)
+      }
+    } catch (error) {
+      console.error('❌ Error loading verified badge subscriptions:', error)
+    } finally {
+      setSubscriptionsLoading(false)
+    }
+  }, [])
+
+  // Initialize component state - prevent blinking
+  useEffect(() => {
+    if (!isLoading && isAuthenticated && user) {
+      setIsInitialized(true)
+      loadDashboardData()
+      loadTestUsers()
+      loadVerifiedBadgeSubscriptions()
+    }
+  }, [isLoading, isAuthenticated, user, loadTestUsers, loadDashboardData, loadVerifiedBadgeSubscriptions])
+
   // Memoize columns to prevent re-renders
   const userColumns = useMemo(() => [
     {
@@ -403,6 +500,135 @@ const AdminDashboard = () => {
           <Button size="small" icon={<EditOutlined />}>Edit</Button>
         </Space>
       )
+    }
+  ], [])
+
+  const subscriptionColumns = useMemo(() => [
+    {
+      title: 'User',
+      key: 'user',
+      width: 200,
+      render: (_, record) => (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <Avatar 
+            src={record.userAvatar} 
+            icon={<UserOutlined />}
+          >
+            {record.userName ? record.userName.charAt(0).toUpperCase() : 'U'}
+          </Avatar>
+          <div>
+            <div style={{ fontWeight: 'bold' }}>{record.userName || 'Unknown User'}</div>
+            <div style={{ fontSize: '12px', color: '#666' }}>{record.userEmail || record.username}</div>
+          </div>
+        </div>
+      )
+    },
+    {
+      title: 'Plan',
+      key: 'plan',
+      render: (_, record) => (
+        <div>
+          <Text strong>{record.planMonths} Month{record.planMonths > 1 ? 's' : ''}</Text>
+          <div style={{ fontSize: '12px', color: '#666' }}>
+            Verified Badge Subscription
+          </div>
+        </div>
+      )
+    },
+    {
+      title: 'Amount',
+      key: 'amount',
+      render: (_, record) => (
+        <Text strong style={{ color: '#52c41a', fontSize: '16px' }}>
+          ₹{record.price}
+        </Text>
+      )
+    },
+    {
+      title: 'Payment Details',
+      key: 'paymentId',
+      width: 250,
+      render: (_, record) => {
+        const paymentId = record.razorpayPaymentId || record.paymentId;
+        const orderId = record.razorpayOrderId;
+        const paymentMethod = record.paymentMethod;
+        
+        return (
+          <div style={{ minWidth: '200px' }}>
+            {paymentId ? (
+              <div style={{ marginBottom: '6px' }}>
+                <div style={{ fontSize: '10px', color: '#666', marginBottom: '2px' }}>Payment ID:</div>
+                <Text code copyable style={{ fontSize: '12px', wordBreak: 'break-all' }}>
+                  {paymentId}
+                </Text>
+              </div>
+            ) : (
+              <div style={{ fontSize: '12px', color: '#999' }}>No Payment ID</div>
+            )}
+            {orderId && (
+              <div style={{ marginBottom: '6px' }}>
+                <div style={{ fontSize: '10px', color: '#666', marginBottom: '2px' }}>Order ID:</div>
+                <Text code copyable style={{ fontSize: '12px', wordBreak: 'break-all' }}>
+                  {orderId}
+                </Text>
+              </div>
+            )}
+            {paymentMethod && (
+              <div>
+                <Tag color="blue" style={{ fontSize: '11px', marginTop: '4px' }}>
+                  {paymentMethod.toUpperCase()}
+                </Tag>
+              </div>
+            )}
+          </div>
+        );
+      }
+    },
+    {
+      title: 'Status',
+      key: 'status',
+      render: (_, record) => {
+        const isActive = record.isActive || (record.expiryDate && new Date(record.expiryDate) > new Date())
+        const statusColors = {
+          'active': 'green',
+          'expired': 'red',
+          'cancelled': 'default',
+          'refunded': 'orange'
+        }
+        return (
+          <Tag color={statusColors[record.status] || 'default'}>
+            {isActive ? 'ACTIVE' : record.status?.toUpperCase() || 'UNKNOWN'}
+          </Tag>
+        )
+      }
+    },
+    {
+      title: 'Expiry Date',
+      key: 'expiryDate',
+      render: (_, record) => (
+        <div>
+          <div>{new Date(record.expiryDate).toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric'
+          })}</div>
+          <div style={{ fontSize: '11px', color: '#666' }}>
+            {new Date(record.expiryDate).toLocaleTimeString('en-US', {
+              hour: '2-digit',
+              minute: '2-digit'
+            })}
+          </div>
+        </div>
+      )
+    },
+    {
+      title: 'Purchase Date',
+      key: 'createdAt',
+      render: (_, record) => new Date(record.createdAt).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+      })
     }
   ], [])
 
@@ -1053,6 +1279,132 @@ const AdminDashboard = () => {
           </Col>
         </Row>
 
+        {/* Test Users Section */}
+        <Row gutter={[16, 16]} style={{ marginTop: '1rem' }}>
+          <Col xs={24}>
+            <Card
+              title={
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <SafetyCertificateOutlined style={{ fontSize: '20px', color: '#1890ff' }} />
+                  <span>Test Users for Testing</span>
+                </div>
+              }
+              extra={
+                <Button 
+                  type="primary" 
+                  size="small"
+                  onClick={handleResetTestUsers}
+                  loading={testUsersLoading}
+                >
+                  Reset Test Users
+                </Button>
+              }
+              style={{
+                border: '2px solid #1890ff',
+                borderRadius: '8px',
+                background: 'linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)'
+              }}
+            >
+              <Alert
+                message="Test User Credentials"
+                description="These test users are always available for testing. They will be automatically created if they don't exist."
+                type="info"
+                showIcon
+                style={{ marginBottom: '20px' }}
+              />
+              <Row gutter={[16, 16]}>
+                {testUsers.map((testUser, index) => (
+                  <Col xs={24} sm={12} key={testUser._id || index}>
+                    <Card
+                      size="small"
+                      style={{
+                        background: '#fff',
+                        border: '1px solid #d9d9d9',
+                        borderRadius: '6px'
+                      }}
+                    >
+                      <div style={{ marginBottom: '12px' }}>
+                        <Tag color="blue" style={{ fontSize: '14px', padding: '4px 12px', marginBottom: '8px' }}>
+                          {testUser.name}
+                        </Tag>
+                      </div>
+                      <div style={{ marginBottom: '8px' }}>
+                        <Text strong style={{ fontSize: '12px', color: '#666' }}>User ID:</Text>
+                        <div style={{ 
+                          fontFamily: 'monospace', 
+                          fontSize: '13px', 
+                          background: '#f5f5f5', 
+                          padding: '6px 8px', 
+                          borderRadius: '4px',
+                          marginTop: '4px',
+                          wordBreak: 'break-all'
+                        }}>
+                          {testUser._id}
+                        </div>
+                      </div>
+                      <div style={{ marginBottom: '8px' }}>
+                        <Text strong style={{ fontSize: '12px', color: '#666' }}>Email:</Text>
+                        <div style={{ 
+                          fontFamily: 'monospace', 
+                          fontSize: '13px', 
+                          background: '#f5f5f5', 
+                          padding: '6px 8px', 
+                          borderRadius: '4px',
+                          marginTop: '4px'
+                        }}>
+                          {testUser.email}
+                        </div>
+                      </div>
+                      <div style={{ marginBottom: '8px' }}>
+                        <Text strong style={{ fontSize: '12px', color: '#666' }}>Username:</Text>
+                        <div style={{ 
+                          fontFamily: 'monospace', 
+                          fontSize: '13px', 
+                          background: '#f5f5f5', 
+                          padding: '6px 8px', 
+                          borderRadius: '4px',
+                          marginTop: '4px'
+                        }}>
+                          {testUser.username}
+                        </div>
+                      </div>
+                      <div>
+                        <Text strong style={{ fontSize: '12px', color: '#666' }}>Password:</Text>
+                        <div style={{ 
+                          fontFamily: 'monospace', 
+                          fontSize: '13px', 
+                          background: '#fff3cd', 
+                          padding: '6px 8px', 
+                          borderRadius: '4px',
+                          marginTop: '4px',
+                          border: '1px solid #ffc107',
+                          fontWeight: 'bold',
+                          color: '#856404'
+                        }}>
+                          {testUser.password}
+                        </div>
+                      </div>
+                      <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid #e8e8e8' }}>
+                        <Space>
+                          <Tag color={testUser.isActive ? 'green' : 'red'}>
+                            {testUser.isActive ? 'Active' : 'Inactive'}
+                          </Tag>
+                          <Tag color="default">{testUser.role}</Tag>
+                        </Space>
+                      </div>
+                    </Card>
+                  </Col>
+                ))}
+              </Row>
+              {testUsers.length === 0 && !testUsersLoading && (
+                <div style={{ textAlign: 'center', padding: '20px' }}>
+                  <Text type="secondary">No test users found. Click "Reset Test Users" to create them.</Text>
+                </div>
+              )}
+            </Card>
+          </Col>
+        </Row>
+
         <Row gutter={[16, 16]}>
           {/* Recent Users */}
           <Col xs={24} lg={12}>
@@ -1123,6 +1475,65 @@ const AdminDashboard = () => {
                 pagination={false}
                 size="small"
               />
+            </div>
+          </Col>
+        </Row>
+
+        {/* Verified Badge Subscriptions */}
+        <Row gutter={[16, 16]} style={{ marginTop: '1rem' }}>
+          <Col xs={24}>
+            <div style={{ 
+              padding: '24px',
+              border: '1px solid #d9d9d9',
+              borderRadius: '8px',
+              background: 'transparent',
+              backdropFilter: 'blur(10px)',
+              boxShadow: '0 4px 20px rgba(0,0,0,0.1)'
+            }}>
+              <div style={{ 
+                display: 'flex', 
+                justifyContent: 'space-between', 
+                alignItems: 'center', 
+                marginBottom: '20px' 
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <CheckCircleOutlined style={{ fontSize: '20px', color: '#1890ff' }} />
+                  <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '600' }}>Verified Badge Purchases</h3>
+                </div>
+                <Button type="link" onClick={() => navigate('/admin/orders')}>
+                  View All Orders
+                </Button>
+              </div>
+              {subscriptionsLoading ? (
+                <div style={{ textAlign: 'center', padding: '2rem' }}>
+                  <Spin size="large" />
+                  <div style={{ marginTop: '1rem' }}>Loading subscriptions...</div>
+                </div>
+              ) : verifiedBadgeSubscriptions.length > 0 ? (
+                <div>
+                  <Table 
+                    dataSource={verifiedBadgeSubscriptions} 
+                    columns={subscriptionColumns}
+                    pagination={false}
+                    size="small"
+                    rowKey="_id"
+                    scroll={{ x: 1400 }}
+                  />
+                  {/* Debug info - remove in production */}
+                  {process.env.NODE_ENV === 'development' && (
+                    <div style={{ marginTop: '16px', padding: '12px', background: '#f5f5f5', borderRadius: '4px', fontSize: '12px' }}>
+                      <Text strong>Debug Info:</Text> {verifiedBadgeSubscriptions.length} subscription(s) loaded
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div style={{ textAlign: 'center', padding: '2rem' }}>
+                  <CheckCircleOutlined style={{ fontSize: '48px', color: '#ccc', marginBottom: '1rem' }} />
+                  <div style={{ fontSize: '16px', color: '#666', marginBottom: '1rem' }}>
+                    No verified badge purchases yet
+                  </div>
+                </div>
+              )}
             </div>
           </Col>
         </Row>

@@ -26,8 +26,8 @@ router.get('/', authenticateToken, requireAdmin, async (req, res) => {
     
     if (q) {
       query.$or = [
-        { orderId: { $regex: q, $options: 'i' } },
-        { 'user.email': { $regex: q, $options: 'i' } }
+        { razorpayOrderId: { $regex: q, $options: 'i' } },
+        { razorpayPaymentId: { $regex: q, $options: 'i' } }
       ]
     }
     
@@ -41,8 +41,8 @@ router.get('/', authenticateToken, requireAdmin, async (req, res) => {
 
     // Get orders with populated user and product data
     const orders = await Purchase.find(query)
-      .populate('userId', 'name email')
-      .populate('productId', 'title price')
+      .populate('buyer', 'name email avatarUrl profilePic')
+      .populate('product', 'title price thumbnailUrl images')
       .sort(sort)
       .limit(limitNum)
       .skip(skip)
@@ -74,8 +74,8 @@ router.get('/', authenticateToken, requireAdmin, async (req, res) => {
 router.get('/:id', authenticateToken, requireAdmin, async (req, res) => {
   try {
     const order = await Purchase.findById(req.params.id)
-      .populate('userId', 'name email')
-      .populate('productId', 'title price description')
+      .populate('buyer', 'name email avatarUrl profilePic')
+      .populate('product', 'title price description thumbnailUrl images')
     
     if (!order) {
       return res.status(404).json({
@@ -105,10 +105,10 @@ router.put('/:id/status', authenticateToken, requireAdmin, async (req, res) => {
     
     const order = await Purchase.findByIdAndUpdate(
       req.params.id,
-      { status, paymentStatus },
+      { status },
       { new: true }
-    ).populate('userId', 'name email')
-     .populate('productId', 'title price')
+    ).populate('buyer', 'name email avatarUrl profilePic')
+     .populate('product', 'title price thumbnailUrl images')
     
     if (!order) {
       return res.status(404).json({

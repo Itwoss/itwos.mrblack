@@ -209,6 +209,8 @@ export const threadsAPI = {
   getMessages: (threadId, params) => api.get(`/threads/${threadId}/messages`, { params }),
   sendMessage: (threadId, messageData) => api.post(`/threads/${threadId}/messages`, messageData),
   sendThreadMessage: (threadId, messageData) => api.post(`/threads/${threadId}/messages`, messageData),
+  editMessage: (threadId, messageId, messageData) => api.put(`/threads/${threadId}/messages/${messageId}`, messageData),
+  deleteMessage: (threadId, messageId) => api.delete(`/threads/${threadId}/messages/${messageId}`),
 }
 
 // Users List API (for finding users to chat with)
@@ -225,6 +227,7 @@ export const followAPI = {
   getFollowRequests: () => api.get('/follow/requests'),
   getFollowers: () => api.get('/follow/followers'),
   getFollowing: () => api.get('/follow/following'),
+  checkFollowStatus: (userId) => api.get(`/follow/check/${userId}`),
   unfollow: (userId) => api.delete(`/follow/unfollow/${userId}`),
   searchUsers: (query, limit) => api.get('/follow/search', { params: { q: query, limit } }),
 }

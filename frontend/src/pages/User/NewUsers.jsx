@@ -52,8 +52,8 @@ const NewUsers = () => {
         sort: 'new',
         page: page,
         limit: 100, // Request more to ensure we get new users
-        excludeSelf: false, // Show all users including self
-        onlyNew: false // Let frontend filter to see all users
+        excludeSelf: true, // Exclude current user
+        onlyNew: false // Get all users, then filter on frontend
       })
       
       if (response.data.success) {
@@ -62,37 +62,52 @@ const NewUsers = () => {
         
         // Filter to only show new users (created in last 7 days)
         const now = new Date()
-        const sevenDaysAgo = new Date(now)
-        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
-        sevenDaysAgo.setHours(0, 0, 0, 0)
+        const sevenDaysAgo = new Date(now.getTime() - (7 * 24 * 60 * 60 * 1000)) // 7 days ago in milliseconds
+        sevenDaysAgo.setHours(0, 0, 0, 0) // Set to start of day
+        
+        console.log('📅 Date Filter:', {
+          now: now.toISOString(),
+          sevenDaysAgo: sevenDaysAgo.toISOString(),
+          totalUsers: allUsers.length
+        })
         
         const newUsersList = allUsers.filter(user => {
+          // Skip current user
+          if (user._id === currentUser?._id || user.id === currentUser?._id) {
+            return false
+          }
+          
           // First check backend's isNew flag
           if (user.isNew === true) {
+            console.log('✅ Backend marked as new:', user.name)
             return true
           }
           
           // Fallback: calculate if createdAt exists
           if (user.createdAt) {
             const userCreatedAt = new Date(user.createdAt)
+            // More lenient check - include users created up to 7 days ago
             const isNew = userCreatedAt >= sevenDaysAgo
             const daysDiff = Math.ceil((now - userCreatedAt) / (1000 * 60 * 60 * 24))
             
             // Log for debugging
-            if (daysDiff <= 8) { // Log users created in last 8 days
-              console.log('🔍 Frontend Filter Check:', {
+            if (daysDiff <= 10) { // Log users created in last 10 days
+              console.log('🔍 User Date Check:', {
                 name: user.name,
                 email: user.email,
                 createdAt: userCreatedAt.toISOString(),
                 sevenDaysAgo: sevenDaysAgo.toISOString(),
                 isNew: isNew,
                 daysDiff: daysDiff,
+                hoursDiff: Math.ceil((now - userCreatedAt) / (1000 * 60 * 60)),
                 backendIsNew: user.isNew
               })
             }
             
             return isNew
           }
+          
+          console.warn('⚠️ User missing createdAt:', user.name, user.email)
           return false
         })
         
@@ -119,13 +134,18 @@ const NewUsers = () => {
             name: u.name,
             createdAt: u.createdAt,
             isNew: u.isNew,
-            daysAgo: u.createdAt ? Math.ceil((new Date() - new Date(u.createdAt)) / (1000 * 60 * 60 * 24)) : null
+            daysAgo: u.createdAt ? Math.ceil((new Date() - new Date(u.createdAt)) / (1000 * 60 * 60 * 24)) : null,
+            hoursAgo: u.createdAt ? Math.ceil((new Date() - new Date(u.createdAt)) / (1000 * 60 * 60)) : null
           })))
           
-          // Show all users sorted by newest as fallback (last 30 days)
+          // Show all users sorted by newest as fallback (last 30 days, excluding current user)
           const thirtyDaysAgo = new Date()
           thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
           const recentUsers = allUsers.filter(u => {
+            // Exclude current user
+            if (u._id === currentUser?._id || u.id === currentUser?._id) {
+              return false
+            }
             if (!u.createdAt) return false
             return new Date(u.createdAt) >= thirtyDaysAgo
           }).sort((a, b) => {
@@ -135,12 +155,27 @@ const NewUsers = () => {
           })
           
           if (recentUsers.length > 0) {
-            message.info(`No users created in the last 7 days. Showing ${recentUsers.length} recent users instead.`)
+            console.log(`✅ Showing ${recentUsers.length} recent users (last 30 days) as fallback`)
             setNewUsers(recentUsers.slice(0, 20))
             setTotal(recentUsers.length)
           } else {
-            setNewUsers([])
-            setTotal(0)
+            // If still no users, show all users except current user (sorted by newest)
+            const allOtherUsers = allUsers.filter(u => {
+              return u._id !== currentUser?._id && u.id !== currentUser?._id
+            }).sort((a, b) => {
+              const dateA = new Date(a.createdAt || 0)
+              const dateB = new Date(b.createdAt || 0)
+              return dateB - dateA
+            })
+            
+            if (allOtherUsers.length > 0) {
+              console.log(`✅ Showing ${allOtherUsers.length} all users (excluding self) as final fallback`)
+              setNewUsers(allOtherUsers.slice(0, 20))
+              setTotal(allOtherUsers.length)
+            } else {
+              setNewUsers([])
+              setTotal(0)
+            }
           }
         } else {
           setNewUsers(newUsersList)
@@ -189,14 +224,25 @@ const NewUsers = () => {
 
   const loadFollowStatuses = async (userIds) => {
     try {
-      // Get follow status for each user
-      const statusMap = {}
-      for (const userId of userIds) {
-        // Check if user is already following
-        const isFollowing = followStatuses[userId] || false
-        statusMap[userId] = isFollowing
+      // Get follow status from API by checking following list
+      const response = await followAPI.getFollowing()
+      if (response.data.success && response.data.following) {
+        const followingList = response.data.following || []
+        const statusMap = {}
+        
+        // Check each user ID against the following list
+        userIds.forEach(userId => {
+          const userIdStr = userId?.toString()
+          const isFollowing = followingList.some(user => {
+            const useridStr = user._id?.toString() || user._id
+            return useridStr === userIdStr || user._id === userId
+          })
+          statusMap[userId] = isFollowing ? 'accepted' : false
+        })
+        
+        setFollowStatuses(prev => ({ ...prev, ...statusMap }))
+        console.log('✅ Follow statuses loaded:', statusMap)
       }
-      setFollowStatuses(statusMap)
     } catch (error) {
       console.error('Load follow statuses error:', error)
     }
@@ -212,23 +258,39 @@ const NewUsers = () => {
       
       if (response.data.success) {
         const followStatus = response.data.follow?.status
-        const status = followStatus === 'accepted' ? 'accepted' : 'pending'
+        const isAccepted = followStatus === 'accepted'
+        const status = isAccepted ? 'accepted' : 'pending'
+        
+        // Update follow statuses state
         setFollowStatuses(prev => ({ ...prev, [userId]: status }))
         
-        // Also update the user object in the list if needed
+        // Also update the user object in the list
         setNewUsers(prev => 
           prev.map(user => 
             user._id === userId 
               ? { 
                   ...user, 
-                  isFollowed: followStatus === 'accepted',
-                  hasFollowRequest: followStatus === 'pending'
+                  isFollowed: isAccepted,
+                  isFollowing: isAccepted,
+                  hasFollowRequest: followStatus === 'pending',
+                  // Update followers count if accepted
+                  ...(isAccepted && {
+                    followersCount: (user.followersCount || 0) + 1
+                  })
                 }
               : user
           )
         )
         
         message.success(response.data.message || (followStatus === 'pending' ? 'Follow request sent!' : 'User followed successfully!'))
+        
+        // Refresh follow statuses to ensure consistency
+        setTimeout(() => {
+          const userIds = newUsers.map(u => u._id)
+          if (userIds.length > 0) {
+            loadFollowStatuses(userIds)
+          }
+        }, 500)
       } else {
         message.error(response.data.message || 'Failed to send follow request')
       }
@@ -331,26 +393,6 @@ const NewUsers = () => {
                     message.error('Invalid user ID')
                   }
                 }}
-                actions={[
-                  <Button 
-                    type="link" 
-                    icon={<EyeOutlined />}
-                    onClick={(e) => {
-                      e.preventDefault()
-                      e.stopPropagation()
-                      console.log('🔍 NewUsers: Clicked View Profile button, navigating to:', `/profile/${user._id}`)
-                      if (user._id) {
-                        navigate(`/profile/${user._id}`)
-                      } else {
-                        console.error('No user._id found:', user)
-                        message.error('Invalid user ID')
-                      }
-                    }}
-                    style={{ fontSize: '12px' }}
-                  >
-                    View Profile
-                  </Button>
-                ]}
               >
                 {/* Avatar with NEW badge */}
                 <div 
