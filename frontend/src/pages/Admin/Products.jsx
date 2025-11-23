@@ -29,7 +29,9 @@ import {
   Alert,
   Drawer,
   Dropdown,
-  Menu
+  Menu,
+  Spin,
+  Empty
 } from 'antd'
 import { 
   PlusOutlined, 
@@ -67,6 +69,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from "../../contexts/AuthContextOptimized"
 import DashboardLayout from '../../components/DashboardLayout'
 import { productAPI } from '../../services/api'
+import AdminDesignSystem from '../../styles/admin-design-system'
 import './Products.css'
 
 const { Title, Text, Paragraph } = Typography
@@ -79,7 +82,8 @@ const ProductsEnhanced = () => {
   const navigate = useNavigate()
   const { message } = App.useApp()
   const [products, setProducts] = useState([])
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true) // Start with true for initial load
+  const [error, setError] = useState(null)
   const [searchText, setSearchText] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
   const [trendingFilter, setTrendingFilter] = useState('all')
@@ -135,6 +139,7 @@ const ProductsEnhanced = () => {
     }
     
     setLoading(true)
+    setError(null) // Clear previous errors
     try {
       // Check authentication status - prioritize admin token
       const adminToken = localStorage.getItem('adminToken') || localStorage.getItem('accessToken') || localStorage.getItem('token')
@@ -236,7 +241,9 @@ const ProductsEnhanced = () => {
         console.log('Products fetched successfully:', productsList.length, 'items')
       } else {
         console.error('Admin products API returned unsuccessful response:', response.data)
-        message.error(response.data.message || 'Failed to fetch products. Please try again.')
+        const errorMsg = response.data.message || 'Failed to fetch products. Please try again.'
+        setError(errorMsg)
+        message.error(errorMsg)
         setProducts([])
         setStats({
           totalProducts: 0,
@@ -248,6 +255,7 @@ const ProductsEnhanced = () => {
         })
       }
     } catch (error) {
+      setError(error.response?.data?.message || error.message || 'Failed to fetch products')
       console.error('Error fetching products:', error)
       console.error('Error response:', error.response?.data)
       console.error('Error status:', error.response?.status)
@@ -993,32 +1001,75 @@ const ProductsEnhanced = () => {
     )
   }
 
+  // Show error state
+  if (error && !loading && products.length === 0) {
+    return (
+      <DashboardLayout userRole="admin">
+        <div style={{ 
+          padding: AdminDesignSystem.layout.content.padding, 
+          background: AdminDesignSystem.colors.background, 
+          minHeight: '100vh',
+        }}>
+          <Alert
+            message="Error Loading Products"
+            description={error}
+            type="error"
+            showIcon
+            action={
+              <Button size="small" onClick={fetchProducts} loading={loading}>
+                Retry
+              </Button>
+            }
+            style={{ marginBottom: AdminDesignSystem.spacing.lg }}
+          />
+        </div>
+      </DashboardLayout>
+    )
+  }
+
   return (
     <App>
       <DashboardLayout userRole="admin">
       <div style={{ 
-        padding: '24px', 
-        background: '#f5f5f5', 
+        padding: AdminDesignSystem.layout.content.padding, 
+        background: AdminDesignSystem.colors.background, 
         minHeight: '100vh',
         maxWidth: '100%',
-        overflow: 'hidden'
+        overflow: 'hidden',
+        fontFamily: AdminDesignSystem.typography.fontFamily,
       }}>
         {/* Header Section */}
         <div style={{ 
-          marginBottom: '32px',
-          background: 'white',
-          padding: '24px',
-          borderRadius: '12px',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-          border: '1px solid #f0f0f0'
+          marginBottom: AdminDesignSystem.spacing.xl,
+          background: AdminDesignSystem.colors.card.background,
+          padding: AdminDesignSystem.spacing.lg,
+          borderRadius: AdminDesignSystem.borderRadius.md,
+          boxShadow: AdminDesignSystem.shadows.md,
+          border: `1px solid ${AdminDesignSystem.colors.card.border}`
         }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: AdminDesignSystem.spacing.md }}>
             <div>
-              <Title level={2} style={{ margin: 0, color: '#1f2937' }}>
-                <ShoppingCartOutlined style={{ marginRight: '12px', color: '#3b82f6' }} />
+              <Title 
+                level={2} 
+                style={{ 
+                  margin: 0, 
+                  color: AdminDesignSystem.colors.text.primary,
+                  fontWeight: AdminDesignSystem.typography.fontWeight.semibold,
+                  fontSize: AdminDesignSystem.typography.fontSize.h2,
+                }}
+              >
+                <ShoppingCartOutlined style={{ marginRight: AdminDesignSystem.spacing.md, color: AdminDesignSystem.colors.primary }} />
                 Products Management
               </Title>
-              <Text type="secondary" style={{ fontSize: '16px', marginTop: '8px', display: 'block' }}>
+              <Text 
+                type="secondary" 
+                style={{ 
+                  fontSize: AdminDesignSystem.typography.fontSize.body, 
+                  marginTop: AdminDesignSystem.spacing.sm, 
+                  display: 'block',
+                  color: AdminDesignSystem.colors.text.secondary,
+                }}
+              >
                 Manage your product catalog, view analytics, and track performance
               </Text>
             </div>
@@ -1029,11 +1080,13 @@ const ProductsEnhanced = () => {
                 icon={<PlusOutlined />}
                 onClick={() => navigate('/admin/products/new')}
                 style={{ 
-                  borderRadius: '8px',
+                  borderRadius: AdminDesignSystem.borderRadius.md,
                   height: '40px',
-                  paddingLeft: '20px',
-                  paddingRight: '20px',
-                  fontWeight: '500'
+                  paddingLeft: AdminDesignSystem.spacing.lg,
+                  paddingRight: AdminDesignSystem.spacing.lg,
+                  fontWeight: AdminDesignSystem.typography.fontWeight.medium,
+                  backgroundColor: AdminDesignSystem.colors.primary,
+                  borderColor: AdminDesignSystem.colors.primary,
                 }}
               >
                 Add New Product
@@ -1043,118 +1096,160 @@ const ProductsEnhanced = () => {
         </div>
 
         {/* Statistics Cards */}
-        <Row gutter={[16, 16]} style={{ marginBottom: '32px' }}>
+        <Row gutter={[AdminDesignSystem.spacing.md, AdminDesignSystem.spacing.md]} style={{ marginBottom: AdminDesignSystem.spacing.xl }}>
           <Col xs={24} sm={12} md={8} lg={4}>
             <Card 
               style={{ 
-                borderRadius: '12px',
-                border: 'none',
-                boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                color: 'white'
+                borderRadius: AdminDesignSystem.borderRadius.md,
+                border: `1px solid ${AdminDesignSystem.colors.card.border}`,
+                boxShadow: AdminDesignSystem.shadows.md,
+                background: AdminDesignSystem.colors.card.background,
               }}
-              styles={{ body: { padding: '20px' } }}
+              styles={{ body: { padding: AdminDesignSystem.spacing.lg } }}
             >
               <Statistic
-                title={<span style={{ color: 'rgba(255,255,255,0.8)', fontSize: '14px' }}>Total Products</span>}
+                title={
+                  <Text style={{ color: AdminDesignSystem.colors.text.secondary, fontSize: AdminDesignSystem.typography.fontSize.small }}>
+                    Total Products
+                  </Text>
+                }
                 value={stats.totalProducts}
-                valueStyle={{ color: 'white', fontSize: '24px', fontWeight: 'bold' }}
-                prefix={<ShoppingCartOutlined style={{ color: 'rgba(255,255,255,0.8)' }} />}
+                valueStyle={{ 
+                  color: AdminDesignSystem.colors.text.primary, 
+                  fontSize: AdminDesignSystem.typography.fontSize.h3,
+                  fontWeight: AdminDesignSystem.typography.fontWeight.semibold,
+                }}
+                prefix={<ShoppingCartOutlined style={{ color: AdminDesignSystem.colors.primary }} />}
               />
             </Card>
           </Col>
           <Col xs={24} sm={12} md={8} lg={4}>
             <Card 
               style={{ 
-                borderRadius: '12px',
-                border: 'none',
-                boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-                background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
-                color: 'white'
+                borderRadius: AdminDesignSystem.borderRadius.md,
+                border: `1px solid ${AdminDesignSystem.colors.card.border}`,
+                boxShadow: AdminDesignSystem.shadows.md,
+                background: AdminDesignSystem.colors.card.background,
               }}
-              styles={{ body: { padding: '20px' } }}
+              styles={{ body: { padding: AdminDesignSystem.spacing.lg } }}
             >
               <Statistic
-                title={<span style={{ color: 'rgba(255,255,255,0.8)', fontSize: '14px' }}>Published</span>}
+                title={
+                  <Text style={{ color: AdminDesignSystem.colors.text.secondary, fontSize: AdminDesignSystem.typography.fontSize.small }}>
+                    Published
+                  </Text>
+                }
                 value={stats.publishedProducts}
-                valueStyle={{ color: 'white', fontSize: '24px', fontWeight: 'bold' }}
-                prefix={<CheckCircleOutlined style={{ color: 'rgba(255,255,255,0.8)' }} />}
+                valueStyle={{ 
+                  color: AdminDesignSystem.colors.success, 
+                  fontSize: AdminDesignSystem.typography.fontSize.h3,
+                  fontWeight: AdminDesignSystem.typography.fontWeight.semibold,
+                }}
+                prefix={<CheckCircleOutlined style={{ color: AdminDesignSystem.colors.success }} />}
               />
             </Card>
           </Col>
           <Col xs={24} sm={12} md={8} lg={4}>
             <Card 
               style={{ 
-                borderRadius: '12px',
-                border: 'none',
-                boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-                background: 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)',
-                color: 'white'
+                borderRadius: AdminDesignSystem.borderRadius.md,
+                border: `1px solid ${AdminDesignSystem.colors.card.border}`,
+                boxShadow: AdminDesignSystem.shadows.md,
+                background: AdminDesignSystem.colors.card.background,
               }}
-              styles={{ body: { padding: '20px' } }}
+              styles={{ body: { padding: AdminDesignSystem.spacing.lg } }}
             >
               <Statistic
-                title={<span style={{ color: 'rgba(255,255,255,0.8)', fontSize: '14px' }}>Draft</span>}
+                title={
+                  <Text style={{ color: AdminDesignSystem.colors.text.secondary, fontSize: AdminDesignSystem.typography.fontSize.small }}>
+                    Draft
+                  </Text>
+                }
                 value={stats.draftProducts}
-                valueStyle={{ color: 'white', fontSize: '24px', fontWeight: 'bold' }}
-                prefix={<ClockCircleOutlined style={{ color: 'rgba(255,255,255,0.8)' }} />}
+                valueStyle={{ 
+                  color: AdminDesignSystem.colors.warning, 
+                  fontSize: AdminDesignSystem.typography.fontSize.h3,
+                  fontWeight: AdminDesignSystem.typography.fontWeight.semibold,
+                }}
+                prefix={<ClockCircleOutlined style={{ color: AdminDesignSystem.colors.warning }} />}
               />
             </Card>
           </Col>
           <Col xs={24} sm={12} md={8} lg={4}>
             <Card 
               style={{ 
-                borderRadius: '12px',
-                border: 'none',
-                boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-                background: 'linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)',
-                color: '#333'
+                borderRadius: AdminDesignSystem.borderRadius.md,
+                border: `1px solid ${AdminDesignSystem.colors.card.border}`,
+                boxShadow: AdminDesignSystem.shadows.md,
+                background: AdminDesignSystem.colors.card.background,
               }}
-              styles={{ body: { padding: '20px' } }}
+              styles={{ body: { padding: AdminDesignSystem.spacing.lg } }}
             >
               <Statistic
-                title={<span style={{ color: 'rgba(0,0,0,0.6)', fontSize: '14px' }}>Preview Saved</span>}
+                title={
+                  <Text style={{ color: AdminDesignSystem.colors.text.secondary, fontSize: AdminDesignSystem.typography.fontSize.small }}>
+                    Preview Saved
+                  </Text>
+                }
                 value={stats.previewSavedProducts}
-                valueStyle={{ color: '#333', fontSize: '24px', fontWeight: 'bold' }}
-                prefix={<ClockCircleOutlined style={{ color: 'rgba(0,0,0,0.6)' }} />}
+                valueStyle={{ 
+                  color: AdminDesignSystem.colors.text.primary, 
+                  fontSize: AdminDesignSystem.typography.fontSize.h3,
+                  fontWeight: AdminDesignSystem.typography.fontWeight.semibold,
+                }}
+                prefix={<ClockCircleOutlined style={{ color: AdminDesignSystem.colors.primary }} />}
               />
             </Card>
           </Col>
           <Col xs={24} sm={12} md={8} lg={4}>
             <Card 
               style={{ 
-                borderRadius: '12px',
-                border: 'none',
-                boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-                background: 'linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%)',
-                color: '#333'
+                borderRadius: AdminDesignSystem.borderRadius.md,
+                border: `1px solid ${AdminDesignSystem.colors.card.border}`,
+                boxShadow: AdminDesignSystem.shadows.md,
+                background: AdminDesignSystem.colors.card.background,
               }}
-              styles={{ body: { padding: '20px' } }}
+              styles={{ body: { padding: AdminDesignSystem.spacing.lg } }}
             >
               <Statistic
-                title={<span style={{ color: 'rgba(0,0,0,0.6)', fontSize: '14px' }}>Trending</span>}
+                title={
+                  <Text style={{ color: AdminDesignSystem.colors.text.secondary, fontSize: AdminDesignSystem.typography.fontSize.small }}>
+                    Trending
+                  </Text>
+                }
                 value={stats.trendingProducts}
-                valueStyle={{ color: '#333', fontSize: '24px', fontWeight: 'bold' }}
-                prefix={<FireOutlined style={{ color: 'rgba(0,0,0,0.6)' }} />}
+                valueStyle={{ 
+                  color: AdminDesignSystem.colors.error, 
+                  fontSize: AdminDesignSystem.typography.fontSize.h3,
+                  fontWeight: AdminDesignSystem.typography.fontWeight.semibold,
+                }}
+                prefix={<FireOutlined style={{ color: AdminDesignSystem.colors.error }} />}
               />
             </Card>
           </Col>
           <Col xs={24} sm={12} md={8} lg={4}>
             <Card 
               style={{ 
-                borderRadius: '12px',
-                border: 'none',
-                boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-                background: 'linear-gradient(135deg, #84fab0 0%, #8fd3f4 100%)',
-                color: '#333'
+                borderRadius: AdminDesignSystem.borderRadius.md,
+                border: `1px solid ${AdminDesignSystem.colors.card.border}`,
+                boxShadow: AdminDesignSystem.shadows.md,
+                background: AdminDesignSystem.colors.card.background,
               }}
-              styles={{ body: { padding: '20px' } }}
+              styles={{ body: { padding: AdminDesignSystem.spacing.lg } }}
             >
               <Statistic
-                title={<span style={{ color: 'rgba(0,0,0,0.6)', fontSize: '14px' }}>Revenue</span>}
+                title={
+                  <Text style={{ color: AdminDesignSystem.colors.text.secondary, fontSize: AdminDesignSystem.typography.fontSize.small }}>
+                    Revenue
+                  </Text>
+                }
                 value={stats.totalRevenue}
-                valueStyle={{ color: '#333', fontSize: '24px', fontWeight: 'bold' }}
-                prefix={<DollarOutlined style={{ color: 'rgba(0,0,0,0.6)' }} />}
+                valueStyle={{ 
+                  color: AdminDesignSystem.colors.success, 
+                  fontSize: AdminDesignSystem.typography.fontSize.h3,
+                  fontWeight: AdminDesignSystem.typography.fontWeight.semibold,
+                }}
+                prefix={<DollarOutlined style={{ color: AdminDesignSystem.colors.success }} />}
                 precision={2}
               />
             </Card>
@@ -1164,17 +1259,27 @@ const ProductsEnhanced = () => {
         {/* Filters and Actions */}
         <Card 
           style={{ 
-            marginBottom: '32px',
-            borderRadius: '12px',
-            border: 'none',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
+            marginBottom: AdminDesignSystem.spacing.xl,
+            borderRadius: AdminDesignSystem.borderRadius.md,
+            border: `1px solid ${AdminDesignSystem.colors.card.border}`,
+            boxShadow: AdminDesignSystem.shadows.md,
+            background: AdminDesignSystem.colors.card.background,
           }}
-          styles={{ body: { padding: '24px' } }}
+          styles={{ body: { padding: AdminDesignSystem.spacing.lg } }}
         >
-          <Row gutter={[16, 16]} align="middle">
+          <Row gutter={[AdminDesignSystem.spacing.md, AdminDesignSystem.spacing.md]} align="middle">
             <Col xs={24} sm={12} md={8} lg={6}>
-              <div style={{ marginBottom: '8px' }}>
-                <Text strong style={{ color: '#374151', fontSize: '14px' }}>Search Products</Text>
+              <div style={{ marginBottom: AdminDesignSystem.spacing.sm }}>
+                <Text 
+                  strong 
+                  style={{ 
+                    color: AdminDesignSystem.colors.text.primary, 
+                    fontSize: AdminDesignSystem.typography.fontSize.small,
+                    fontWeight: AdminDesignSystem.typography.fontWeight.medium,
+                  }}
+                >
+                  Search Products
+                </Text>
               </div>
               <Search
                 placeholder="Search by title, developer, or tags..."
@@ -1186,8 +1291,17 @@ const ProductsEnhanced = () => {
               />
             </Col>
             <Col xs={24} sm={12} md={8} lg={4}>
-              <div style={{ marginBottom: '8px' }}>
-                <Text strong style={{ color: '#374151', fontSize: '14px' }}>Status Filter</Text>
+              <div style={{ marginBottom: AdminDesignSystem.spacing.sm }}>
+                <Text 
+                  strong 
+                  style={{ 
+                    color: AdminDesignSystem.colors.text.primary, 
+                    fontSize: AdminDesignSystem.typography.fontSize.small,
+                    fontWeight: AdminDesignSystem.typography.fontWeight.medium,
+                  }}
+                >
+                  Status Filter
+                </Text>
               </div>
               <Select
                 placeholder="All Status"
@@ -1203,8 +1317,17 @@ const ProductsEnhanced = () => {
               </Select>
             </Col>
             <Col xs={24} sm={12} md={8} lg={4}>
-              <div style={{ marginBottom: '8px' }}>
-                <Text strong style={{ color: '#374151', fontSize: '14px' }}>Trending Filter</Text>
+              <div style={{ marginBottom: AdminDesignSystem.spacing.sm }}>
+                <Text 
+                  strong 
+                  style={{ 
+                    color: AdminDesignSystem.colors.text.primary, 
+                    fontSize: AdminDesignSystem.typography.fontSize.small,
+                    fontWeight: AdminDesignSystem.typography.fontWeight.medium,
+                  }}
+                >
+                  Trending Filter
+                </Text>
               </div>
               <Select
                 placeholder="All Products"
@@ -1219,8 +1342,17 @@ const ProductsEnhanced = () => {
               </Select>
             </Col>
             <Col xs={24} sm={12} md={8} lg={6}>
-              <div style={{ marginBottom: '8px' }}>
-                <Text strong style={{ color: '#374151', fontSize: '14px' }}>Actions</Text>
+              <div style={{ marginBottom: AdminDesignSystem.spacing.sm }}>
+                <Text 
+                  strong 
+                  style={{ 
+                    color: AdminDesignSystem.colors.text.primary, 
+                    fontSize: AdminDesignSystem.typography.fontSize.small,
+                    fontWeight: AdminDesignSystem.typography.fontWeight.medium,
+                  }}
+                >
+                  Actions
+                </Text>
               </div>
               <Space wrap>
                 <Button 
@@ -1228,7 +1360,7 @@ const ProductsEnhanced = () => {
                   onClick={handleRefreshProducts}
                   loading={loading}
                   size="large"
-                  style={{ borderRadius: '8px' }}
+                  style={{ borderRadius: AdminDesignSystem.borderRadius.md }}
                 >
                   Refresh
                 </Button>
@@ -1243,7 +1375,11 @@ const ProductsEnhanced = () => {
                       danger 
                       icon={<DeleteOutlined />}
                       size="large"
-                      style={{ borderRadius: '8px' }}
+                      style={{ 
+                        borderRadius: AdminDesignSystem.borderRadius.md,
+                        backgroundColor: AdminDesignSystem.colors.error,
+                        borderColor: AdminDesignSystem.colors.error,
+                      }}
                     >
                       Delete ({selectedRowKeys.length})
                     </Button>
@@ -1257,40 +1393,89 @@ const ProductsEnhanced = () => {
         {/* Products Table */}
         <Card 
           style={{ 
-            borderRadius: '12px',
-            border: 'none',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-            overflow: 'hidden'
+            borderRadius: AdminDesignSystem.borderRadius.md,
+            border: `1px solid ${AdminDesignSystem.colors.card.border}`,
+            boxShadow: AdminDesignSystem.shadows.md,
+            overflow: 'hidden',
+            background: AdminDesignSystem.colors.card.background,
           }}
           styles={{ body: { padding: 0 } }}
         >
           <div style={{ 
-            padding: '24px', 
-            borderBottom: '1px solid #f0f0f0',
-            background: '#fafafa'
+            padding: AdminDesignSystem.spacing.lg, 
+            borderBottom: `1px solid ${AdminDesignSystem.colors.card.border}`,
+            background: AdminDesignSystem.colors.sidebar.background,
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
-                <Title level={4} style={{ margin: 0, color: '#1f2937' }}>
+                <Title 
+                  level={4} 
+                  style={{ 
+                    margin: 0, 
+                    color: AdminDesignSystem.colors.text.primary,
+                    fontWeight: AdminDesignSystem.typography.fontWeight.semibold,
+                  }}
+                >
                   Products List
                 </Title>
-                <Text type="secondary" style={{ fontSize: '14px' }}>
+                <Text 
+                  type="secondary" 
+                  style={{ 
+                    fontSize: AdminDesignSystem.typography.fontSize.small,
+                    color: AdminDesignSystem.colors.text.secondary,
+                  }}
+                >
                   {products.length} products found
                 </Text>
               </div>
               <div>
-                <Text type="secondary" style={{ fontSize: '12px' }}>
+                <Text 
+                  type="secondary" 
+                  style={{ 
+                    fontSize: AdminDesignSystem.typography.fontSize.tiny,
+                    color: AdminDesignSystem.colors.text.secondary,
+                  }}
+                >
                   Select products to perform bulk actions
                 </Text>
               </div>
             </div>
           </div>
+          {error && products.length > 0 && (
+            <Alert
+              message="Warning"
+              description={error}
+              type="warning"
+              showIcon
+              closable
+              onClose={() => setError(null)}
+              style={{ marginBottom: AdminDesignSystem.spacing.md }}
+            />
+          )}
           <Table
             rowSelection={rowSelection}
             columns={columns}
             dataSource={products}
             loading={loading}
             rowKey="_id"
+            locale={{
+              emptyText: loading ? (
+                <div style={{ padding: '40px', textAlign: 'center' }}>
+                  <Spin size="large" />
+                  <div style={{ marginTop: AdminDesignSystem.spacing.md, color: AdminDesignSystem.colors.text.secondary }}>
+                    Loading products...
+                  </div>
+                </div>
+              ) : (
+                <Empty
+                  description={
+                    <span style={{ color: AdminDesignSystem.colors.text.secondary }}>
+                      No products found. Try adjusting your filters or add a new product.
+                    </span>
+                  }
+                />
+              )
+            }}
             pagination={{
               ...pagination,
               showSizeChanger: true,

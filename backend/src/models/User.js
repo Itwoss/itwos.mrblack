@@ -236,6 +236,22 @@ const userSchema = new mongoose.Schema({
   lastSeen: {
     type: Date,
     default: Date.now
+  },
+  // Banner System
+  bannerInventory: [{
+    bannerId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Banner'
+    },
+    purchasedAt: {
+      type: Date,
+      default: Date.now
+    }
+  }],
+  equippedBanner: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Banner',
+    default: null
   }
 }, {
   timestamps: true
@@ -301,7 +317,7 @@ userSchema.methods.getPublicProfile = function() {
   // Check if verification is still valid
   const isCurrentlyVerified = this.isVerified && this.verifiedTill && this.verifiedTill > new Date();
   
-  return {
+  const profile = {
     _id: this._id,
     name: this.name,
     email: this.email,
@@ -320,6 +336,16 @@ userSchema.methods.getPublicProfile = function() {
     isVerified: isCurrentlyVerified,
     verifiedTill: this.verifiedTill
   };
+  
+  // Include equipped banner if populated
+  if (this.equippedBanner && typeof this.equippedBanner === 'object' && this.equippedBanner.getPublicData) {
+    profile.equippedBanner = this.equippedBanner.getPublicData();
+  } else if (this.equippedBanner) {
+    // If it's just an ObjectId, we'll need to populate it in the route
+    profile.equippedBanner = null;
+  }
+  
+  return profile;
 };
 
 // Instance method to get full profile (for admin or self)

@@ -13,6 +13,7 @@ import {
 } from '@ant-design/icons'
 import { useAuth } from '../../contexts/AuthContextOptimized'
 import { useNavigate } from 'react-router-dom'
+import AdminDesignSystem from '../../styles/admin-design-system'
 
 const { Title, Paragraph, Text } = Typography
 const { Option } = Select
@@ -95,12 +96,21 @@ const PaymentTracking = () => {
     setDetailModalVisible(true)
   }
 
+  // Format currency
+  const formatCurrency = (amount) => {
+    return new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: 'INR',
+      minimumFractionDigits: 0
+    }).format(amount)
+  }
+
   const getStatusColor = (status) => {
     switch (status) {
-      case 'completed': return 'green'
-      case 'pending': return 'orange'
-      case 'failed': return 'red'
-      default: return 'default'
+      case 'completed': return AdminDesignSystem.colors.success
+      case 'pending': return AdminDesignSystem.colors.warning
+      case 'failed': return AdminDesignSystem.colors.error
+      default: return AdminDesignSystem.colors.text.secondary
     }
   }
 
@@ -201,59 +211,145 @@ const PaymentTracking = () => {
   })
 
   return (
-    <div style={{ padding: '24px' }}>
-      <div style={{ marginBottom: '24px' }}>
-        <Title level={2}>Payment Tracking</Title>
-        <Paragraph type="secondary">
+    <div style={{
+      padding: AdminDesignSystem.layout.content.padding,
+      background: AdminDesignSystem.colors.background,
+      minHeight: '100vh',
+      fontFamily: AdminDesignSystem.typography.fontFamily,
+    }}>
+      <div style={{ marginBottom: AdminDesignSystem.spacing.xl }}>
+        <Title 
+          level={2}
+          style={{
+            color: AdminDesignSystem.colors.text.primary,
+            fontWeight: AdminDesignSystem.typography.fontWeight.semibold,
+            fontSize: AdminDesignSystem.typography.fontSize.h2,
+          }}
+        >
+          <DollarOutlined style={{ marginRight: AdminDesignSystem.spacing.sm, color: AdminDesignSystem.colors.primary }} />
+          Payment Tracking
+        </Title>
+        <Paragraph style={{ 
+          color: AdminDesignSystem.colors.text.secondary,
+          fontSize: AdminDesignSystem.typography.fontSize.body,
+        }}>
           Monitor all payment transactions and prebook payments
         </Paragraph>
       </div>
 
       {/* Statistics Cards */}
-      <Row gutter={[16, 16]} style={{ marginBottom: '24px' }}>
+      <Row gutter={[AdminDesignSystem.spacing.md, AdminDesignSystem.spacing.md]} style={{ marginBottom: AdminDesignSystem.spacing.xl }}>
         <Col xs={24} sm={12} md={6}>
-          <Card>
+          <Card
+            style={{
+              borderRadius: AdminDesignSystem.borderRadius.md,
+              border: `1px solid ${AdminDesignSystem.colors.card.border}`,
+              boxShadow: AdminDesignSystem.shadows.md,
+              background: AdminDesignSystem.colors.card.background,
+            }}
+          >
             <Statistic
-              title="Total Payments"
+              title={
+                <Text style={{ color: AdminDesignSystem.colors.text.secondary, fontSize: AdminDesignSystem.typography.fontSize.small }}>
+                  Total Payments
+                </Text>
+              }
               value={stats.totalPayments}
-              prefix={<DollarOutlined />}
+              prefix={<DollarOutlined style={{ color: AdminDesignSystem.colors.primary }} />}
+              valueStyle={{ 
+                color: AdminDesignSystem.colors.text.primary,
+                fontSize: AdminDesignSystem.typography.fontSize.h3,
+                fontWeight: AdminDesignSystem.typography.fontWeight.semibold,
+              }}
             />
           </Card>
         </Col>
         <Col xs={24} sm={12} md={6}>
-          <Card>
+          <Card
+            style={{
+              borderRadius: AdminDesignSystem.borderRadius.md,
+              border: `1px solid ${AdminDesignSystem.colors.card.border}`,
+              boxShadow: AdminDesignSystem.shadows.md,
+              background: AdminDesignSystem.colors.card.background,
+            }}
+          >
             <Statistic
-              title="Total Amount"
-              value={stats.totalAmount}
-              prefix="₹"
-              valueStyle={{ color: '#52c41a' }}
+              title={
+                <Text style={{ color: AdminDesignSystem.colors.text.secondary, fontSize: AdminDesignSystem.typography.fontSize.small }}>
+                  Total Amount
+                </Text>
+              }
+              value={formatCurrency(stats.totalAmount || 0)}
+              valueStyle={{ 
+                color: AdminDesignSystem.colors.success,
+                fontSize: AdminDesignSystem.typography.fontSize.h3,
+                fontWeight: AdminDesignSystem.typography.fontWeight.semibold,
+              }}
             />
           </Card>
         </Col>
         <Col xs={24} sm={12} md={6}>
-          <Card>
+          <Card
+            style={{
+              borderRadius: AdminDesignSystem.borderRadius.md,
+              border: `1px solid ${AdminDesignSystem.colors.card.border}`,
+              boxShadow: AdminDesignSystem.shadows.md,
+              background: AdminDesignSystem.colors.card.background,
+            }}
+          >
             <Statistic
-              title="Completed"
+              title={
+                <Text style={{ color: AdminDesignSystem.colors.text.secondary, fontSize: AdminDesignSystem.typography.fontSize.small }}>
+                  Completed
+                </Text>
+              }
               value={stats.completedPayments}
-              prefix={<CheckCircleOutlined />}
-              valueStyle={{ color: '#52c41a' }}
+              prefix={<CheckCircleOutlined style={{ color: AdminDesignSystem.colors.success }} />}
+              valueStyle={{ 
+                color: AdminDesignSystem.colors.success,
+                fontSize: AdminDesignSystem.typography.fontSize.h3,
+                fontWeight: AdminDesignSystem.typography.fontWeight.semibold,
+              }}
             />
           </Card>
         </Col>
         <Col xs={24} sm={12} md={6}>
-          <Card>
+          <Card
+            style={{
+              borderRadius: AdminDesignSystem.borderRadius.md,
+              border: `1px solid ${AdminDesignSystem.colors.card.border}`,
+              boxShadow: AdminDesignSystem.shadows.md,
+              background: AdminDesignSystem.colors.card.background,
+            }}
+          >
             <Statistic
-              title="Pending"
+              title={
+                <Text style={{ color: AdminDesignSystem.colors.text.secondary, fontSize: AdminDesignSystem.typography.fontSize.small }}>
+                  Pending
+                </Text>
+              }
               value={stats.pendingPayments}
-              prefix={<ClockCircleOutlined />}
-              valueStyle={{ color: '#faad14' }}
+              prefix={<ClockCircleOutlined style={{ color: AdminDesignSystem.colors.warning }} />}
+              valueStyle={{ 
+                color: AdminDesignSystem.colors.warning,
+                fontSize: AdminDesignSystem.typography.fontSize.h3,
+                fontWeight: AdminDesignSystem.typography.fontWeight.semibold,
+              }}
             />
           </Card>
         </Col>
       </Row>
 
       {/* Filters */}
-      <Card style={{ marginBottom: '24px' }}>
+      <Card 
+        style={{ 
+          marginBottom: AdminDesignSystem.spacing.xl,
+          borderRadius: AdminDesignSystem.borderRadius.md,
+          border: `1px solid ${AdminDesignSystem.colors.card.border}`,
+          boxShadow: AdminDesignSystem.shadows.md,
+          background: AdminDesignSystem.colors.card.background,
+        }}
+      >
         <Row gutter={[16, 16]} align="middle">
           <Col xs={24} sm={8} md={6}>
             <Input

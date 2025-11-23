@@ -1,45 +1,29 @@
-import React, { useState, useEffect, useCallback } from 'react'
-import { Layout, Menu, Drawer, Button, Space, Typography, Badge } from 'antd'
+import React, { useState, useEffect } from 'react'
+import { Layout, Menu, Drawer, Button } from 'antd'
 import { 
   DashboardOutlined,
-  UserOutlined, 
+  TeamOutlined, 
   ShoppingCartOutlined, 
   BarChartOutlined,
   SettingOutlined,
-  LogoutOutlined,
   MenuOutlined,
-  TeamOutlined,
   FileTextOutlined,
   MessageOutlined,
-  VideoCameraOutlined,
   BellOutlined,
   DollarOutlined,
   ShoppingOutlined,
-  DatabaseOutlined,
-  ToolOutlined,
-  EditOutlined,
   MonitorOutlined,
-  BranchesOutlined,
-  SoundOutlined,
-  AppstoreOutlined,
-  ThunderboltOutlined,
-  SketchOutlined,
-  GlobalOutlined,
-  FireOutlined,
-  ReloadOutlined,
-  ExclamationCircleOutlined
+  PictureOutlined,
 } from '@ant-design/icons'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { useAuth } from "../contexts/AuthContextOptimized"
-import NotificationBell from './NotificationBell'
+import AdminHeader from './Admin/AdminHeader'
+import AdminDesignSystem from '../styles/admin-design-system'
 
-const { Title } = Typography
 const { Sider, Content } = Layout
 
 const AdminLayout = ({ children }) => {
   const [mobileMenuVisible, setMobileMenuVisible] = useState(false)
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768)
-  const { user, logout, forceRefreshAdminToken } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
 
@@ -51,14 +35,13 @@ const AdminLayout = ({ children }) => {
     if (path.includes('/admin/orders')) return 'orders'
     if (path.includes('/admin/analytics')) return 'analytics'
     if (path.includes('/admin/content')) return 'content'
-    if (path.includes('/admin/sessions')) return 'sessions'
-    if (path.includes('/admin/chat')) return 'chat'
     if (path.includes('/admin/notifications')) return 'notifications'
     if (path.includes('/admin/settings')) return 'settings'
     if (path.includes('/admin/products')) return 'products'
     if (path.includes('/admin/prebooks')) return 'prebooks'
     if (path.includes('/admin/payments')) return 'payments'
     if (path.includes('/admin/user-activities')) return 'activities'
+    if (path.includes('/admin/banners')) return 'banners'
     return 'dashboard'
   }
 
@@ -72,21 +55,11 @@ const AdminLayout = ({ children }) => {
   // Handle window resize
   useEffect(() => {
     const handleResize = () => {
-      setIsMobile(window.innerWidth < 768)
+      setIsMobile(window.innerWidth < parseInt(AdminDesignSystem.breakpoints.mobile))
     }
-
     window.addEventListener('resize', handleResize)
     return () => window.removeEventListener('resize', handleResize)
   }, [])
-
-  const handleLogout = async () => {
-    try {
-      await logout()
-      navigate('/admin/login')
-    } catch (error) {
-      console.error('Logout error:', error)
-    }
-  }
 
   const sidebarItems = [
     {
@@ -105,6 +78,11 @@ const AdminLayout = ({ children }) => {
       label: 'Products',
     },
     {
+      key: 'banners',
+      icon: <PictureOutlined />,
+      label: 'Banner Management',
+    },
+    {
       key: 'orders',
       icon: <ShoppingCartOutlined />,
       label: 'Orders & Sales',
@@ -118,16 +96,6 @@ const AdminLayout = ({ children }) => {
       key: 'content',
       icon: <FileTextOutlined />,
       label: 'Content Management',
-    },
-    {
-      key: 'sessions',
-      icon: <VideoCameraOutlined />,
-      label: 'Live Sessions',
-    },
-    {
-      key: 'chat',
-      icon: <MessageOutlined />,
-      label: 'Chat Moderation',
     },
     {
       key: 'notifications',
@@ -168,6 +136,9 @@ const AdminLayout = ({ children }) => {
       case 'products':
         navigate('/admin/products')
         break
+      case 'banners':
+        navigate('/admin/banners')
+        break
       case 'orders':
         navigate('/admin/orders')
         break
@@ -176,12 +147,6 @@ const AdminLayout = ({ children }) => {
         break
       case 'content':
         navigate('/admin/content')
-        break
-      case 'sessions':
-        navigate('/admin/sessions')
-        break
-      case 'chat':
-        navigate('/admin/chat')
         break
       case 'notifications':
         navigate('/admin/notifications')
@@ -201,117 +166,77 @@ const AdminLayout = ({ children }) => {
       default:
         navigate('/admin/dashboard')
     }
+    if (isMobile) {
+      setMobileMenuVisible(false)
+    }
   }
 
   return (
     <div style={{ 
-      background: '#f5f5f5', 
-      minHeight: '100vh'
+      background: AdminDesignSystem.colors.background,
+      minHeight: '100vh',
+      fontFamily: AdminDesignSystem.typography.fontFamily,
     }}>
+      {/* Custom Styles for Menu */}
       <style>
         {`
-          .ant-menu-vertical .ant-menu-item {
-            color: #333 !important;
-            font-size: 14px !important;
-            font-weight: 500 !important;
-            padding: 12px 24px !important;
-            margin: 4px 0 !important;
-            border-radius: 6px !important;
-            transition: all 0.3s ease !important;
+          .admin-sidebar-menu .ant-menu-item {
+            color: ${AdminDesignSystem.colors.sidebar.text} !important;
+            font-size: ${AdminDesignSystem.typography.fontSize.small} !important;
+            font-weight: ${AdminDesignSystem.typography.fontWeight.medium} !important;
+            padding: ${AdminDesignSystem.spacing.md} ${AdminDesignSystem.spacing.lg} !important;
+            margin: ${AdminDesignSystem.spacing.xs} ${AdminDesignSystem.spacing.md} !important;
+            border-radius: ${AdminDesignSystem.borderRadius.md} !important;
+            transition: all 0.2s ease !important;
             height: auto !important;
-            line-height: 1.4 !important;
+            line-height: ${AdminDesignSystem.typography.lineHeight} !important;
           }
           
-          .ant-menu-vertical .ant-menu-item:hover {
-            color: #1890ff !important;
-            background-color: #f0f8ff !important;
+          .admin-sidebar-menu .ant-menu-item:hover {
+            color: ${AdminDesignSystem.colors.primary} !important;
+            background-color: ${AdminDesignSystem.colors.sidebar.hoverBackground} !important;
           }
           
-          .ant-menu-vertical .ant-menu-item-selected {
-            color: #1890ff !important;
-            background-color: #e6f7ff !important;
-            font-weight: 600 !important;
+          .admin-sidebar-menu .ant-menu-item-selected {
+            color: ${AdminDesignSystem.colors.sidebar.activeText} !important;
+            background-color: ${AdminDesignSystem.colors.sidebar.activeBackground} !important;
+            font-weight: ${AdminDesignSystem.typography.fontWeight.semibold} !important;
           }
           
-          .ant-menu-vertical .ant-menu-item .ant-menu-item-icon {
+          .admin-sidebar-menu .ant-menu-item .ant-menu-item-icon {
             color: inherit !important;
-            font-size: 16px !important;
-            margin-right: 12px !important;
+            font-size: ${AdminDesignSystem.typography.fontSize.body} !important;
+            margin-right: ${AdminDesignSystem.spacing.md} !important;
           }
           
-          .ant-menu-vertical .ant-menu-item-selected .ant-menu-item-icon {
-            color: #1890ff !important;
+          .admin-sidebar-menu .ant-menu-item-selected .ant-menu-item-icon {
+            color: ${AdminDesignSystem.colors.sidebar.activeText} !important;
           }
         `}
       </style>
-      {/* Header */}
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'space-between', 
-        alignItems: 'center', 
-        padding: '1rem 2rem',
-        borderBottom: '1px solid #e8e8e8',
-        background: '#fff',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        zIndex: 1001,
-        height: '80px'
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center' }}>
-          <Title level={3} style={{ color: '#1890ff', margin: 0, marginRight: '2rem' }}>
-            ITWOS AI - Admin
-          </Title>
-        </div>
-        <Space>
-          <NotificationBell />
-          <Button 
-            type="text" 
-            onClick={() => {
-              const result = forceRefreshAdminToken()
-              if (result.success) {
-                console.log('✅ Admin token refreshed successfully')
-                window.location.reload()
-              } else {
-                console.error('❌ Failed to refresh admin token:', result.error)
-              }
-            }}
-            icon={<ReloadOutlined />}
-            title="Refresh Admin Token"
-          >
-            Refresh
-          </Button>
-          <UserOutlined style={{ fontSize: '18px', color: '#666' }} />
-          <span style={{ color: '#666' }}>{user?.name || 'Admin'}</span>
-          <Button type="text" onClick={handleLogout} icon={<LogoutOutlined />}>
-            Logout
-          </Button>
-        </Space>
-        <Button 
-          type="text" 
-          icon={<MenuOutlined />}
-          onClick={() => setMobileMenuVisible(true)}
-          style={{ display: isMobile ? 'block' : 'none' }}
-        />
-      </div>
 
-      <Layout style={{ background: '#f5f5f5' }}>
+      {/* Header */}
+      <AdminHeader />
+
+      <Layout style={{ 
+        background: AdminDesignSystem.colors.background,
+        marginTop: AdminDesignSystem.layout.header.height,
+      }}>
         {/* Sidebar */}
         <Sider 
-          width={250} 
+          width={AdminDesignSystem.layout.sidebar.width}
           style={{ 
-            background: '#fff', 
-            borderRight: '1px solid #e8e8e8',
-            padding: '2rem 0',
+            background: AdminDesignSystem.colors.sidebar.background,
+            borderRight: `1px solid ${AdminDesignSystem.colors.sidebar.border}`,
+            padding: `${AdminDesignSystem.spacing.lg} 0`,
             display: isMobile ? 'none' : 'block',
             position: 'fixed',
             left: 0,
-            top: '80px',
-            height: 'calc(100vh - 80px)',
-            zIndex: 1000,
-            overflowY: 'auto'
+            top: AdminDesignSystem.layout.header.height,
+            height: `calc(100vh - ${AdminDesignSystem.layout.header.height})`,
+            zIndex: 999,
+            overflowY: 'auto',
+            boxShadow: AdminDesignSystem.shadows.md,
           }}
         >
           <Menu
@@ -319,9 +244,11 @@ const AdminLayout = ({ children }) => {
             items={sidebarItems}
             selectedKeys={[selectedMenu]}
             onClick={handleMenuClick}
+            className="admin-sidebar-menu"
             style={{ 
               background: 'transparent', 
-              border: 'none'
+              border: 'none',
+              padding: `0 ${AdminDesignSystem.spacing.sm}`,
             }}
             theme="light"
           />
@@ -329,12 +256,11 @@ const AdminLayout = ({ children }) => {
 
         {/* Main Content */}
         <Content style={{ 
-          padding: isMobile ? '1rem' : '2rem', 
-          background: '#f5f5f5',
-          minHeight: 'calc(100vh - 80px)',
-          marginLeft: isMobile ? '0' : '250px',
-          marginTop: '80px',
-          transition: 'margin-left 0.3s ease'
+          padding: isMobile ? AdminDesignSystem.spacing.md : AdminDesignSystem.layout.content.padding,
+          background: AdminDesignSystem.colors.background,
+          minHeight: `calc(100vh - ${AdminDesignSystem.layout.header.height})`,
+          marginLeft: isMobile ? '0' : AdminDesignSystem.layout.sidebar.width,
+          transition: 'margin-left 0.3s ease',
         }}>
           {children}
         </Content>
@@ -342,64 +268,60 @@ const AdminLayout = ({ children }) => {
 
       {/* Mobile Drawer */}
       <Drawer
-        title="Admin Navigation"
-        placement="right"
+        title={
+          <span style={{
+            fontSize: AdminDesignSystem.typography.fontSize.h4,
+            fontWeight: AdminDesignSystem.typography.fontWeight.semibold,
+            color: AdminDesignSystem.colors.text.primary,
+          }}>
+            Admin Navigation
+          </span>
+        }
+        placement="left"
         closable={true}
         onClose={() => setMobileMenuVisible(false)}
         open={mobileMenuVisible}
-        styles={{ body: { padding: 0 } }}
+        styles={{ 
+          body: { padding: 0 },
+          header: {
+            borderBottom: `1px solid ${AdminDesignSystem.colors.sidebar.border}`,
+          }
+        }}
+        width={280}
       >
-        <style>
-          {`
-            .ant-drawer .ant-menu-vertical .ant-menu-item {
-              color: #333 !important;
-              font-size: 14px !important;
-              font-weight: 500 !important;
-              padding: 12px 24px !important;
-              margin: 4px 0 !important;
-              border-radius: 6px !important;
-              transition: all 0.3s ease !important;
-              height: auto !important;
-              line-height: 1.4 !important;
-            }
-            
-            .ant-drawer .ant-menu-vertical .ant-menu-item:hover {
-              color: #1890ff !important;
-              background-color: #f0f8ff !important;
-            }
-            
-            .ant-drawer .ant-menu-vertical .ant-menu-item-selected {
-              color: #1890ff !important;
-              background-color: #e6f7ff !important;
-              font-weight: 600 !important;
-            }
-            
-            .ant-drawer .ant-menu-vertical .ant-menu-item .ant-menu-item-icon {
-              color: inherit !important;
-              font-size: 16px !important;
-              margin-right: 12px !important;
-            }
-            
-            .ant-drawer .ant-menu-vertical .ant-menu-item-selected .ant-menu-item-icon {
-              color: #1890ff !important;
-            }
-          `}
-        </style>
         <Menu
           mode="vertical"
           items={sidebarItems}
           selectedKeys={[selectedMenu]}
-          onClick={({ key }) => {
-            handleMenuClick({ key })
-            setMobileMenuVisible(false)
-          }}
+          onClick={handleMenuClick}
+          className="admin-sidebar-menu"
           style={{ 
             background: 'transparent', 
-            border: 'none'
+            border: 'none',
+            padding: `${AdminDesignSystem.spacing.md} ${AdminDesignSystem.spacing.sm}`,
           }}
           theme="light"
         />
       </Drawer>
+
+      {/* Mobile Menu Button */}
+      {isMobile && (
+        <Button
+          type="primary"
+          icon={<MenuOutlined />}
+          onClick={() => setMobileMenuVisible(true)}
+          style={{
+            position: 'fixed',
+            bottom: AdminDesignSystem.spacing.lg,
+            right: AdminDesignSystem.spacing.lg,
+            zIndex: 1001,
+            width: '56px',
+            height: '56px',
+            borderRadius: AdminDesignSystem.borderRadius.full,
+            boxShadow: AdminDesignSystem.shadows.lg,
+          }}
+        />
+      )}
     </div>
   )
 }

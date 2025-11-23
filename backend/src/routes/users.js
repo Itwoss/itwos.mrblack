@@ -148,7 +148,8 @@ router.put('/me', authenticateToken, validateUserProfileUpdate, async (req, res)
 // Get user by ID (public profile) - with privacy check
 router.get('/:id', validateObjectId('id'), async (req, res) => {
   try {
-    const user = await User.findOne({ _id: req.params.id, deletedAt: null });
+    const user = await User.findOne({ _id: req.params.id, deletedAt: null })
+      .populate('equippedBanner');
     
     if (!user) {
       return res.status(404).json({
@@ -176,25 +177,32 @@ router.get('/:id', validateObjectId('id'), async (req, res) => {
         const isCurrentlyVerified = user.isVerified && user.verifiedTill && user.verifiedTill > new Date();
         
         // Return limited profile for private accounts (but include bio like Instagram)
+        const limitedProfile = {
+          _id: user._id,
+          name: user.name,
+          avatarUrl: user.avatarUrl,
+          bio: user.bio || null, // Include bio for all users (Instagram style)
+          website: user.website || null, // Include website
+          location: user.location || null, // Include location
+          company: user.company || null,
+          jobTitle: user.jobTitle || null,
+          isPrivate: true,
+          requiresFollow: true,
+          isVerified: isCurrentlyVerified, // Include verification status
+          verifiedTill: user.verifiedTill, // Include verification expiry
+          followersCount: user.followersCount || 0,
+          followingCount: user.followingCount || 0,
+          createdAt: user.createdAt
+        };
+        
+        // Include equipped banner even for private accounts (it's just visual)
+        if (user.equippedBanner && user.equippedBanner.getPublicData) {
+          limitedProfile.equippedBanner = user.equippedBanner.getPublicData();
+        }
+        
         return res.json({
           success: true,
-          user: {
-            _id: user._id,
-            name: user.name,
-            avatarUrl: user.avatarUrl,
-            bio: user.bio || null, // Include bio for all users (Instagram style)
-            website: user.website || null, // Include website
-            location: user.location || null, // Include location
-            company: user.company || null,
-            jobTitle: user.jobTitle || null,
-            isPrivate: true,
-            requiresFollow: true,
-            isVerified: isCurrentlyVerified, // Include verification status
-            verifiedTill: user.verifiedTill, // Include verification expiry
-            followersCount: user.followersCount || 0,
-            followingCount: user.followingCount || 0,
-            createdAt: user.createdAt
-          },
+          user: limitedProfile,
           message: 'This account is private. Follow to see their content.'
         });
       }
@@ -375,12 +383,13 @@ router.get('/:id/purchases', authenticateToken, validateObjectId('id'), requireO
       },
       amount: subscription.price,
       currency: subscription.currency || 'INR',
-      status: subscription.status === 'active' ? 'paid' : subscription.status === 'expired' ? 'completed' : subscription.status,
+      status: subscription.status === 'active' ? 'paid' : subscription.status === 'expired' ? 'completed' : subscription.status === 'cancelled' ? 'cancelled' : subscription.status,
       paymentMethod: subscription.paymentMethod || 'card',
       razorpayOrderId: subscription.razorpayOrderId || subscription.paymentId,
       razorpayPaymentId: subscription.razorpayPaymentId || subscription.paymentId,
       createdAt: subscription.createdAt,
       updatedAt: subscription.updatedAt,
+      cancelledAt: subscription.cancelledAt, // Include cancellation date
       // Subscription-specific fields
       planMonths: subscription.planMonths,
       startDate: subscription.startDate,

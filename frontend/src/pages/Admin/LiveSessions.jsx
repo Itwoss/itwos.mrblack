@@ -19,8 +19,9 @@ import {
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from "../../contexts/AuthContextOptimized"
 import DashboardLayout from '../../components/DashboardLayout'
+import AdminDesignSystem from '../../styles/admin-design-system'
 
-const { Title, Paragraph } = Typography
+const { Title, Paragraph, Text } = Typography
 const { Search } = Input
 const { Option } = Select
 const { TextArea } = Input
@@ -173,12 +174,12 @@ const LiveSessions = () => {
 
   const getStatusColor = (status) => {
     const colors = {
-      'scheduled': 'blue',
-      'live': 'green',
-      'completed': 'gray',
-      'cancelled': 'red'
+      'scheduled': AdminDesignSystem.colors.primary,
+      'live': AdminDesignSystem.colors.success,
+      'completed': AdminDesignSystem.colors.text.secondary,
+      'cancelled': AdminDesignSystem.colors.error
     }
-    return colors[status] || 'default'
+    return colors[status] || AdminDesignSystem.colors.text.secondary
   }
 
   const getStatusIcon = (status) => {
@@ -220,7 +221,13 @@ const LiveSessions = () => {
       dataIndex: 'status',
       key: 'status',
       render: (status) => (
-        <Tag color={getStatusColor(status)} icon={getStatusIcon(status)}>
+        <Tag 
+          color={getStatusColor(status)} 
+          icon={getStatusIcon(status)}
+          style={{
+            borderRadius: AdminDesignSystem.borderRadius.sm,
+          }}
+        >
           {status.toUpperCase()}
         </Tag>
       )
@@ -268,52 +275,133 @@ const LiveSessions = () => {
 
   return (
     <DashboardLayout userRole="admin">
-      <div>
+      <div style={{
+        padding: AdminDesignSystem.layout.content.padding,
+        background: AdminDesignSystem.colors.background,
+        minHeight: '100vh',
+        fontFamily: AdminDesignSystem.typography.fontFamily,
+      }}>
         {/* Header */}
-        <div style={{ marginBottom: '2rem' }}>
-          <Title level={2} style={{ marginBottom: '0.5rem' }}>
-            📹 Live Sessions
+        <div style={{ marginBottom: AdminDesignSystem.spacing.xl }}>
+          <Title 
+            level={2} 
+            style={{ 
+              marginBottom: AdminDesignSystem.spacing.sm,
+              color: AdminDesignSystem.colors.text.primary,
+              fontWeight: AdminDesignSystem.typography.fontWeight.semibold,
+              fontSize: AdminDesignSystem.typography.fontSize.h2,
+            }}
+          >
+            <VideoCameraOutlined style={{ marginRight: AdminDesignSystem.spacing.sm, color: AdminDesignSystem.colors.primary }} />
+            Live Sessions
           </Title>
-          <Paragraph>
+          <Paragraph style={{ 
+            color: AdminDesignSystem.colors.text.secondary,
+            fontSize: AdminDesignSystem.typography.fontSize.body,
+          }}>
             Manage live sessions, webinars, and online workshops for your users.
           </Paragraph>
         </div>
 
         {/* Statistics */}
-        <Row gutter={[16, 16]} style={{ marginBottom: '2rem' }}>
+        <Row gutter={[AdminDesignSystem.spacing.md, AdminDesignSystem.spacing.md]} style={{ marginBottom: AdminDesignSystem.spacing.xl }}>
           <Col xs={12} sm={6}>
-            <Card>
+            <Card
+              style={{
+                borderRadius: AdminDesignSystem.borderRadius.md,
+                border: `1px solid ${AdminDesignSystem.colors.card.border}`,
+                boxShadow: AdminDesignSystem.shadows.md,
+                background: AdminDesignSystem.colors.card.background,
+              }}
+            >
               <Statistic
-                title="Total Sessions"
+                title={
+                  <Text style={{ color: AdminDesignSystem.colors.text.secondary, fontSize: AdminDesignSystem.typography.fontSize.small }}>
+                    Total Sessions
+                  </Text>
+                }
                 value={stats.totalSessions}
-                prefix={<VideoCameraOutlined style={{ color: '#1890ff' }} />}
+                prefix={<VideoCameraOutlined style={{ color: AdminDesignSystem.colors.primary }} />}
+                valueStyle={{ 
+                  color: AdminDesignSystem.colors.text.primary,
+                  fontSize: AdminDesignSystem.typography.fontSize.h3,
+                  fontWeight: AdminDesignSystem.typography.fontWeight.semibold,
+                }}
               />
             </Card>
           </Col>
           <Col xs={12} sm={6}>
-            <Card>
+            <Card
+              style={{
+                borderRadius: AdminDesignSystem.borderRadius.md,
+                border: `1px solid ${AdminDesignSystem.colors.card.border}`,
+                boxShadow: AdminDesignSystem.shadows.md,
+                background: AdminDesignSystem.colors.card.background,
+              }}
+            >
               <Statistic
-                title="Active Sessions"
+                title={
+                  <Text style={{ color: AdminDesignSystem.colors.text.secondary, fontSize: AdminDesignSystem.typography.fontSize.small }}>
+                    Active Sessions
+                  </Text>
+                }
                 value={stats.activeSessions}
-                prefix={<PlayCircleOutlined style={{ color: '#52c41a' }} />}
+                prefix={<PlayCircleOutlined style={{ color: AdminDesignSystem.colors.success }} />}
+                valueStyle={{ 
+                  color: AdminDesignSystem.colors.success,
+                  fontSize: AdminDesignSystem.typography.fontSize.h3,
+                  fontWeight: AdminDesignSystem.typography.fontWeight.semibold,
+                }}
               />
             </Card>
           </Col>
           <Col xs={12} sm={6}>
-            <Card>
+            <Card
+              style={{
+                borderRadius: AdminDesignSystem.borderRadius.md,
+                border: `1px solid ${AdminDesignSystem.colors.card.border}`,
+                boxShadow: AdminDesignSystem.shadows.md,
+                background: AdminDesignSystem.colors.card.background,
+              }}
+            >
               <Statistic
-                title="Completed"
+                title={
+                  <Text style={{ color: AdminDesignSystem.colors.text.secondary, fontSize: AdminDesignSystem.typography.fontSize.small }}>
+                    Completed
+                  </Text>
+                }
                 value={stats.completedSessions}
-                prefix={<CheckCircleOutlined style={{ color: '#722ed1' }} />}
+                prefix={<CheckCircleOutlined style={{ color: AdminDesignSystem.colors.text.secondary }} />}
+                valueStyle={{ 
+                  color: AdminDesignSystem.colors.text.secondary,
+                  fontSize: AdminDesignSystem.typography.fontSize.h3,
+                  fontWeight: AdminDesignSystem.typography.fontWeight.semibold,
+                }}
               />
             </Card>
           </Col>
           <Col xs={12} sm={6}>
-            <Card>
+            <Card
+              style={{
+                borderRadius: AdminDesignSystem.borderRadius.md,
+                border: `1px solid ${AdminDesignSystem.colors.card.border}`,
+                boxShadow: AdminDesignSystem.shadows.md,
+                background: AdminDesignSystem.colors.card.background,
+              }}
+            >
               <Statistic
-                title="Total Participants"
+                title={
+                  <Text style={{ color: AdminDesignSystem.colors.text.secondary, fontSize: AdminDesignSystem.typography.fontSize.small }}>
+                    Total Participants
+                  </Text>
+                }
                 value={stats.totalParticipants}
-                prefix={<UserOutlined style={{ color: '#fa8c16' }} />}
+                prefix={<UserOutlined style={{ color: AdminDesignSystem.colors.warning }} />}
+                valueStyle={{ 
+                  color: AdminDesignSystem.colors.text.primary,
+                  fontSize: AdminDesignSystem.typography.fontSize.h3,
+                  fontWeight: AdminDesignSystem.typography.fontWeight.semibold,
+                }}
               />
             </Card>
           </Col>
@@ -321,21 +409,40 @@ const LiveSessions = () => {
 
         {/* Sessions Table */}
         <Card 
-          title="Live Sessions" 
+          title={
+            <Text strong style={{ color: AdminDesignSystem.colors.text.primary }}>
+              Live Sessions
+            </Text>
+          }
           extra={
             <Space>
-              <Search placeholder="Search sessions..." style={{ width: 200 }} />
+              <Search placeholder="Search sessions..." style={{ width: 200 }} allowClear />
               <Select placeholder="Filter by status" style={{ width: 150 }}>
                 <Option value="all">All Sessions</Option>
                 <Option value="scheduled">Scheduled</Option>
                 <Option value="live">Live</Option>
                 <Option value="completed">Completed</Option>
               </Select>
-              <Button type="primary" icon={<PlusOutlined />} onClick={() => setModalVisible(true)}>
+              <Button 
+                type="primary" 
+                icon={<PlusOutlined />} 
+                onClick={() => setModalVisible(true)}
+                style={{
+                  borderRadius: AdminDesignSystem.borderRadius.md,
+                  backgroundColor: AdminDesignSystem.colors.primary,
+                  borderColor: AdminDesignSystem.colors.primary,
+                }}
+              >
                 Create Session
               </Button>
             </Space>
           }
+          style={{
+            borderRadius: AdminDesignSystem.borderRadius.md,
+            border: `1px solid ${AdminDesignSystem.colors.card.border}`,
+            boxShadow: AdminDesignSystem.shadows.md,
+            background: AdminDesignSystem.colors.card.background,
+          }}
         >
           <Table
             columns={columns}

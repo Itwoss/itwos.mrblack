@@ -16,6 +16,7 @@ import {
 import { useAuth } from '../../contexts/AuthContextOptimized'
 import { getUserAvatarUrl, getUserInitials } from '../../utils/avatarUtils'
 import { useNavigate } from 'react-router-dom'
+import AdminDesignSystem from '../../styles/admin-design-system'
 
 const { Title, Paragraph, Text } = Typography
 

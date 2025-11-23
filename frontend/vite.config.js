@@ -35,6 +35,16 @@ export default defineConfig({
       'antd',
       '@ant-design/icons',
       'axios'
-    ]
+    ],
+    // Reduce memory usage during optimization
+    force: false,
+    esbuildOptions: {
+      target: 'esnext'
+    }
+  },
+  // Reduce memory usage
+  esbuild: {
+    target: 'esnext',
+    logOverride: { 'this-is-undefined-in-esm': 'silent' }
   }
 })

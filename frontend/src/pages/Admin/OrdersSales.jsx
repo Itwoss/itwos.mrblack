@@ -19,8 +19,9 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from "../../contexts/AuthContextOptimized"
 import DashboardLayout from '../../components/DashboardLayout'
 import { paymentAPI, adminAPI, prebookAPI } from '../../services/api'
+import AdminDesignSystem from '../../styles/admin-design-system'
 
-const { Title, Paragraph } = Typography
+const { Title, Paragraph, Text } = Typography
 const { Search } = Input
 const { Option } = Select
 
@@ -163,13 +164,15 @@ const OrdersSales = () => {
 
   const getStatusColor = (status) => {
     const colors = {
-      'completed': 'green',
-      'pending': 'orange',
-      'processing': 'blue',
-      'cancelled': 'red',
-      'refunded': 'purple'
+      'completed': AdminDesignSystem.colors.success,
+      'paid': AdminDesignSystem.colors.success,
+      'pending': AdminDesignSystem.colors.warning,
+      'created': AdminDesignSystem.colors.warning,
+      'processing': AdminDesignSystem.colors.primary,
+      'cancelled': AdminDesignSystem.colors.error,
+      'refunded': AdminDesignSystem.colors.secondary
     }
-    return colors[status] || 'default'
+    return colors[status] || AdminDesignSystem.colors.text.secondary
   }
 
   const columns = [
@@ -208,7 +211,11 @@ const OrdersSales = () => {
       title: 'Amount',
       dataIndex: 'amount',
       key: 'amount',
-      render: (amount) => <strong style={{ color: '#52c41a' }}>${amount}</strong>
+      render: (amount) => (
+        <strong style={{ color: AdminDesignSystem.colors.success }}>
+          {formatCurrency(amount || 0)}
+        </strong>
+      )
     },
     {
       title: 'Status',
@@ -316,98 +323,200 @@ const OrdersSales = () => {
     }
   ]
 
+  // Format currency
+  const formatCurrency = (amount) => {
+    return new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: 'INR',
+      minimumFractionDigits: 0
+    }).format(amount / 100) // Backend stores in paise
+  }
+
   return (
     <DashboardLayout userRole="admin">
-      <div>
+      <div style={{
+        padding: AdminDesignSystem.layout.content.padding,
+        background: AdminDesignSystem.colors.background,
+        minHeight: '100vh',
+        fontFamily: AdminDesignSystem.typography.fontFamily,
+      }}>
         {/* Header */}
-        <div style={{ marginBottom: '2rem' }}>
-          <Title level={2} style={{ marginBottom: '0.5rem' }}>
-            💰 Orders & Sales
+        <div style={{ marginBottom: AdminDesignSystem.spacing.xl }}>
+          <Title 
+            level={2} 
+            style={{ 
+              marginBottom: AdminDesignSystem.spacing.sm,
+              color: AdminDesignSystem.colors.text.primary,
+              fontWeight: AdminDesignSystem.typography.fontWeight.semibold,
+              fontSize: AdminDesignSystem.typography.fontSize.h2,
+            }}
+          >
+            <DollarOutlined style={{ marginRight: AdminDesignSystem.spacing.sm, color: AdminDesignSystem.colors.success }} />
+            Orders & Sales
           </Title>
-          <Paragraph>
+          <Paragraph style={{ 
+            color: AdminDesignSystem.colors.text.secondary,
+            fontSize: AdminDesignSystem.typography.fontSize.body,
+          }}>
             Track orders, manage sales, and monitor revenue performance.
           </Paragraph>
         </div>
 
         {/* Statistics */}
-        <Row gutter={[16, 16]} style={{ marginBottom: '2rem' }}>
+        <Row gutter={[AdminDesignSystem.spacing.md, AdminDesignSystem.spacing.md]} style={{ marginBottom: AdminDesignSystem.spacing.xl }}>
           <Col xs={12} sm={6}>
-            <Card>
+            <Card
+              style={{
+                borderRadius: AdminDesignSystem.borderRadius.md,
+                border: `1px solid ${AdminDesignSystem.colors.card.border}`,
+                boxShadow: AdminDesignSystem.shadows.md,
+                background: AdminDesignSystem.colors.card.background,
+              }}
+            >
               <Statistic
-                title="Total Orders"
+                title={
+                  <Text style={{ color: AdminDesignSystem.colors.text.secondary, fontSize: AdminDesignSystem.typography.fontSize.small }}>
+                    Total Orders
+                  </Text>
+                }
                 value={stats.totalOrders}
-                prefix={<ShoppingCartOutlined style={{ color: '#1890ff' }} />}
+                valueStyle={{ 
+                  color: AdminDesignSystem.colors.text.primary,
+                  fontSize: AdminDesignSystem.typography.fontSize.h3,
+                  fontWeight: AdminDesignSystem.typography.fontWeight.semibold,
+                }}
+                prefix={<ShoppingCartOutlined style={{ color: AdminDesignSystem.colors.primary }} />}
               />
             </Card>
           </Col>
           <Col xs={12} sm={6}>
-            <Card>
+            <Card
+              style={{
+                borderRadius: AdminDesignSystem.borderRadius.md,
+                border: `1px solid ${AdminDesignSystem.colors.card.border}`,
+                boxShadow: AdminDesignSystem.shadows.md,
+                background: AdminDesignSystem.colors.card.background,
+              }}
+            >
               <Statistic
-                title="Total Revenue"
-                value={stats.totalRevenue}
-                prefix={<DollarOutlined style={{ color: '#52c41a' }} />}
-                suffix={<RiseOutlined style={{ color: '#52c41a' }} />}
+                title={
+                  <Text style={{ color: AdminDesignSystem.colors.text.secondary, fontSize: AdminDesignSystem.typography.fontSize.small }}>
+                    Total Revenue
+                  </Text>
+                }
+                value={formatCurrency(stats.totalRevenue || 0)}
+                valueStyle={{ 
+                  color: AdminDesignSystem.colors.success,
+                  fontSize: AdminDesignSystem.typography.fontSize.h3,
+                  fontWeight: AdminDesignSystem.typography.fontWeight.semibold,
+                }}
+                prefix={<DollarOutlined style={{ color: AdminDesignSystem.colors.success }} />}
+                suffix={<RiseOutlined style={{ color: AdminDesignSystem.colors.success }} />}
               />
             </Card>
           </Col>
           <Col xs={12} sm={6}>
-            <Card>
+            <Card
+              style={{
+                borderRadius: AdminDesignSystem.borderRadius.md,
+                border: `1px solid ${AdminDesignSystem.colors.card.border}`,
+                boxShadow: AdminDesignSystem.shadows.md,
+                background: AdminDesignSystem.colors.card.background,
+              }}
+            >
               <Statistic
-                title="Pending Orders"
+                title={
+                  <Text style={{ color: AdminDesignSystem.colors.text.secondary, fontSize: AdminDesignSystem.typography.fontSize.small }}>
+                    Pending Orders
+                  </Text>
+                }
                 value={stats.pendingOrders}
-                prefix={<ClockCircleOutlined style={{ color: '#fa8c16' }} />}
+                valueStyle={{ 
+                  color: AdminDesignSystem.colors.warning,
+                  fontSize: AdminDesignSystem.typography.fontSize.h3,
+                  fontWeight: AdminDesignSystem.typography.fontWeight.semibold,
+                }}
+                prefix={<ClockCircleOutlined style={{ color: AdminDesignSystem.colors.warning }} />}
               />
             </Card>
           </Col>
           <Col xs={12} sm={6}>
-            <Card>
+            <Card
+              style={{
+                borderRadius: AdminDesignSystem.borderRadius.md,
+                border: `1px solid ${AdminDesignSystem.colors.card.border}`,
+                boxShadow: AdminDesignSystem.shadows.md,
+                background: AdminDesignSystem.colors.card.background,
+              }}
+            >
               <Statistic
-                title="Completed Orders"
+                title={
+                  <Text style={{ color: AdminDesignSystem.colors.text.secondary, fontSize: AdminDesignSystem.typography.fontSize.small }}>
+                    Completed Orders
+                  </Text>
+                }
                 value={stats.completedOrders}
-                prefix={<CheckCircleOutlined style={{ color: '#52c41a' }} />}
+                valueStyle={{ 
+                  color: AdminDesignSystem.colors.success,
+                  fontSize: AdminDesignSystem.typography.fontSize.h3,
+                  fontWeight: AdminDesignSystem.typography.fontWeight.semibold,
+                }}
+                prefix={<CheckCircleOutlined style={{ color: AdminDesignSystem.colors.success }} />}
               />
             </Card>
           </Col>
         </Row>
 
         {/* Additional Stats */}
-        <Row gutter={[16, 16]} style={{ marginBottom: '2rem' }}>
+        <Row gutter={[AdminDesignSystem.spacing.md, AdminDesignSystem.spacing.md]} style={{ marginBottom: AdminDesignSystem.spacing.xl }}>
           <Col xs={12} sm={6}>
-            <Card>
+            <Card
+              style={{
+                borderRadius: AdminDesignSystem.borderRadius.md,
+                border: `1px solid ${AdminDesignSystem.colors.card.border}`,
+                boxShadow: AdminDesignSystem.shadows.md,
+                background: AdminDesignSystem.colors.card.background,
+              }}
+            >
               <Statistic
-                title="Average Order Value"
-                value={stats.averageOrderValue}
-                prefix={<TrophyOutlined style={{ color: '#722ed1' }} />}
+                title={
+                  <Text style={{ color: AdminDesignSystem.colors.text.secondary, fontSize: AdminDesignSystem.typography.fontSize.small }}>
+                    Average Order Value
+                  </Text>
+                }
+                value={formatCurrency(stats.averageOrderValue || 0)}
+                valueStyle={{ 
+                  color: AdminDesignSystem.colors.text.primary,
+                  fontSize: AdminDesignSystem.typography.fontSize.h3,
+                  fontWeight: AdminDesignSystem.typography.fontWeight.semibold,
+                }}
+                prefix={<TrophyOutlined style={{ color: AdminDesignSystem.colors.primary }} />}
               />
             </Card>
           </Col>
           <Col xs={12} sm={6}>
-            <Card>
+            <Card
+              style={{
+                borderRadius: AdminDesignSystem.borderRadius.md,
+                border: `1px solid ${AdminDesignSystem.colors.card.border}`,
+                boxShadow: AdminDesignSystem.shadows.md,
+                background: AdminDesignSystem.colors.card.background,
+              }}
+            >
               <Statistic
-                title="Monthly Growth"
-                value={stats.monthlyGrowth}
+                title={
+                  <Text style={{ color: AdminDesignSystem.colors.text.secondary, fontSize: AdminDesignSystem.typography.fontSize.small }}>
+                    Monthly Growth
+                  </Text>
+                }
+                value={stats.monthlyGrowth || 0}
                 suffix="%"
-                prefix={<RiseOutlined style={{ color: '#52c41a' }} />}
-              />
-            </Card>
-          </Col>
-          <Col xs={12} sm={6}>
-            <Card>
-              <Statistic
-                title="Conversion Rate"
-                value={85.6}
-                suffix="%"
-                prefix={<CheckCircleOutlined style={{ color: '#1890ff' }} />}
-              />
-            </Card>
-          </Col>
-          <Col xs={12} sm={6}>
-            <Card>
-              <Statistic
-                title="Refund Rate"
-                value={2.3}
-                suffix="%"
-                prefix={<FallOutlined style={{ color: '#f5222d' }} />}
+                valueStyle={{ 
+                  color: stats.monthlyGrowth >= 0 ? AdminDesignSystem.colors.success : AdminDesignSystem.colors.error,
+                  fontSize: AdminDesignSystem.typography.fontSize.h3,
+                  fontWeight: AdminDesignSystem.typography.fontWeight.semibold,
+                }}
+                prefix={<RiseOutlined style={{ color: stats.monthlyGrowth >= 0 ? AdminDesignSystem.colors.success : AdminDesignSystem.colors.error }} />}
               />
             </Card>
           </Col>
@@ -420,12 +529,22 @@ const OrdersSales = () => {
               <Button 
                 type={activeTab === 'orders' ? 'primary' : 'default'}
                 onClick={() => setActiveTab('orders')}
+                style={{
+                  borderRadius: AdminDesignSystem.borderRadius.md,
+                  backgroundColor: activeTab === 'orders' ? AdminDesignSystem.colors.primary : 'transparent',
+                  borderColor: activeTab === 'orders' ? AdminDesignSystem.colors.primary : AdminDesignSystem.colors.card.border,
+                }}
               >
                 Orders ({orders.length})
               </Button>
               <Button 
                 type={activeTab === 'prebooks' ? 'primary' : 'default'}
                 onClick={() => setActiveTab('prebooks')}
+                style={{
+                  borderRadius: AdminDesignSystem.borderRadius.md,
+                  backgroundColor: activeTab === 'prebooks' ? AdminDesignSystem.colors.primary : 'transparent',
+                  borderColor: activeTab === 'prebooks' ? AdminDesignSystem.colors.primary : AdminDesignSystem.colors.card.border,
+                }}
               >
                 Prebook Requests ({prebooks.length})
               </Button>
@@ -433,17 +552,37 @@ const OrdersSales = () => {
           }
           extra={
             <Space>
-              <Search placeholder={`Search ${activeTab}...`} style={{ width: 200 }} />
-              <Select placeholder="Filter by status" style={{ width: 150 }}>
+              <Search 
+                placeholder={`Search ${activeTab}...`} 
+                style={{ width: 200 }}
+                allowClear
+              />
+              <Select 
+                placeholder="Filter by status" 
+                style={{ width: 150 }}
+              >
                 <Option value="all">All {activeTab === 'orders' ? 'Orders' : 'Requests'}</Option>
                 <Option value="pending">Pending</Option>
                 <Option value="processing">Processing</Option>
                 <Option value="completed">Completed</Option>
                 <Option value="cancelled">Cancelled</Option>
               </Select>
-              <Button icon={<DownloadOutlined />}>Export</Button>
+              <Button 
+                icon={<DownloadOutlined />}
+                style={{
+                  borderRadius: AdminDesignSystem.borderRadius.md,
+                }}
+              >
+                Export
+              </Button>
             </Space>
           }
+          style={{
+            borderRadius: AdminDesignSystem.borderRadius.md,
+            border: `1px solid ${AdminDesignSystem.colors.card.border}`,
+            boxShadow: AdminDesignSystem.shadows.md,
+            background: AdminDesignSystem.colors.card.background,
+          }}
         >
           {activeTab === 'orders' ? (
             <Table

@@ -20,8 +20,9 @@ import {
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from "../../contexts/AuthContextOptimized"
 import DashboardLayout from '../../components/DashboardLayout'
+import AdminDesignSystem from '../../styles/admin-design-system'
 
-const { Title, Paragraph } = Typography
+const { Title, Paragraph, Text } = Typography
 const { Search } = Input
 const { Option } = Select
 const { TextArea } = Input
@@ -222,13 +223,13 @@ const ContentManagement = () => {
   }
 
   const getStatusColor = (status) => {
-    if (!status || typeof status !== 'string') return 'default'
+    if (!status || typeof status !== 'string') return AdminDesignSystem.colors.text.secondary
     const colors = {
-      'published': 'green',
-      'draft': 'orange',
-      'archived': 'gray'
+      'published': AdminDesignSystem.colors.success,
+      'draft': AdminDesignSystem.colors.warning,
+      'archived': AdminDesignSystem.colors.text.secondary
     }
-    return colors[status.toLowerCase()] || 'default'
+    return colors[status.toLowerCase()] || AdminDesignSystem.colors.text.secondary
   }
 
   const getTypeIcon = (type) => {
@@ -279,7 +280,16 @@ const ContentManagement = () => {
       render: (status) => {
         try {
           const safeStatus = (status && typeof status === 'string') ? String(status).trim() : 'unknown'
-          return <Tag color={getStatusColor(safeStatus)}>{safeStatus.toUpperCase()}</Tag>
+          return (
+            <Tag 
+              color={getStatusColor(safeStatus)}
+              style={{
+                borderRadius: AdminDesignSystem.borderRadius.sm,
+              }}
+            >
+              {safeStatus.toUpperCase()}
+            </Tag>
+          )
         } catch (error) {
           console.error('Error rendering status:', error, status)
           return <Tag color="default">UNKNOWN</Tag>
@@ -367,112 +377,160 @@ const ContentManagement = () => {
 
   return (
     <DashboardLayout userRole="admin">
-      <div>
+      <div style={{
+        padding: AdminDesignSystem.layout.content.padding,
+        background: AdminDesignSystem.colors.background,
+        minHeight: '100vh',
+        fontFamily: AdminDesignSystem.typography.fontFamily,
+      }}>
         {/* Header */}
-        <div style={{ marginBottom: 'var(--space-xl)' }}>
+        <div style={{ marginBottom: AdminDesignSystem.spacing.xl }}>
           <Title 
             level={2} 
             style={{ 
-              marginBottom: 'var(--space-sm)',
-              fontSize: 'var(--type-h1)',
-              fontWeight: 'var(--weight-bold)',
-              color: 'var(--text-primary)'
+              marginBottom: AdminDesignSystem.spacing.sm,
+              color: AdminDesignSystem.colors.text.primary,
+              fontWeight: AdminDesignSystem.typography.fontWeight.semibold,
+              fontSize: AdminDesignSystem.typography.fontSize.h2,
             }}
           >
-            📝 Content Management
+            <FileTextOutlined style={{ marginRight: AdminDesignSystem.spacing.sm, color: AdminDesignSystem.colors.primary }} />
+            Content Management
           </Title>
           <Paragraph style={{ 
-            fontSize: 'var(--type-body)',
-            color: 'var(--text-secondary)',
-            lineHeight: 'var(--line-relaxed)'
+            fontSize: AdminDesignSystem.typography.fontSize.body,
+            color: AdminDesignSystem.colors.text.secondary,
+            lineHeight: AdminDesignSystem.typography.lineHeight,
           }}>
             Manage blog posts, articles, guides, and other content across your platform.
           </Paragraph>
         </div>
 
         {/* Statistics */}
-        <Row gutter={[24, 24]} style={{ marginBottom: 'var(--space-xl)' }}>
+        <Row gutter={[AdminDesignSystem.spacing.md, AdminDesignSystem.spacing.md]} style={{ marginBottom: AdminDesignSystem.spacing.xl }}>
           <Col xs={12} sm={6}>
             <Card 
               style={{ 
-                padding: 'var(--space-lg)',
-                borderRadius: 'var(--radius-lg)',
-                boxShadow: 'var(--elev-1)'
+                borderRadius: AdminDesignSystem.borderRadius.md,
+                border: `1px solid ${AdminDesignSystem.colors.card.border}`,
+                boxShadow: AdminDesignSystem.shadows.md,
+                background: AdminDesignSystem.colors.card.background,
               }}
             >
               <Statistic
-                title="Total Content"
+                title={
+                  <Text style={{ color: AdminDesignSystem.colors.text.secondary, fontSize: AdminDesignSystem.typography.fontSize.small }}>
+                    Total Content
+                  </Text>
+                }
                 value={stats.totalContent}
-                prefix={<FileTextOutlined style={{ color: 'var(--accent-primary)' }} />}
+                prefix={<FileTextOutlined style={{ color: AdminDesignSystem.colors.primary }} />}
+                valueStyle={{ 
+                  color: AdminDesignSystem.colors.text.primary,
+                  fontSize: AdminDesignSystem.typography.fontSize.h3,
+                  fontWeight: AdminDesignSystem.typography.fontWeight.semibold,
+                }}
               />
             </Card>
           </Col>
           <Col xs={12} sm={6}>
             <Card 
               style={{ 
-                padding: 'var(--space-lg)',
-                borderRadius: 'var(--radius-lg)',
-                boxShadow: 'var(--elev-1)'
+                borderRadius: AdminDesignSystem.borderRadius.md,
+                border: `1px solid ${AdminDesignSystem.colors.card.border}`,
+                boxShadow: AdminDesignSystem.shadows.md,
+                background: AdminDesignSystem.colors.card.background,
               }}
             >
               <Statistic
-                title="Published"
+                title={
+                  <Text style={{ color: AdminDesignSystem.colors.text.secondary, fontSize: AdminDesignSystem.typography.fontSize.small }}>
+                    Published
+                  </Text>
+                }
                 value={stats.publishedContent}
-                prefix={<CheckCircleOutlined style={{ color: 'var(--success)' }} />}
+                prefix={<CheckCircleOutlined style={{ color: AdminDesignSystem.colors.success }} />}
+                valueStyle={{ 
+                  color: AdminDesignSystem.colors.success,
+                  fontSize: AdminDesignSystem.typography.fontSize.h3,
+                  fontWeight: AdminDesignSystem.typography.fontWeight.semibold,
+                }}
               />
             </Card>
           </Col>
           <Col xs={12} sm={6}>
             <Card 
               style={{ 
-                padding: 'var(--space-lg)',
-                borderRadius: 'var(--radius-lg)',
-                boxShadow: 'var(--elev-1)'
+                borderRadius: AdminDesignSystem.borderRadius.md,
+                border: `1px solid ${AdminDesignSystem.colors.card.border}`,
+                boxShadow: AdminDesignSystem.shadows.md,
+                background: AdminDesignSystem.colors.card.background,
               }}
             >
               <Statistic
-                title="Drafts"
+                title={
+                  <Text style={{ color: AdminDesignSystem.colors.text.secondary, fontSize: AdminDesignSystem.typography.fontSize.small }}>
+                    Drafts
+                  </Text>
+                }
                 value={stats.draftContent}
-                prefix={<ClockCircleOutlined style={{ color: 'var(--warning)' }} />}
+                prefix={<ClockCircleOutlined style={{ color: AdminDesignSystem.colors.warning }} />}
+                valueStyle={{ 
+                  color: AdminDesignSystem.colors.warning,
+                  fontSize: AdminDesignSystem.typography.fontSize.h3,
+                  fontWeight: AdminDesignSystem.typography.fontWeight.semibold,
+                }}
               />
             </Card>
           </Col>
           <Col xs={12} sm={6}>
             <Card 
               style={{ 
-                padding: 'var(--space-lg)',
-                borderRadius: 'var(--radius-lg)',
-                boxShadow: 'var(--elev-1)'
+                borderRadius: AdminDesignSystem.borderRadius.md,
+                border: `1px solid ${AdminDesignSystem.colors.card.border}`,
+                boxShadow: AdminDesignSystem.shadows.md,
+                background: AdminDesignSystem.colors.card.background,
               }}
             >
               <Statistic
-                title="Total Views"
+                title={
+                  <Text style={{ color: AdminDesignSystem.colors.text.secondary, fontSize: AdminDesignSystem.typography.fontSize.small }}>
+                    Total Views
+                  </Text>
+                }
                 value={stats.totalViews}
-                prefix={<EyeOutlined style={{ color: 'var(--accent-secondary)' }} />}
+                prefix={<EyeOutlined style={{ color: AdminDesignSystem.colors.primary }} />}
+                valueStyle={{ 
+                  color: AdminDesignSystem.colors.text.primary,
+                  fontSize: AdminDesignSystem.typography.fontSize.h3,
+                  fontWeight: AdminDesignSystem.typography.fontWeight.semibold,
+                }}
               />
             </Card>
           </Col>
         </Row>
 
         {/* Content Management Tabs */}
-        <Card>
+        <Card
+          style={{
+            borderRadius: AdminDesignSystem.borderRadius.md,
+            border: `1px solid ${AdminDesignSystem.colors.card.border}`,
+            boxShadow: AdminDesignSystem.shadows.md,
+            background: AdminDesignSystem.colors.card.background,
+          }}
+        >
           <Tabs defaultActiveKey="all">
             <TabPane tab="All Content" key="all">
-              <div style={{ marginBottom: 'var(--space-lg)' }}>
+              <div style={{ marginBottom: AdminDesignSystem.spacing.lg }}>
                 <Space size="middle" wrap>
                   <Search 
                     placeholder="Search content..." 
-                    style={{ 
-                      width: 200,
-                      minHeight: 'var(--touch-target-min)'
-                    }} 
+                    style={{ width: 200 }} 
+                    allowClear
                   />
                   <Select 
                     placeholder="Filter by type" 
-                    style={{ 
-                      width: 150,
-                      minHeight: 'var(--touch-target-min)'
-                    }}
+                    style={{ width: 150 }}
                   >
                     <Option value="all">All Types</Option>
                     <Option value="blog">Blog</Option>
@@ -481,10 +539,7 @@ const ContentManagement = () => {
                   </Select>
                   <Select 
                     placeholder="Filter by status" 
-                    style={{ 
-                      width: 150,
-                      minHeight: 'var(--touch-target-min)'
-                    }}
+                    style={{ width: 150 }}
                   >
                     <Option value="all">All Status</Option>
                     <Option value="published">Published</Option>
@@ -494,7 +549,11 @@ const ContentManagement = () => {
                     type="primary" 
                     icon={<PlusOutlined />} 
                     onClick={() => setModalVisible(true)}
-                    style={{ minHeight: 'var(--touch-target-min)' }}
+                    style={{
+                      borderRadius: AdminDesignSystem.borderRadius.md,
+                      backgroundColor: AdminDesignSystem.colors.primary,
+                      borderColor: AdminDesignSystem.colors.primary,
+                    }}
                   >
                     Create Content
                   </Button>

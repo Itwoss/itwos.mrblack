@@ -47,22 +47,54 @@ export const getAvatarProps = (user, options = {}) => {
   
   return {
     src: avatarUrl,
+    onError: (e) => {
+      // Silently handle image load errors - Avatar component will show fallback
+      e.target.style.display = 'none';
+    },
     ...options
   };
 };
 
 /**
  * Creates a fallback avatar with user initials
- * @param {string} name - The user's name
+ * @param {string|Object} nameOrUser - The user's name (string) or user object
  * @returns {string} - The initials (first letter of each word)
  */
-export const getUserInitials = (name) => {
-  if (!name) return 'U';
+export const getUserInitials = (nameOrUser) => {
+  // Handle null/undefined
+  if (!nameOrUser) return 'U';
   
-  return name
-    .split(' ')
-    .map(word => word.charAt(0))
-    .join('')
-    .toUpperCase()
-    .slice(0, 2);
+  // If it's an object (user), extract the name
+  let name = nameOrUser;
+  if (typeof nameOrUser === 'object' && nameOrUser !== null) {
+    name = nameOrUser.name || nameOrUser.username || nameOrUser.email || '';
+  }
+  
+  // Ensure name is a string
+  if (typeof name !== 'string') {
+    return 'U';
+  }
+  
+  // If name is empty, try email
+  if (!name && typeof nameOrUser === 'object' && nameOrUser?.email) {
+    name = nameOrUser.email.split('@')[0];
+  }
+  
+  // If still no name, return default
+  if (!name || name.trim() === '') {
+    return 'U';
+  }
+  
+  // Extract initials from name
+  try {
+    return name
+      .split(' ')
+      .map(word => word.charAt(0))
+      .join('')
+      .toUpperCase()
+      .slice(0, 2);
+  } catch (error) {
+    console.error('Error generating initials:', error, { nameOrUser, name });
+    return 'U';
+  }
 };

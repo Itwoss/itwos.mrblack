@@ -24,6 +24,7 @@ import {
   BellOutlined
 } from '@ant-design/icons'
 import { useAuth } from "../../contexts/AuthContextOptimized"
+import AdminDesignSystem from '../../styles/admin-design-system'
 
 const { Title, Paragraph, Text } = Typography
 const { Option } = Select
@@ -90,14 +91,30 @@ const AdminSettings = () => {
   }
 
   return (
-    <div>
+    <div style={{
+      padding: AdminDesignSystem.layout.content.padding,
+      background: AdminDesignSystem.colors.background,
+      minHeight: '100vh',
+      fontFamily: AdminDesignSystem.typography.fontFamily,
+    }}>
       {/* Header */}
-      <div style={{ marginBottom: '2rem' }}>
-        <Title level={2} style={{ marginBottom: '0.5rem' }}>
-          <SettingOutlined style={{ marginRight: '8px' }} />
+      <div style={{ marginBottom: AdminDesignSystem.spacing.xl }}>
+        <Title 
+          level={2} 
+          style={{ 
+            marginBottom: AdminDesignSystem.spacing.sm,
+            color: AdminDesignSystem.colors.text.primary,
+            fontWeight: AdminDesignSystem.typography.fontWeight.semibold,
+            fontSize: AdminDesignSystem.typography.fontSize.h2,
+          }}
+        >
+          <SettingOutlined style={{ marginRight: AdminDesignSystem.spacing.sm, color: AdminDesignSystem.colors.primary }} />
           System Settings
         </Title>
-        <Paragraph style={{ fontSize: '16px', color: '#666' }}>
+        <Paragraph style={{ 
+          fontSize: AdminDesignSystem.typography.fontSize.body,
+          color: AdminDesignSystem.colors.text.secondary,
+        }}>
           Configure platform settings and preferences
         </Paragraph>
       </div>
@@ -110,8 +127,21 @@ const AdminSettings = () => {
         style={{ maxWidth: '800px' }}
       >
         {/* General Settings */}
-        <Card title="General Settings" style={{ marginBottom: '1.5rem' }}>
-          <Row gutter={[16, 16]}>
+        <Card 
+          title={
+            <Text strong style={{ color: AdminDesignSystem.colors.text.primary }}>
+              General Settings
+            </Text>
+          }
+          style={{ 
+            marginBottom: AdminDesignSystem.spacing.lg,
+            borderRadius: AdminDesignSystem.borderRadius.md,
+            border: `1px solid ${AdminDesignSystem.colors.card.border}`,
+            boxShadow: AdminDesignSystem.shadows.md,
+            background: AdminDesignSystem.colors.card.background,
+          }}
+        >
+          <Row gutter={[AdminDesignSystem.spacing.md, AdminDesignSystem.spacing.md]}>
             <Col xs={24} sm={12}>
               <Form.Item
                 name="siteName"
@@ -155,8 +185,21 @@ const AdminSettings = () => {
         </Card>
 
         {/* Feature Settings */}
-        <Card title="Feature Settings" style={{ marginBottom: '1.5rem' }}>
-          <Row gutter={[16, 16]}>
+        <Card 
+          title={
+            <Text strong style={{ color: AdminDesignSystem.colors.text.primary }}>
+              Feature Settings
+            </Text>
+          }
+          style={{ 
+            marginBottom: AdminDesignSystem.spacing.lg,
+            borderRadius: AdminDesignSystem.borderRadius.md,
+            border: `1px solid ${AdminDesignSystem.colors.card.border}`,
+            boxShadow: AdminDesignSystem.shadows.md,
+            background: AdminDesignSystem.colors.card.background,
+          }}
+        >
+          <Row gutter={[AdminDesignSystem.spacing.md, AdminDesignSystem.spacing.md]}>
             <Col xs={24} sm={12}>
               <Form.Item
                 name="emailNotifications"
@@ -177,7 +220,7 @@ const AdminSettings = () => {
             </Col>
           </Row>
 
-          <Row gutter={[16, 16]}>
+          <Row gutter={[AdminDesignSystem.spacing.md, AdminDesignSystem.spacing.md]}>
             <Col xs={24} sm={12}>
               <Form.Item
                 name="maxFileSize"
@@ -210,16 +253,29 @@ const AdminSettings = () => {
         </Card>
 
         {/* Email Settings */}
-        <Card title="Email Configuration" style={{ marginBottom: '1.5rem' }}>
+        <Card 
+          title={
+            <Text strong style={{ color: AdminDesignSystem.colors.text.primary }}>
+              Email Configuration
+            </Text>
+          }
+          style={{ 
+            marginBottom: AdminDesignSystem.spacing.lg,
+            borderRadius: AdminDesignSystem.borderRadius.md,
+            border: `1px solid ${AdminDesignSystem.colors.card.border}`,
+            boxShadow: AdminDesignSystem.shadows.md,
+            background: AdminDesignSystem.colors.card.background,
+          }}
+        >
           <Alert
             message="Email Configuration"
             description="Configure SMTP settings for sending emails"
             type="info"
             showIcon
-            style={{ marginBottom: '1rem' }}
+            style={{ marginBottom: AdminDesignSystem.spacing.md }}
           />
           
-          <Row gutter={[16, 16]}>
+          <Row gutter={[AdminDesignSystem.spacing.md, AdminDesignSystem.spacing.md]}>
             <Col xs={24} sm={12}>
               <Form.Item
                 name={['emailSettings', 'smtpHost']}
@@ -238,7 +294,7 @@ const AdminSettings = () => {
             </Col>
           </Row>
 
-          <Row gutter={[16, 16]}>
+          <Row gutter={[AdminDesignSystem.spacing.md, AdminDesignSystem.spacing.md]}>
             <Col xs={24} sm={12}>
               <Form.Item
                 name={['emailSettings', 'smtpUser']}
@@ -259,19 +315,34 @@ const AdminSettings = () => {
         </Card>
 
         {/* Action Buttons */}
-        <Card>
+        <Card
+          style={{
+            borderRadius: AdminDesignSystem.borderRadius.md,
+            border: `1px solid ${AdminDesignSystem.colors.card.border}`,
+            boxShadow: AdminDesignSystem.shadows.md,
+            background: AdminDesignSystem.colors.card.background,
+          }}
+        >
           <Space>
             <Button 
               type="primary" 
               htmlType="submit" 
               icon={<SaveOutlined />}
               loading={loading}
+              style={{
+                borderRadius: AdminDesignSystem.borderRadius.md,
+                backgroundColor: AdminDesignSystem.colors.primary,
+                borderColor: AdminDesignSystem.colors.primary,
+              }}
             >
               Save Settings
             </Button>
             <Button 
               icon={<ReloadOutlined />}
               onClick={handleReset}
+              style={{
+                borderRadius: AdminDesignSystem.borderRadius.md,
+              }}
             >
               Reset
             </Button>

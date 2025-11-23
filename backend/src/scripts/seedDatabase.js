@@ -101,7 +101,7 @@ const createDemoUsers = async () => {
 const createSampleProducts = async () => {
   // Demo products removed - no sample products will be created
   console.log('📦 Sample products creation disabled');
-  return [];
+    return [];
 };
 
 // Create sample notifications

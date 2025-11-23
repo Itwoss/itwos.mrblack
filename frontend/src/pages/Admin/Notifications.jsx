@@ -18,6 +18,7 @@ import {
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from "../../contexts/AuthContextOptimized"
 import DashboardLayout from '../../components/DashboardLayout'
+import AdminDesignSystem from '../../styles/admin-design-system'
 
 const { Title, Paragraph } = Typography
 const { Search } = Input

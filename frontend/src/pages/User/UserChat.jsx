@@ -30,7 +30,8 @@ import {
   BgColorsOutlined,
   EditOutlined,
   DeleteOutlined,
-  CloseOutlined
+  CloseOutlined,
+  UndoOutlined
 } from '@ant-design/icons'
 import { useAuth } from "../../contexts/AuthContextOptimized"
 import api from '../../services/api'
@@ -68,6 +69,11 @@ const UserChat = () => {
   const [editingMessageId, setEditingMessageId] = useState(null)
   const [editText, setEditText] = useState('')
   const [hoveredMessageId, setHoveredMessageId] = useState(null)
+  const [otherParticipantBanner, setOtherParticipantBanner] = useState(null)
+  const [otherParticipantProfile, setOtherParticipantProfile] = useState(null)
+  const [failedAudioFiles, setFailedAudioFiles] = useState(new Set())
+  const [replyingTo, setReplyingTo] = useState(null)
+  const [showThemeMenu, setShowThemeMenu] = useState(false)
 
   // iOS Messages Style Themes
   const chatThemes = {
@@ -217,6 +223,40 @@ const UserChat = () => {
   const typingTimeoutRef = useRef(null)
   const typingDebounceRef = useRef(null)
 
+  // Fetch other participant's profile and equipped banner
+  const fetchOtherParticipantBanner = async (otherParticipant) => {
+    if (!otherParticipant || !isAuthenticated) {
+      setOtherParticipantBanner(null)
+      setOtherParticipantProfile(null)
+      return
+    }
+    
+    try {
+      const participantId = otherParticipant._id || otherParticipant
+      console.log('🎨 Fetching other participant banner for:', participantId)
+      
+      const userResponse = await api.get(`/users/${participantId}`)
+      console.log('🎨 User profile response:', userResponse.data)
+      
+      if (userResponse.data.success && userResponse.data.user) {
+        const userProfile = userResponse.data.user
+        setOtherParticipantProfile(userProfile)
+        
+        if (userProfile.equippedBanner) {
+          console.log('🎨 Other participant equipped banner found:', userProfile.equippedBanner)
+          setOtherParticipantBanner(userProfile.equippedBanner)
+        } else {
+          console.log('🎨 Other participant has no equipped banner')
+          setOtherParticipantBanner(null)
+        }
+      }
+    } catch (error) {
+      console.error('🎨 Error fetching other participant banner:', error)
+      setOtherParticipantBanner(null)
+      setOtherParticipantProfile(null)
+    }
+  }
+
   useEffect(() => {
     let isMounted = true
     
@@ -259,6 +299,15 @@ const UserChat = () => {
   useEffect(() => {
     if (selectedRoom && isAuthenticated && currentUser) {
       loadMessages(selectedRoom._id)
+      
+      // Fetch other participant's banner when room is selected
+      const otherParticipant = getOtherParticipant(selectedRoom)
+      if (otherParticipant) {
+        fetchOtherParticipantBanner(otherParticipant)
+      } else {
+        setOtherParticipantBanner(null)
+        setOtherParticipantProfile(null)
+      }
     }
   }, [selectedRoom, isAuthenticated, currentUser])
 
@@ -646,9 +695,14 @@ const UserChat = () => {
       if (response.data.success) {
         const messagesList = response.data.messages || []
         console.log(`✅ Loaded ${messagesList.length} messages`)
-        // Reverse to show oldest first (or adjust based on your preference)
-        setMessages(messagesList.reverse())
-        // Scroll to bottom after messages load
+        // Sort messages: oldest first (top), newest last (bottom) - Instagram style
+        const sortedMessages = messagesList.sort((a, b) => {
+          const dateA = new Date(a.createdAt || 0)
+          const dateB = new Date(b.createdAt || 0)
+          return dateA - dateB // Oldest first
+        })
+        setMessages(sortedMessages)
+        // Scroll to bottom after messages load (newest messages)
         setTimeout(() => scrollToBottom(), 100)
       } else {
         console.warn('⚠️ API returned success=false:', response.data)
@@ -725,13 +779,19 @@ const UserChat = () => {
       if (!payload.text?.trim()) return
       messageData = {
         text: payload.text.trim(),
-        messageType: 'text'
+        messageType: 'text',
+        replyTo: replyingTo?._id || null
       }
+      // Clear reply after sending
+      setReplyingTo(null)
     } else if (payload.type === 'sticker') {
       messageData = {
         text: payload.sticker,
-        messageType: 'sticker'
+        messageType: 'sticker',
+        replyTo: replyingTo?._id || null
       }
+      // Clear reply after sending
+      setReplyingTo(null)
     } else if (payload.type === 'image') {
       if (!payload.file) return
       // Upload image first, then send message with image URL
@@ -1329,12 +1389,55 @@ const UserChat = () => {
               display: 'flex',
               alignItems: 'center',
               gap: '12px',
-              background: currentTheme.headerBg,
-              backdropFilter: 'blur(20px) saturate(180%)',
-              WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+              background: otherParticipantBanner 
+                ? (() => {
+                    const baseUrl = (import.meta.env.VITE_API_URL || 'http://localhost:7000').replace('/api', '')
+                    const imageUrl = otherParticipantBanner.imageUrl?.startsWith('http') 
+                      ? otherParticipantBanner.imageUrl 
+                      : `${baseUrl}${otherParticipantBanner.imageUrl}`
+                    console.log('🎨 Other participant banner image URL:', imageUrl, 'Base URL:', baseUrl, 'Image URL from banner:', otherParticipantBanner.imageUrl)
+                    return `url(${imageUrl}) center/cover no-repeat`
+                  })()
+                : currentTheme.headerBg,
+              backgroundSize: otherParticipantBanner ? 'cover' : undefined,
+              backdropFilter: otherParticipantBanner ? 'blur(0px)' : 'blur(20px) saturate(180%)',
+              WebkitBackdropFilter: otherParticipantBanner ? 'blur(0px)' : 'blur(20px) saturate(180%)',
               position: 'relative',
-              zIndex: 10
+              zIndex: 10,
+              minHeight: '60px',
+              overflow: 'hidden'
             }}>
+              {/* Banner overlay for better text readability */}
+              {otherParticipantBanner && (
+                <>
+                  <div style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    background: 'linear-gradient(to bottom, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0.15) 50%, rgba(0,0,0,0.1) 100%)',
+                    zIndex: 1
+                  }} />
+                  {/* Debug: Show banner name in dev mode */}
+                  {import.meta.env.DEV && (
+                    <div style={{
+                      position: 'absolute',
+                      top: '4px',
+                      left: '4px',
+                      background: 'rgba(0,0,0,0.6)',
+                      color: '#fff',
+                      padding: '2px 6px',
+                      borderRadius: '4px',
+                      fontSize: '10px',
+                      zIndex: 3
+                    }}>
+                      Banner: {otherParticipantBanner.name}
+                    </div>
+                  )}
+                </>
+              )}
+              <div style={{ position: 'relative', zIndex: 2, display: 'flex', alignItems: 'center', gap: '12px', width: '100%' }}>
               <div style={{ position: 'relative' }}>
                 <Avatar
                   src={getRoomAvatar(selectedRoom)}
@@ -1363,87 +1466,88 @@ const UserChat = () => {
               </div>
               <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <div>
-                <Text strong style={{ fontSize: '14px', display: 'block' }}>
+                <Text strong style={{ 
+                  fontSize: '14px', 
+                  display: 'block',
+                  color: otherParticipantBanner ? '#fff' : undefined,
+                  textShadow: otherParticipantBanner ? '0 1px 2px rgba(0,0,0,0.5)' : undefined
+                }}>
                   {getRoomDisplayName(selectedRoom)}
                 </Text>
                 {(() => {
                   const status = getOtherParticipantStatus(selectedRoom)
                   return status?.activeStatus && (
-                    <Text type="secondary" style={{ fontSize: '12px' }}>
+                    <Text type="secondary" style={{ 
+                      fontSize: '12px',
+                      color: otherParticipantBanner ? 'rgba(255,255,255,0.9)' : undefined,
+                      textShadow: otherParticipantBanner ? '0 1px 2px rgba(0,0,0,0.5)' : undefined
+                    }}>
                       {status.activeStatus}
                     </Text>
                   )
                 })()}
                 </div>
-                <Popover
-                  content={
-                    <div style={{ width: '240px', maxHeight: '400px', overflowY: 'auto' }}>
-                      <div style={{ 
-                        marginBottom: '12px', 
-                        fontWeight: 600, 
-                        fontSize: '15px',
-                        fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif'
-                      }}>
-                        Choose Theme
-                      </div>
-                      <Space direction="vertical" style={{ width: '100%' }} size="small">
-                        {Object.keys(chatThemes).map((themeId) => (
-                          <Button
-                            key={themeId}
-                            type={chatTheme === parseInt(themeId) ? 'primary' : 'default'}
-                            block
-                            onClick={() => handleThemeChange(parseInt(themeId))}
-                            style={{
-                              height: '44px',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'space-between',
-                              background: chatTheme === parseInt(themeId) 
-                                ? chatThemes[themeId].ownMessageBg 
-                                : 'transparent',
-                              border: chatTheme === parseInt(themeId) 
-                                ? 'none' 
-                                : '0.5px solid rgba(0,0,0,0.1)',
-                              borderRadius: '10px',
-                              fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif',
-                              fontSize: '15px',
-                              fontWeight: chatTheme === parseInt(themeId) ? 600 : 400,
-                              color: chatTheme === parseInt(themeId) ? '#fff' : '#000',
-                              transition: 'all 0.2s ease-out'
-                            }}
-                          >
-                            <span>{chatThemes[themeId].name}</span>
-                            <div
-                              style={{
-                                width: '24px',
-                                height: '24px',
-                                borderRadius: '6px',
-                                background: chatThemes[themeId].background,
-                                border: '0.5px solid rgba(0,0,0,0.1)',
-                                boxShadow: '0 1px 2px rgba(0,0,0,0.1)'
-                              }}
-                            />
-                          </Button>
-                        ))}
-                      </Space>
-                    </div>
-                  }
-                  title={null}
-                  trigger="click"
-                  placement="bottomRight"
-                >
-                  <Button
-                    type="text"
-                    icon={<BgColorsOutlined />}
-                    style={{ padding: '4px 8px' }}
-                  />
-                </Popover>
               </div>
-              <Button 
-                type="text"
-                icon={<MoreOutlined />}
-                style={{ padding: '4px' }}
-              />
+              <Dropdown
+                menu={{
+                  items: [
+                    {
+                      key: 'themes',
+                      label: 'Themes',
+                      icon: <BgColorsOutlined />,
+                      children: Object.keys(chatThemes).map((themeId) => ({
+                        key: `theme-${themeId}`,
+                        label: (
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                            <span>{chatThemes[themeId].name}</span>
+                            {chatTheme === parseInt(themeId) && (
+                              <CheckCircleOutlined style={{ color: '#52c41a' }} />
+                            )}
+                          </div>
+                        ),
+                        onClick: () => handleThemeChange(parseInt(themeId))
+                      }))
+                    },
+                    {
+                      type: 'divider'
+                    },
+                    {
+                      key: 'delete',
+                      label: 'Delete Conversation',
+                      icon: <DeleteOutlined />,
+                      danger: true,
+                      onClick: () => {
+                        Modal.confirm({
+                          title: 'Delete conversation?',
+                          content: 'This conversation will be permanently deleted. This action cannot be undone.',
+                          okText: 'Delete',
+                          okType: 'danger',
+                          cancelText: 'Cancel',
+                          onOk: async () => {
+                            try {
+                              // TODO: Implement delete conversation API call
+                              message.success('Conversation deleted')
+                              setSelectedRoom(null)
+                              loadChatRooms()
+                            } catch (error) {
+                              message.error('Failed to delete conversation')
+                            }
+                          }
+                        })
+                      }
+                    }
+                  ]
+                }}
+                trigger={['click']}
+                placement="bottomRight"
+              >
+                <Button 
+                  type="text"
+                  icon={<MoreOutlined />}
+                  style={{ padding: '4px' }}
+                />
+              </Dropdown>
+              </div>
             </div>
 
             {/* iOS Style Messages Area */}
@@ -1557,7 +1661,45 @@ const UserChat = () => {
                             fontWeight: 400,
                             transition: 'transform 0.2s ease-out'
                           }}
-                        >
+                          >
+                          {/* Reply Preview */}
+                          {msg.replyTo && (() => {
+                            const repliedMessage = messages.find(m => m._id === msg.replyTo)
+                            if (!repliedMessage) return null
+                            const isRepliedOwn = repliedMessage.sender?._id?.toString() === currentUser?._id?.toString()
+                            return (
+                              <div style={{
+                                marginBottom: '8px',
+                                padding: '6px 10px',
+                                background: isOwnMessage 
+                                  ? 'rgba(255,255,255,0.2)' 
+                                  : 'rgba(0,0,0,0.05)',
+                                borderRadius: '6px',
+                                borderLeft: `2px solid ${currentTheme.accentColor || '#0A84FF'}`,
+                                fontSize: '13px'
+                              }}>
+                                <div style={{ 
+                                  fontSize: '11px', 
+                                  fontWeight: 600, 
+                                  color: isOwnMessage ? 'rgba(255,255,255,0.9)' : '#666',
+                                  marginBottom: '2px'
+                                }}>
+                                  {isRepliedOwn ? 'You' : getRoomDisplayName(selectedRoom)}
+                                </div>
+                                <div style={{ 
+                                  fontSize: '12px', 
+                                  color: isOwnMessage ? 'rgba(255,255,255,0.7)' : '#999',
+                                  overflow: 'hidden',
+                                  textOverflow: 'ellipsis',
+                                  whiteSpace: 'nowrap'
+                                }}>
+                                  {repliedMessage.text || repliedMessage.message || 
+                                   (repliedMessage.messageType === 'image' ? '📷 Image' : 
+                                    repliedMessage.messageType === 'audio' ? '🎵 Audio' : 'Message')}
+                                </div>
+                              </div>
+                            )
+                          })()}
                           {/* Show deleted message indicator */}
                           {msg.isDeleted ? (
                             <div style={{ 
@@ -1621,94 +1763,116 @@ const UserChat = () => {
                               )}
                               
                               {/* Image */}
-                              {msg.messageType === 'image' && msg.imageUrl && (
-                                <div style={{ marginBottom: msg.text ? '8px' : '0' }}>
-                                  <Image
-                                    src={
-                                      msg.imageUrl.startsWith('http') 
-                                        ? msg.imageUrl 
-                                        : `${api.defaults.baseURL.replace('/api', '')}${msg.imageUrl}`
-                                    }
-                                    alt="Shared image"
-                                    style={{
-                                      maxWidth: '280px',
-                                      maxHeight: '280px',
-                                      borderRadius: '12px',
-                                      objectFit: 'cover',
-                                      display: 'block'
-                                    }}
-                                    preview={{
-                                      mask: 'View'
-                                    }}
-                                  />
-                                </div>
-                              )}
+                              {msg.messageType === 'image' && msg.imageUrl && (() => {
+                                // Construct image URL properly
+                                const baseUrl = (import.meta.env.VITE_API_URL || 'http://localhost:7000').replace('/api', '')
+                                const imageSrc = msg.imageUrl.startsWith('http') 
+                                  ? msg.imageUrl 
+                                  : `${baseUrl}${msg.imageUrl.startsWith('/') ? msg.imageUrl : '/' + msg.imageUrl}`
+                                
+                                console.log('🖼️ Image URL:', imageSrc, 'Original:', msg.imageUrl)
+                                
+                                return (
+                                  <div style={{ marginBottom: msg.text ? '8px' : '0' }}>
+                                    <Image
+                                      src={imageSrc}
+                                      alt="Shared image"
+                                      onError={(e) => {
+                                        console.error('🖼️ Image load error:', imageSrc)
+                                        e.target.style.display = 'none'
+                                      }}
+                                      style={{
+                                        maxWidth: '280px',
+                                        maxHeight: '280px',
+                                        borderRadius: '12px',
+                                        objectFit: 'cover',
+                                        display: 'block'
+                                      }}
+                                      preview={{
+                                        mask: 'View'
+                                      }}
+                                      fallback="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
+                                    />
+                                  </div>
+                                )
+                              })()}
                               
                               {/* Audio */}
-                              {msg.messageType === 'audio' && msg.audioUrl && (
+                              {msg.messageType === 'audio' && msg.audioUrl && !failedAudioFiles.has(msg._id) && (() => {
+                                // Construct audio URL properly
+                                const baseUrl = (import.meta.env.VITE_API_URL || 'http://localhost:7000').replace('/api', '')
+                                const audioSrc = msg.audioUrl.startsWith('http') 
+                                  ? msg.audioUrl 
+                                  : `${baseUrl}${msg.audioUrl.startsWith('/') ? msg.audioUrl : '/' + msg.audioUrl}`
+                                
+                                return (
+                                  <div style={{ 
+                                    marginBottom: msg.text ? '8px' : '0', 
+                                    minWidth: '200px',
+                                    maxWidth: '280px'
+                                  }}>
+                                    <audio
+                                      controls
+                                      controlsList="nodownload"
+                                      preload="metadata"
+                                      onError={(e) => {
+                                        console.error('Audio load error:', audioSrc, 'Original URL:', msg.audioUrl)
+                                        setFailedAudioFiles(prev => new Set([...prev, msg._id]))
+                                        e.target.style.display = 'none'
+                                      }}
+                                      onLoadStart={() => {
+                                        console.log('🎵 Loading audio:', audioSrc)
+                                      }}
+                                      onCanPlay={() => {
+                                        console.log('✅ Audio can play:', audioSrc)
+                                      }}
+                                      style={{
+                                        width: '100%',
+                                        height: '36px',
+                                        outline: 'none',
+                                        borderRadius: '8px'
+                                      }}
+                                    >
+                                      <source src={audioSrc} type="audio/wav" />
+                                      <source src={audioSrc} type="audio/wave" />
+                                      <source src={audioSrc} type="audio/mpeg" />
+                                      <source src={audioSrc} type="audio/mp3" />
+                                      Your browser does not support the audio element.
+                                    </audio>
+                                    {msg.audioTitle && (
+                                      <div style={{ 
+                                        fontSize: '12px', 
+                                        opacity: 0.9, 
+                                        marginTop: '4px',
+                                        fontWeight: 500,
+                                        color: isOwnMessage ? '#fff' : '#262626'
+                                      }}>
+                                        {msg.audioTitle}
+                                      </div>
+                                    )}
+                                    {msg.audioDuration && (
+                                      <div style={{ 
+                                        fontSize: '11px', 
+                                        opacity: 0.7, 
+                                        marginTop: '2px',
+                                        color: isOwnMessage ? '#fff' : '#666'
+                                      }}>
+                                        {Math.floor(msg.audioDuration)}s
+                                      </div>
+                                    )}
+                                  </div>
+                                )
+                              })()}
+                              {/* Show error message if audio failed to load */}
+                              {msg.messageType === 'audio' && msg.audioUrl && failedAudioFiles.has(msg._id) && (
                                 <div style={{ 
-                                  marginBottom: msg.text ? '8px' : '0', 
-                                  minWidth: '200px',
-                                  maxWidth: '280px'
+                                  fontSize: '13px', 
+                                  opacity: 0.7, 
+                                  fontStyle: 'italic',
+                                  color: isOwnMessage ? '#fff' : '#8E8E93',
+                                  marginTop: '4px'
                                 }}>
-                                  <audio
-                                    controls
-                                    controlsList="nodownload"
-                                    preload="metadata"
-                                    style={{
-                                      width: '100%',
-                                      height: '36px',
-                                      outline: 'none',
-                                      borderRadius: '8px'
-                                    }}
-                                  >
-                                    <source 
-                                      src={
-                                        msg.audioUrl.startsWith('http') 
-                                          ? msg.audioUrl 
-                                          : `${api.defaults.baseURL.replace('/api', '')}${msg.audioUrl}`
-                                      } 
-                                      type="audio/wav"
-                                    />
-                                    <source 
-                                      src={
-                                        msg.audioUrl.startsWith('http') 
-                                          ? msg.audioUrl 
-                                          : `${api.defaults.baseURL.replace('/api', '')}${msg.audioUrl}`
-                                      } 
-                                      type="audio/wave"
-                                    />
-                                    <source 
-                                      src={
-                                        msg.audioUrl.startsWith('http') 
-                                          ? msg.audioUrl 
-                                          : `${api.defaults.baseURL.replace('/api', '')}${msg.audioUrl}`
-                                      } 
-                                      type="audio/mpeg"
-                                    />
-                                    Your browser does not support the audio element.
-                                  </audio>
-                                  {msg.audioTitle && (
-                                    <div style={{ 
-                                      fontSize: '12px', 
-                                      opacity: 0.9, 
-                                      marginTop: '4px',
-                                      fontWeight: 500,
-                                      color: isOwnMessage ? '#fff' : '#262626'
-                                    }}>
-                                      {msg.audioTitle}
-                                    </div>
-                                  )}
-                                  {msg.audioDuration && (
-                                    <div style={{ 
-                                      fontSize: '11px', 
-                                      opacity: 0.7, 
-                                      marginTop: '2px',
-                                      color: isOwnMessage ? '#fff' : '#666'
-                                    }}>
-                                      {Math.floor(msg.audioDuration)}s
-                                    </div>
-                                  )}
+                                  Audio file not available
                                 </div>
                               )}
                               
@@ -1737,6 +1901,12 @@ const UserChat = () => {
                           <Dropdown
                             menu={{
                               items: [
+                                {
+                                  key: 'reply',
+                                  label: 'Reply',
+                                  icon: <UndoOutlined />,
+                                  onClick: () => setReplyingTo(msg)
+                                },
                                 {
                                   key: 'edit',
                                   label: 'Edit',
@@ -1871,10 +2041,51 @@ const UserChat = () => {
               position: 'relative',
               zIndex: 10
             }}>
+              {/* Reply Preview */}
+              {replyingTo && (
+                <div style={{
+                  marginBottom: '8px',
+                  padding: '8px 12px',
+                  background: 'rgba(0,0,0,0.05)',
+                  borderRadius: '8px',
+                  borderLeft: `3px solid ${currentTheme.accentColor || '#0A84FF'}`,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: '8px'
+                }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ 
+                      fontSize: '12px', 
+                      fontWeight: 600, 
+                      color: currentTheme.accentColor || '#0A84FF',
+                      marginBottom: '4px'
+                    }}>
+                      Replying to {replyingTo.sender?._id?.toString() === currentUser?._id?.toString() ? 'yourself' : getRoomDisplayName(selectedRoom)}
+                    </div>
+                    <div style={{ 
+                      fontSize: '13px', 
+                      color: '#666',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap'
+                    }}>
+                      {replyingTo.text || replyingTo.message || (replyingTo.messageType === 'image' ? '📷 Image' : replyingTo.messageType === 'audio' ? '🎵 Audio' : 'Message')}
+                    </div>
+                  </div>
+                  <Button
+                    type="text"
+                    icon={<CloseOutlined />}
+                    size="small"
+                    onClick={() => setReplyingTo(null)}
+                    style={{ flexShrink: 0 }}
+                  />
+                </div>
+              )}
               <ChatInputWithMedia
                 onSend={handleSendMessage}
                 disabled={sending || !selectedRoom}
-                  placeholder="Message..."
+                placeholder="Message..."
                 theme={currentTheme}
               />
             </div>
@@ -2051,6 +2262,59 @@ const UserChat = () => {
               </div>
             )}
           </div>
+        </Space>
+      </Modal>
+
+      {/* Theme Selection Modal */}
+      <Modal
+        title="Choose Theme"
+        open={showThemeMenu}
+        onCancel={() => setShowThemeMenu(false)}
+        footer={null}
+        width={320}
+      >
+        <Space direction="vertical" style={{ width: '100%' }} size="small">
+          {Object.keys(chatThemes).map((themeId) => (
+            <Button
+              key={themeId}
+              type={chatTheme === parseInt(themeId) ? 'primary' : 'default'}
+              block
+              onClick={() => {
+                handleThemeChange(parseInt(themeId))
+                setShowThemeMenu(false)
+              }}
+              style={{
+                height: '44px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                background: chatTheme === parseInt(themeId) 
+                  ? chatThemes[themeId].ownMessageBg 
+                  : 'transparent',
+                border: chatTheme === parseInt(themeId) 
+                  ? 'none' 
+                  : '0.5px solid rgba(0,0,0,0.1)',
+                borderRadius: '10px',
+                fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif',
+                fontSize: '15px',
+                fontWeight: chatTheme === parseInt(themeId) ? 600 : 400,
+                color: chatTheme === parseInt(themeId) ? '#fff' : '#000',
+                transition: 'all 0.2s ease-out'
+              }}
+            >
+              <span>{chatThemes[themeId].name}</span>
+              <div
+                style={{
+                  width: '24px',
+                  height: '24px',
+                  borderRadius: '6px',
+                  background: chatThemes[themeId].background,
+                  border: '0.5px solid rgba(0,0,0,0.1)',
+                  boxShadow: '0 1px 2px rgba(0,0,0,0.1)'
+                }}
+              />
+            </Button>
+          ))}
         </Space>
       </Modal>
       </div>

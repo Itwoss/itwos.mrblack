@@ -31,8 +31,9 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from "../../contexts/AuthContextOptimized"
 import DashboardLayout from '../../components/DashboardLayout'
 import { getUserAvatarUrl, getUserInitials } from '../../utils/avatarUtils'
+import AdminDesignSystem from '../../styles/admin-design-system'
 
-const { Title, Paragraph } = Typography
+const { Title, Paragraph, Text } = Typography
 const { Search } = Input
 const { Option } = Select
 
@@ -366,12 +367,17 @@ const UserManagement = () => {
       dataIndex: 'role',
       key: 'role',
       render: (role) => {
-        let color = 'blue'
-        if (role === 'admin') color = 'red'
-        if (role === 'superadmin') color = 'purple'
+        let color = AdminDesignSystem.colors.primary
+        if (role === 'admin') color = AdminDesignSystem.colors.error
+        if (role === 'superadmin') color = AdminDesignSystem.colors.secondary
         
         return (
-          <Tag color={color}>
+          <Tag 
+            color={color}
+            style={{
+              borderRadius: AdminDesignSystem.borderRadius.sm,
+            }}
+          >
             {role === 'superadmin' ? 'SUPER ADMIN' : role.toUpperCase()}
           </Tag>
         )
@@ -391,7 +397,12 @@ const UserManagement = () => {
           return <Tag color="gray">INACTIVE</Tag>
         } else {
           return (
-            <Tag color={isOnline ? 'green' : 'blue'}>
+            <Tag 
+              color={isOnline ? AdminDesignSystem.colors.success : AdminDesignSystem.colors.text.secondary}
+              style={{
+                borderRadius: AdminDesignSystem.borderRadius.sm,
+              }}
+            >
               {isOnline ? 'ONLINE' : 'OFFLINE'}
             </Tag>
           )
@@ -408,7 +419,11 @@ const UserManagement = () => {
       title: 'Total Spent',
       dataIndex: 'totalSpent',
       key: 'totalSpent',
-      render: (amount) => `$${amount || 0}`
+      render: (amount) => (
+        <strong style={{ color: AdminDesignSystem.colors.success }}>
+          {formatCurrency(amount || 0)}
+        </strong>
+      )
     },
     {
       title: 'Last Active',
@@ -502,79 +517,200 @@ const UserManagement = () => {
   // Debug logging
   console.log('🔄 UserManagement: Component render - users:', users.length, 'loading:', loading, 'stats:', stats)
 
+  // Format currency
+  const formatCurrency = (amount) => {
+    return new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: 'INR',
+      minimumFractionDigits: 0
+    }).format(amount / 100) // Backend stores in paise
+  }
+
   return (
     <DashboardLayout userRole="admin">
-      <div>
+      <div style={{
+        padding: AdminDesignSystem.layout.content.padding,
+        background: AdminDesignSystem.colors.background,
+        minHeight: '100vh',
+        fontFamily: AdminDesignSystem.typography.fontFamily,
+      }}>
         {/* Header */}
-        <div style={{ marginBottom: '2rem' }}>
-          <Title level={2} style={{ marginBottom: '0.5rem' }}>
-            👥 User Management
+        <div style={{ marginBottom: AdminDesignSystem.spacing.xl }}>
+          <Title 
+            level={2} 
+            style={{ 
+              marginBottom: AdminDesignSystem.spacing.sm,
+              color: AdminDesignSystem.colors.text.primary,
+              fontWeight: AdminDesignSystem.typography.fontWeight.semibold,
+              fontSize: AdminDesignSystem.typography.fontSize.h2,
+            }}
+          >
+            <TeamOutlined style={{ marginRight: AdminDesignSystem.spacing.sm, color: AdminDesignSystem.colors.primary }} />
+            User Management
           </Title>
-          <Paragraph>
+          <Paragraph style={{ 
+            color: AdminDesignSystem.colors.text.secondary,
+            fontSize: AdminDesignSystem.typography.fontSize.body,
+          }}>
             Manage users, roles, and permissions across your platform.
           </Paragraph>
         </div>
 
         {/* Enhanced Statistics Dashboard */}
-        <Row gutter={[16, 16]} style={{ marginBottom: '2rem' }}>
+        <Row gutter={[AdminDesignSystem.spacing.md, AdminDesignSystem.spacing.md]} style={{ marginBottom: AdminDesignSystem.spacing.xl }}>
           <Col xs={12} sm={6} md={4} lg={3}>
-            <Card hoverable>
+            <Card
+              hoverable
+              style={{
+                borderRadius: AdminDesignSystem.borderRadius.md,
+                border: `1px solid ${AdminDesignSystem.colors.card.border}`,
+                boxShadow: AdminDesignSystem.shadows.md,
+                background: AdminDesignSystem.colors.card.background,
+              }}
+            >
               <Statistic
-                title="Total Users"
+                title={
+                  <Text style={{ color: AdminDesignSystem.colors.text.secondary, fontSize: AdminDesignSystem.typography.fontSize.small }}>
+                    Total Users
+                  </Text>
+                }
                 value={stats.totalUsers}
-                prefix={<TeamOutlined />}
-                valueStyle={{ color: '#1890ff' }}
+                prefix={<TeamOutlined style={{ color: AdminDesignSystem.colors.primary }} />}
+                valueStyle={{ 
+                  color: AdminDesignSystem.colors.primary,
+                  fontSize: AdminDesignSystem.typography.fontSize.h3,
+                  fontWeight: AdminDesignSystem.typography.fontWeight.semibold,
+                }}
               />
             </Card>
           </Col>
           <Col xs={12} sm={6} md={4} lg={3}>
-            <Card hoverable>
+            <Card
+              hoverable
+              style={{
+                borderRadius: AdminDesignSystem.borderRadius.md,
+                border: `1px solid ${AdminDesignSystem.colors.card.border}`,
+                boxShadow: AdminDesignSystem.shadows.md,
+                background: AdminDesignSystem.colors.card.background,
+              }}
+            >
               <Statistic
-                title="Online Users"
+                title={
+                  <Text style={{ color: AdminDesignSystem.colors.text.secondary, fontSize: AdminDesignSystem.typography.fontSize.small }}>
+                    Online Users
+                  </Text>
+                }
                 value={stats.onlineUsers}
-                prefix={<CheckCircleOutlined />}
-                valueStyle={{ color: '#52c41a' }}
+                prefix={<CheckCircleOutlined style={{ color: AdminDesignSystem.colors.success }} />}
+                valueStyle={{ 
+                  color: AdminDesignSystem.colors.success,
+                  fontSize: AdminDesignSystem.typography.fontSize.h3,
+                  fontWeight: AdminDesignSystem.typography.fontWeight.semibold,
+                }}
               />
             </Card>
           </Col>
           <Col xs={12} sm={6} md={4} lg={3}>
-            <Card hoverable>
+            <Card
+              hoverable
+              style={{
+                borderRadius: AdminDesignSystem.borderRadius.md,
+                border: `1px solid ${AdminDesignSystem.colors.card.border}`,
+                boxShadow: AdminDesignSystem.shadows.md,
+                background: AdminDesignSystem.colors.card.background,
+              }}
+            >
               <Statistic
-                title="Offline Users"
+                title={
+                  <Text style={{ color: AdminDesignSystem.colors.text.secondary, fontSize: AdminDesignSystem.typography.fontSize.small }}>
+                    Offline Users
+                  </Text>
+                }
                 value={stats.offlineUsers}
-                prefix={<StopOutlined />}
-                valueStyle={{ color: '#ff4d4f' }}
+                prefix={<StopOutlined style={{ color: AdminDesignSystem.colors.text.secondary }} />}
+                valueStyle={{ 
+                  color: AdminDesignSystem.colors.text.secondary,
+                  fontSize: AdminDesignSystem.typography.fontSize.h3,
+                  fontWeight: AdminDesignSystem.typography.fontWeight.semibold,
+                }}
               />
             </Card>
           </Col>
           <Col xs={12} sm={6} md={4} lg={3}>
-            <Card hoverable>
+            <Card
+              hoverable
+              style={{
+                borderRadius: AdminDesignSystem.borderRadius.md,
+                border: `1px solid ${AdminDesignSystem.colors.card.border}`,
+                boxShadow: AdminDesignSystem.shadows.md,
+                background: AdminDesignSystem.colors.card.background,
+              }}
+            >
               <Statistic
-                title="Last 30 Days"
+                title={
+                  <Text style={{ color: AdminDesignSystem.colors.text.secondary, fontSize: AdminDesignSystem.typography.fontSize.small }}>
+                    Last 30 Days
+                  </Text>
+                }
                 value={stats.last30DaysUsers}
-                prefix={<CalendarOutlined />}
-                valueStyle={{ color: '#722ed1' }}
+                prefix={<CalendarOutlined style={{ color: AdminDesignSystem.colors.primary }} />}
+                valueStyle={{ 
+                  color: AdminDesignSystem.colors.text.primary,
+                  fontSize: AdminDesignSystem.typography.fontSize.h3,
+                  fontWeight: AdminDesignSystem.typography.fontWeight.semibold,
+                }}
               />
             </Card>
           </Col>
           <Col xs={12} sm={6} md={4} lg={3}>
-            <Card hoverable>
+            <Card
+              hoverable
+              style={{
+                borderRadius: AdminDesignSystem.borderRadius.md,
+                border: `1px solid ${AdminDesignSystem.colors.card.border}`,
+                boxShadow: AdminDesignSystem.shadows.md,
+                background: AdminDesignSystem.colors.card.background,
+              }}
+            >
               <Statistic
-                title="Total Spent"
-                value={stats.totalSpent}
-                prefix={<DollarOutlined />}
-                valueStyle={{ color: '#fa8c16' }}
-                formatter={(value) => `$${value.toLocaleString()}`}
+                title={
+                  <Text style={{ color: AdminDesignSystem.colors.text.secondary, fontSize: AdminDesignSystem.typography.fontSize.small }}>
+                    Total Spent
+                  </Text>
+                }
+                value={formatCurrency(stats.totalSpent || 0)}
+                prefix={<DollarOutlined style={{ color: AdminDesignSystem.colors.success }} />}
+                valueStyle={{ 
+                  color: AdminDesignSystem.colors.success,
+                  fontSize: AdminDesignSystem.typography.fontSize.h3,
+                  fontWeight: AdminDesignSystem.typography.fontWeight.semibold,
+                }}
               />
             </Card>
           </Col>
           <Col xs={12} sm={6} md={4} lg={3}>
-            <Card hoverable>
+            <Card
+              hoverable
+              style={{
+                borderRadius: AdminDesignSystem.borderRadius.md,
+                border: `1px solid ${AdminDesignSystem.colors.card.border}`,
+                boxShadow: AdminDesignSystem.shadows.md,
+                background: AdminDesignSystem.colors.card.background,
+              }}
+            >
               <Statistic
-                title="New Today"
+                title={
+                  <Text style={{ color: AdminDesignSystem.colors.text.secondary, fontSize: AdminDesignSystem.typography.fontSize.small }}>
+                    New Today
+                  </Text>
+                }
                 value={stats.newUsersToday}
-                prefix={<ClockCircleOutlined />}
-                valueStyle={{ color: '#13c2c2' }}
+                prefix={<ClockCircleOutlined style={{ color: AdminDesignSystem.colors.warning }} />}
+                valueStyle={{ 
+                  color: AdminDesignSystem.colors.warning,
+                  fontSize: AdminDesignSystem.typography.fontSize.h3,
+                  fontWeight: AdminDesignSystem.typography.fontWeight.semibold,
+                }}
               />
             </Card>
           </Col>
@@ -626,8 +762,10 @@ const UserManagement = () => {
         <Card 
           title={
             <Space>
-              <TeamOutlined />
-              Users Management
+              <TeamOutlined style={{ color: AdminDesignSystem.colors.primary }} />
+              <Text strong style={{ color: AdminDesignSystem.colors.text.primary }}>
+                Users Management
+              </Text>
             </Space>
           }
           extra={
@@ -638,6 +776,7 @@ const UserManagement = () => {
                 onChange={(e) => setSearchText(e.target.value)}
                 style={{ width: 200 }}
                 prefix={<SearchOutlined />}
+                allowClear
               />
               <Select
                 placeholder="Filter by status"
@@ -660,11 +799,26 @@ const UserManagement = () => {
                 <Option value="admin">Admin</Option>
                 <Option value="superadmin">Super Admin</Option>
               </Select>
-              <Button type="primary" icon={<UserAddOutlined />} onClick={handleAddUser}>
+              <Button 
+                type="primary" 
+                icon={<UserAddOutlined />} 
+                onClick={handleAddUser}
+                style={{
+                  borderRadius: AdminDesignSystem.borderRadius.md,
+                  backgroundColor: AdminDesignSystem.colors.primary,
+                  borderColor: AdminDesignSystem.colors.primary,
+                }}
+              >
                 Add User
               </Button>
             </Space>
           }
+          style={{
+            borderRadius: AdminDesignSystem.borderRadius.md,
+            border: `1px solid ${AdminDesignSystem.colors.card.border}`,
+            boxShadow: AdminDesignSystem.shadows.md,
+            background: AdminDesignSystem.colors.card.background,
+          }}
         >
           <Table
             columns={columns}

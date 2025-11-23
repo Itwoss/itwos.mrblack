@@ -107,7 +107,7 @@ const UserPurchases = () => {
             </div>
             {isSubscription && record.expiryDate && (
               <div style={{ color: '#1890ff', fontSize: '12px', marginTop: '4px', fontWeight: 500 }}>
-                Expires: {formatDateTime(record.expiryDate)}
+                {record.status === 'cancelled' ? 'Cancelled: ' : 'Expires: '}{formatDateTime(record.cancelledAt || record.expiryDate)}
               </div>
             )}
           </div>
@@ -147,6 +147,16 @@ const UserPurchases = () => {
       key: 'expiryDate',
       render: (_, record) => {
         if (record.isSubscription || record.type === 'subscription') {
+          if (record.status === 'cancelled') {
+            return (
+              <div>
+                <div style={{ fontWeight: 500 }}>
+                  {record.cancelledAt ? formatDateTime(record.cancelledAt) : '-'}
+                </div>
+                <Tag color="red" style={{ marginTop: '4px', fontSize: '11px' }}>Cancelled</Tag>
+              </div>
+            );
+          }
           return record.expiryDate ? (
             <div>
               <div style={{ fontWeight: 500 }}>

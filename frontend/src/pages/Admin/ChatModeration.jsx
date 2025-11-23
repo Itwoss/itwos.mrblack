@@ -18,8 +18,9 @@ import {
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from "../../contexts/AuthContextOptimized"
 import DashboardLayout from '../../components/DashboardLayout'
+import AdminDesignSystem from '../../styles/admin-design-system'
 
-const { Title, Paragraph } = Typography
+const { Title, Paragraph, Text } = Typography
 const { Search } = Input
 const { Option } = Select
 const { TextArea } = Input
@@ -202,11 +203,12 @@ const ChatModeration = () => {
 
   const getStatusColor = (status) => {
     const colors = {
-      'approved': 'green',
-      'pending': 'orange',
-      'rejected': 'red'
+      'approved': AdminDesignSystem.colors.success,
+      'pending': AdminDesignSystem.colors.warning,
+      'rejected': AdminDesignSystem.colors.error,
+      'resolved': AdminDesignSystem.colors.success
     }
-    return colors[status] || 'default'
+    return colors[status] || AdminDesignSystem.colors.text.secondary
   }
 
   const messageColumns = [
@@ -243,7 +245,14 @@ const ChatModeration = () => {
       key: 'status',
       render: (status, record) => (
         <Space>
-          <Tag color={getStatusColor(status)}>{status.toUpperCase()}</Tag>
+          <Tag 
+            color={getStatusColor(status)}
+            style={{
+              borderRadius: AdminDesignSystem.borderRadius.sm,
+            }}
+          >
+            {status.toUpperCase()}
+          </Tag>
           {record.flagged && <Badge status="error" text="Flagged" />}
         </Space>
       )
@@ -297,14 +306,28 @@ const ChatModeration = () => {
       title: 'Reason',
       dataIndex: 'reason',
       key: 'reason',
-      render: (reason) => <Tag color="red">{reason}</Tag>
+      render: (reason) => (
+        <Tag 
+          color={AdminDesignSystem.colors.error}
+          style={{
+            borderRadius: AdminDesignSystem.borderRadius.sm,
+          }}
+        >
+          {reason}
+        </Tag>
+      )
     },
     {
       title: 'Status',
       dataIndex: 'status',
       key: 'status',
       render: (status) => (
-        <Tag color={status === 'resolved' ? 'green' : 'orange'}>
+        <Tag 
+          color={status === 'resolved' ? AdminDesignSystem.colors.success : AdminDesignSystem.colors.warning}
+          style={{
+            borderRadius: AdminDesignSystem.borderRadius.sm,
+          }}
+        >
           {status.toUpperCase()}
         </Tag>
       )
@@ -327,59 +350,147 @@ const ChatModeration = () => {
 
   return (
     <DashboardLayout userRole="admin">
-      <div>
+      <div style={{
+        padding: AdminDesignSystem.layout.content.padding,
+        background: AdminDesignSystem.colors.background,
+        minHeight: '100vh',
+        fontFamily: AdminDesignSystem.typography.fontFamily,
+      }}>
         {/* Header */}
-        <div style={{ marginBottom: '2rem' }}>
-          <Title level={2} style={{ marginBottom: '0.5rem' }}>
-            💬 Chat Moderation
+        <div style={{ marginBottom: AdminDesignSystem.spacing.xl }}>
+          <Title 
+            level={2} 
+            style={{ 
+              marginBottom: AdminDesignSystem.spacing.sm,
+              color: AdminDesignSystem.colors.text.primary,
+              fontWeight: AdminDesignSystem.typography.fontWeight.semibold,
+              fontSize: AdminDesignSystem.typography.fontSize.h2,
+            }}
+          >
+            <MessageOutlined style={{ marginRight: AdminDesignSystem.spacing.sm, color: AdminDesignSystem.colors.primary }} />
+            Chat Moderation
           </Title>
-          <Paragraph>
+          <Paragraph style={{ 
+            color: AdminDesignSystem.colors.text.secondary,
+            fontSize: AdminDesignSystem.typography.fontSize.body,
+          }}>
             Moderate chat messages, handle reports, and maintain community standards.
           </Paragraph>
         </div>
 
         {/* Statistics */}
-        <Row gutter={[16, 16]} style={{ marginBottom: '2rem' }}>
+        <Row gutter={[AdminDesignSystem.spacing.md, AdminDesignSystem.spacing.md]} style={{ marginBottom: AdminDesignSystem.spacing.xl }}>
           <Col xs={12} sm={6}>
-            <Card>
+            <Card
+              style={{
+                borderRadius: AdminDesignSystem.borderRadius.md,
+                border: `1px solid ${AdminDesignSystem.colors.card.border}`,
+                boxShadow: AdminDesignSystem.shadows.md,
+                background: AdminDesignSystem.colors.card.background,
+              }}
+            >
               <Statistic
-                title="Total Messages"
+                title={
+                  <Text style={{ color: AdminDesignSystem.colors.text.secondary, fontSize: AdminDesignSystem.typography.fontSize.small }}>
+                    Total Messages
+                  </Text>
+                }
                 value={stats.totalMessages}
-                prefix={<MessageOutlined style={{ color: '#1890ff' }} />}
+                prefix={<MessageOutlined style={{ color: AdminDesignSystem.colors.primary }} />}
+                valueStyle={{ 
+                  color: AdminDesignSystem.colors.text.primary,
+                  fontSize: AdminDesignSystem.typography.fontSize.h3,
+                  fontWeight: AdminDesignSystem.typography.fontWeight.semibold,
+                }}
               />
             </Card>
           </Col>
           <Col xs={12} sm={6}>
-            <Card>
+            <Card
+              style={{
+                borderRadius: AdminDesignSystem.borderRadius.md,
+                border: `1px solid ${AdminDesignSystem.colors.card.border}`,
+                boxShadow: AdminDesignSystem.shadows.md,
+                background: AdminDesignSystem.colors.card.background,
+              }}
+            >
               <Statistic
-                title="Flagged Messages"
+                title={
+                  <Text style={{ color: AdminDesignSystem.colors.text.secondary, fontSize: AdminDesignSystem.typography.fontSize.small }}>
+                    Flagged Messages
+                  </Text>
+                }
                 value={stats.flaggedMessages}
-                prefix={<FlagOutlined style={{ color: '#f5222d' }} />}
+                prefix={<FlagOutlined style={{ color: AdminDesignSystem.colors.error }} />}
+                valueStyle={{ 
+                  color: AdminDesignSystem.colors.error,
+                  fontSize: AdminDesignSystem.typography.fontSize.h3,
+                  fontWeight: AdminDesignSystem.typography.fontWeight.semibold,
+                }}
               />
             </Card>
           </Col>
           <Col xs={12} sm={6}>
-            <Card>
+            <Card
+              style={{
+                borderRadius: AdminDesignSystem.borderRadius.md,
+                border: `1px solid ${AdminDesignSystem.colors.card.border}`,
+                boxShadow: AdminDesignSystem.shadows.md,
+                background: AdminDesignSystem.colors.card.background,
+              }}
+            >
               <Statistic
-                title="Resolved Reports"
+                title={
+                  <Text style={{ color: AdminDesignSystem.colors.text.secondary, fontSize: AdminDesignSystem.typography.fontSize.small }}>
+                    Resolved Reports
+                  </Text>
+                }
                 value={stats.resolvedReports}
-                prefix={<CheckCircleOutlined style={{ color: '#52c41a' }} />}
+                prefix={<CheckCircleOutlined style={{ color: AdminDesignSystem.colors.success }} />}
+                valueStyle={{ 
+                  color: AdminDesignSystem.colors.success,
+                  fontSize: AdminDesignSystem.typography.fontSize.h3,
+                  fontWeight: AdminDesignSystem.typography.fontWeight.semibold,
+                }}
               />
             </Card>
           </Col>
           <Col xs={12} sm={6}>
-            <Card>
+            <Card
+              style={{
+                borderRadius: AdminDesignSystem.borderRadius.md,
+                border: `1px solid ${AdminDesignSystem.colors.card.border}`,
+                boxShadow: AdminDesignSystem.shadows.md,
+                background: AdminDesignSystem.colors.card.background,
+              }}
+            >
               <Statistic
-                title="Active Moderators"
+                title={
+                  <Text style={{ color: AdminDesignSystem.colors.text.secondary, fontSize: AdminDesignSystem.typography.fontSize.small }}>
+                    Active Moderators
+                  </Text>
+                }
                 value={stats.activeModerators}
-                prefix={<UserOutlined style={{ color: '#722ed1' }} />}
+                prefix={<UserOutlined style={{ color: AdminDesignSystem.colors.primary }} />}
+                valueStyle={{ 
+                  color: AdminDesignSystem.colors.text.primary,
+                  fontSize: AdminDesignSystem.typography.fontSize.h3,
+                  fontWeight: AdminDesignSystem.typography.fontWeight.semibold,
+                }}
               />
             </Card>
           </Col>
         </Row>
 
         {/* Moderation Tabs */}
-        <Card>
+        <Card
+          style={{
+            borderRadius: AdminDesignSystem.borderRadius.md,
+            border: `1px solid ${AdminDesignSystem.colors.card.border}`,
+            boxShadow: AdminDesignSystem.shadows.md,
+            background: AdminDesignSystem.colors.card.background,
+          }}
+        >
           <Tabs 
             defaultActiveKey="messages"
             items={[
@@ -388,9 +499,9 @@ const ChatModeration = () => {
                 label: 'Messages',
                 children: (
                   <>
-                    <div style={{ marginBottom: 16 }}>
+                    <div style={{ marginBottom: AdminDesignSystem.spacing.md }}>
                       <Space>
-                        <Search placeholder="Search messages..." style={{ width: 200 }} />
+                        <Search placeholder="Search messages..." style={{ width: 200 }} allowClear />
                         <Select placeholder="Filter by status" style={{ width: 150 }}>
                           <Option value="all">All Messages</Option>
                           <Option value="pending">Pending</Option>
@@ -424,9 +535,9 @@ const ChatModeration = () => {
                 label: 'Reports',
                 children: (
                   <>
-                    <div style={{ marginBottom: 16 }}>
+                    <div style={{ marginBottom: AdminDesignSystem.spacing.md }}>
                       <Space>
-                        <Search placeholder="Search reports..." style={{ width: 200 }} />
+                        <Search placeholder="Search reports..." style={{ width: 200 }} allowClear />
                         <Select placeholder="Filter by status" style={{ width: 150 }}>
                           <Option value="all">All Reports</Option>
                           <Option value="pending">Pending</Option>

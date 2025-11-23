@@ -166,6 +166,12 @@ p, .text-body {
 .ant-statistic-content {
   font-size: var(--type-h1) !important;
   font-weight: var(--weight-bold) !important;
-  color: var(--text-primary) !important;
+  color: #1F2937 !important; /* Explicit dark color for admin dashboard statistics */
+}
+
+/* Admin dashboard specific override for better contrast */
+.admin-dashboard .ant-statistic-content-value,
+.ant-card .ant-statistic-content-value {
+  color: #1F2937 !important;
 }
 

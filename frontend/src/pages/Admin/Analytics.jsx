@@ -15,8 +15,9 @@ import {
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from "../../contexts/AuthContextOptimized"
 import DashboardLayout from '../../components/DashboardLayout'
+import AdminDesignSystem from '../../styles/admin-design-system'
 
-const { Title, Paragraph } = Typography
+const { Title, Paragraph, Text } = Typography
 const { Option } = Select
 const { RangePicker } = DatePicker
 
@@ -207,99 +208,236 @@ const Analytics = () => {
     }
   ]
 
+  // Format currency
+  const formatCurrency = (amount) => {
+    return new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: 'INR',
+      minimumFractionDigits: 0
+    }).format(amount / 100) // Backend stores in paise
+  }
+
   return (
     <DashboardLayout userRole="admin">
-      <div>
+      <div style={{
+        padding: AdminDesignSystem.layout.content.padding,
+        background: AdminDesignSystem.colors.background,
+        minHeight: '100vh',
+        fontFamily: AdminDesignSystem.typography.fontFamily,
+      }}>
         {/* Header */}
-        <div style={{ marginBottom: '2rem' }}>
-          <Title level={2} style={{ marginBottom: '0.5rem' }}>
-            📊 Analytics Dashboard
+        <div style={{ marginBottom: AdminDesignSystem.spacing.xl }}>
+          <Title 
+            level={2} 
+            style={{ 
+              marginBottom: AdminDesignSystem.spacing.sm,
+              color: AdminDesignSystem.colors.text.primary,
+              fontWeight: AdminDesignSystem.typography.fontWeight.semibold,
+              fontSize: AdminDesignSystem.typography.fontSize.h2,
+            }}
+          >
+            <BarChartOutlined style={{ marginRight: AdminDesignSystem.spacing.sm, color: AdminDesignSystem.colors.primary }} />
+            Analytics Dashboard
           </Title>
-          <Paragraph>
+          <Paragraph style={{ 
+            color: AdminDesignSystem.colors.text.secondary,
+            fontSize: AdminDesignSystem.typography.fontSize.body,
+          }}>
             Monitor performance metrics, track growth, and analyze user behavior.
           </Paragraph>
         </div>
 
         {/* Time Range Selector */}
-        <Card style={{ marginBottom: '2rem' }}>
+        <Card 
+          style={{ 
+            marginBottom: AdminDesignSystem.spacing.xl,
+            borderRadius: AdminDesignSystem.borderRadius.md,
+            border: `1px solid ${AdminDesignSystem.colors.card.border}`,
+            boxShadow: AdminDesignSystem.shadows.md,
+            background: AdminDesignSystem.colors.card.background,
+          }}
+        >
           <Space>
-            <span>Time Range:</span>
-            <Select value={timeRange} onChange={setTimeRange} style={{ width: 120 }}>
+            <Text style={{ color: AdminDesignSystem.colors.text.primary }}>Time Range:</Text>
+            <Select 
+              value={timeRange} 
+              onChange={setTimeRange} 
+              style={{ width: 120 }}
+            >
               <Option value="24h">Last 24h</Option>
               <Option value="7d">Last 7 days</Option>
               <Option value="30d">Last 30 days</Option>
               <Option value="90d">Last 90 days</Option>
             </Select>
             <RangePicker />
-            <Button icon={<FilterOutlined />}>Apply Filters</Button>
-            <Button icon={<DownloadOutlined />}>Export Report</Button>
+            <Button 
+              icon={<FilterOutlined />}
+              style={{ borderRadius: AdminDesignSystem.borderRadius.md }}
+            >
+              Apply Filters
+            </Button>
+            <Button 
+              icon={<DownloadOutlined />}
+              style={{ borderRadius: AdminDesignSystem.borderRadius.md }}
+            >
+              Export Report
+            </Button>
           </Space>
         </Card>
 
         {/* Key Metrics */}
-        <Row gutter={[16, 16]} style={{ marginBottom: '2rem' }}>
+        <Row gutter={[AdminDesignSystem.spacing.md, AdminDesignSystem.spacing.md]} style={{ marginBottom: AdminDesignSystem.spacing.xl }}>
           <Col xs={12} sm={6}>
-            <Card>
+            <Card
+              style={{
+                borderRadius: AdminDesignSystem.borderRadius.md,
+                border: `1px solid ${AdminDesignSystem.colors.card.border}`,
+                boxShadow: AdminDesignSystem.shadows.md,
+                background: AdminDesignSystem.colors.card.background,
+              }}
+            >
               <Statistic
-                title="Total Revenue"
-                value={analytics.totalRevenue}
-                prefix={<DollarOutlined style={{ color: '#52c41a' }} />}
-                suffix={<RiseOutlined style={{ color: '#52c41a' }} />}
-                valueStyle={{ color: '#52c41a' }}
+                title={
+                  <Text style={{ color: AdminDesignSystem.colors.text.secondary, fontSize: AdminDesignSystem.typography.fontSize.small }}>
+                    Total Revenue
+                  </Text>
+                }
+                value={formatCurrency(analytics.totalRevenue || 0)}
+                prefix={<DollarOutlined style={{ color: AdminDesignSystem.colors.success }} />}
+                suffix={<RiseOutlined style={{ color: AdminDesignSystem.colors.success }} />}
+                valueStyle={{ 
+                  color: AdminDesignSystem.colors.success,
+                  fontSize: AdminDesignSystem.typography.fontSize.h3,
+                  fontWeight: AdminDesignSystem.typography.fontWeight.semibold,
+                }}
               />
-              <div style={{ marginTop: 8, fontSize: '12px', color: '#666' }}>
-                +{analytics.revenueGrowth}% from last period
+              <div style={{ 
+                marginTop: AdminDesignSystem.spacing.sm, 
+                fontSize: AdminDesignSystem.typography.fontSize.tiny,
+                color: AdminDesignSystem.colors.text.secondary,
+              }}>
+                +{analytics.revenueGrowth || 0}% from last period
               </div>
             </Card>
           </Col>
           <Col xs={12} sm={6}>
-            <Card>
+            <Card
+              style={{
+                borderRadius: AdminDesignSystem.borderRadius.md,
+                border: `1px solid ${AdminDesignSystem.colors.card.border}`,
+                boxShadow: AdminDesignSystem.shadows.md,
+                background: AdminDesignSystem.colors.card.background,
+              }}
+            >
               <Statistic
-                title="Total Orders"
-                value={analytics.totalOrders}
-                prefix={<ShoppingCartOutlined style={{ color: '#1890ff' }} />}
-                suffix={<RiseOutlined style={{ color: '#52c41a' }} />}
-                valueStyle={{ color: '#1890ff' }}
+                title={
+                  <Text style={{ color: AdminDesignSystem.colors.text.secondary, fontSize: AdminDesignSystem.typography.fontSize.small }}>
+                    Total Orders
+                  </Text>
+                }
+                value={analytics.totalOrders || 0}
+                prefix={<ShoppingCartOutlined style={{ color: AdminDesignSystem.colors.primary }} />}
+                suffix={<RiseOutlined style={{ color: AdminDesignSystem.colors.success }} />}
+                valueStyle={{ 
+                  color: AdminDesignSystem.colors.primary,
+                  fontSize: AdminDesignSystem.typography.fontSize.h3,
+                  fontWeight: AdminDesignSystem.typography.fontWeight.semibold,
+                }}
               />
-              <div style={{ marginTop: 8, fontSize: '12px', color: '#666' }}>
-                +{analytics.ordersGrowth}% from last period
+              <div style={{ 
+                marginTop: AdminDesignSystem.spacing.sm, 
+                fontSize: AdminDesignSystem.typography.fontSize.tiny,
+                color: AdminDesignSystem.colors.text.secondary,
+              }}>
+                +{analytics.ordersGrowth || 0}% from last period
               </div>
             </Card>
           </Col>
           <Col xs={12} sm={6}>
-            <Card>
+            <Card
+              style={{
+                borderRadius: AdminDesignSystem.borderRadius.md,
+                border: `1px solid ${AdminDesignSystem.colors.card.border}`,
+                boxShadow: AdminDesignSystem.shadows.md,
+                background: AdminDesignSystem.colors.card.background,
+              }}
+            >
               <Statistic
-                title="Total Users"
-                value={analytics.totalUsers}
-                prefix={<UserOutlined style={{ color: '#722ed1' }} />}
-                suffix={<RiseOutlined style={{ color: '#52c41a' }} />}
-                valueStyle={{ color: '#722ed1' }}
+                title={
+                  <Text style={{ color: AdminDesignSystem.colors.text.secondary, fontSize: AdminDesignSystem.typography.fontSize.small }}>
+                    Total Users
+                  </Text>
+                }
+                value={analytics.totalUsers || 0}
+                prefix={<UserOutlined style={{ color: AdminDesignSystem.colors.primary }} />}
+                suffix={<RiseOutlined style={{ color: AdminDesignSystem.colors.success }} />}
+                valueStyle={{ 
+                  color: AdminDesignSystem.colors.text.primary,
+                  fontSize: AdminDesignSystem.typography.fontSize.h3,
+                  fontWeight: AdminDesignSystem.typography.fontWeight.semibold,
+                }}
               />
-              <div style={{ marginTop: 8, fontSize: '12px', color: '#666' }}>
-                +{analytics.usersGrowth}% from last period
+              <div style={{ 
+                marginTop: AdminDesignSystem.spacing.sm, 
+                fontSize: AdminDesignSystem.typography.fontSize.tiny,
+                color: AdminDesignSystem.colors.text.secondary,
+              }}>
+                +{analytics.usersGrowth || 0}% from last period
               </div>
             </Card>
           </Col>
           <Col xs={12} sm={6}>
-            <Card>
+            <Card
+              style={{
+                borderRadius: AdminDesignSystem.borderRadius.md,
+                border: `1px solid ${AdminDesignSystem.colors.card.border}`,
+                boxShadow: AdminDesignSystem.shadows.md,
+                background: AdminDesignSystem.colors.card.background,
+              }}
+            >
               <Statistic
-                title="Conversion Rate"
-                value={analytics.conversionRate}
+                title={
+                  <Text style={{ color: AdminDesignSystem.colors.text.secondary, fontSize: AdminDesignSystem.typography.fontSize.small }}>
+                    Conversion Rate
+                  </Text>
+                }
+                value={analytics.conversionRate || 0}
                 suffix="%"
-                prefix={<TrophyOutlined style={{ color: '#fa8c16' }} />}
-                valueStyle={{ color: '#fa8c16' }}
+                prefix={<TrophyOutlined style={{ color: AdminDesignSystem.colors.warning }} />}
+                valueStyle={{ 
+                  color: AdminDesignSystem.colors.warning,
+                  fontSize: AdminDesignSystem.typography.fontSize.h3,
+                  fontWeight: AdminDesignSystem.typography.fontWeight.semibold,
+                }}
               />
-              <div style={{ marginTop: 8, fontSize: '12px', color: '#666' }}>
-                +{analytics.conversionGrowth}% from last period
+              <div style={{ 
+                marginTop: AdminDesignSystem.spacing.sm, 
+                fontSize: AdminDesignSystem.typography.fontSize.tiny,
+                color: AdminDesignSystem.colors.text.secondary,
+              }}>
+                +{analytics.conversionGrowth || 0}% from last period
               </div>
             </Card>
           </Col>
         </Row>
 
-        <Row gutter={[16, 16]}>
+        <Row gutter={[AdminDesignSystem.spacing.md, AdminDesignSystem.spacing.md]}>
           {/* Top Products */}
           <Col xs={24} lg={12}>
-            <Card title="Top Selling Products" extra={<Button type="link">View All</Button>}>
+            <Card 
+              title={
+                <Text strong style={{ color: AdminDesignSystem.colors.text.primary }}>
+                  Top Selling Products
+                </Text>
+              }
+              extra={<Button type="link" style={{ color: AdminDesignSystem.colors.primary }}>View All</Button>}
+              style={{
+                borderRadius: AdminDesignSystem.borderRadius.md,
+                border: `1px solid ${AdminDesignSystem.colors.card.border}`,
+                boxShadow: AdminDesignSystem.shadows.md,
+                background: AdminDesignSystem.colors.card.background,
+              }}
+            >
               <Table
                 dataSource={topProducts}
                 columns={productColumns}
@@ -312,20 +450,33 @@ const Analytics = () => {
 
           {/* Traffic Sources */}
           <Col xs={24} lg={12}>
-            <Card title="Traffic Sources">
+            <Card 
+              title={
+                <Text strong style={{ color: AdminDesignSystem.colors.text.primary }}>
+                  Traffic Sources
+                </Text>
+              }
+              style={{
+                borderRadius: AdminDesignSystem.borderRadius.md,
+                border: `1px solid ${AdminDesignSystem.colors.card.border}`,
+                boxShadow: AdminDesignSystem.shadows.md,
+                background: AdminDesignSystem.colors.card.background,
+              }}
+            >
               {trafficSources.map((source) => (
-                <div key={source.id} style={{ marginBottom: 16 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                    <span>{source.source}</span>
-                    <span>{source.visitors}%</span>
+                <div key={source.id} style={{ marginBottom: AdminDesignSystem.spacing.md }}>
+                  <div style={{ 
+                    display: 'flex', 
+                    justifyContent: 'space-between', 
+                    marginBottom: AdminDesignSystem.spacing.xs,
+                  }}>
+                    <Text style={{ color: AdminDesignSystem.colors.text.primary }}>{source.source}</Text>
+                    <Text strong style={{ color: AdminDesignSystem.colors.text.primary }}>{source.visitors}%</Text>
                   </div>
                   <Progress 
                     percent={source.percentage} 
                     showInfo={false}
-                    strokeColor={{
-                      '0%': '#108ee9',
-                      '100%': '#87d068',
-                    }}
+                    strokeColor={AdminDesignSystem.colors.primary}
                   />
                 </div>
               ))}
@@ -334,9 +485,22 @@ const Analytics = () => {
         </Row>
 
         {/* Recent Activity */}
-        <Row style={{ marginTop: '2rem' }}>
+        <Row style={{ marginTop: AdminDesignSystem.spacing.xl }}>
           <Col span={24}>
-            <Card title="Recent Activity" extra={<Button type="link">View All</Button>}>
+            <Card 
+              title={
+                <Text strong style={{ color: AdminDesignSystem.colors.text.primary }}>
+                  Recent Activity
+                </Text>
+              }
+              extra={<Button type="link" style={{ color: AdminDesignSystem.colors.primary }}>View All</Button>}
+              style={{
+                borderRadius: AdminDesignSystem.borderRadius.md,
+                border: `1px solid ${AdminDesignSystem.colors.card.border}`,
+                boxShadow: AdminDesignSystem.shadows.md,
+                background: AdminDesignSystem.colors.card.background,
+              }}
+            >
               <Table
                 dataSource={recentActivity}
                 columns={activityColumns}
@@ -349,25 +513,83 @@ const Analytics = () => {
         </Row>
 
         {/* Performance Charts Placeholder */}
-        <Row gutter={[16, 16]} style={{ marginTop: '2rem' }}>
+        <Row gutter={[AdminDesignSystem.spacing.md, AdminDesignSystem.spacing.md]} style={{ marginTop: AdminDesignSystem.spacing.xl }}>
           <Col xs={24} lg={12}>
-            <Card title="Revenue Trend">
-              <div style={{ height: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f5f5f5', borderRadius: 8 }}>
+            <Card 
+              title={
+                <Text strong style={{ color: AdminDesignSystem.colors.text.primary }}>
+                  Revenue Trend
+                </Text>
+              }
+              style={{
+                borderRadius: AdminDesignSystem.borderRadius.md,
+                border: `1px solid ${AdminDesignSystem.colors.card.border}`,
+                boxShadow: AdminDesignSystem.shadows.md,
+                background: AdminDesignSystem.colors.card.background,
+              }}
+            >
+              <div style={{ 
+                height: 300, 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center', 
+                background: AdminDesignSystem.colors.sidebar.background, 
+                borderRadius: AdminDesignSystem.borderRadius.md,
+              }}>
                 <div style={{ textAlign: 'center' }}>
-                  <BarChartOutlined style={{ fontSize: 48, color: '#1890ff' }} />
-                  <div style={{ marginTop: 16, color: '#666' }}>Revenue Chart</div>
-                  <div style={{ fontSize: '12px', color: '#999' }}>Chart visualization would be here</div>
+                  <BarChartOutlined style={{ fontSize: 48, color: AdminDesignSystem.colors.primary }} />
+                  <div style={{ 
+                    marginTop: AdminDesignSystem.spacing.md, 
+                    color: AdminDesignSystem.colors.text.secondary,
+                  }}>
+                    Revenue Chart
+                  </div>
+                  <div style={{ 
+                    fontSize: AdminDesignSystem.typography.fontSize.tiny, 
+                    color: AdminDesignSystem.colors.text.disabled,
+                  }}>
+                    Chart visualization would be here
+                  </div>
                 </div>
               </div>
             </Card>
           </Col>
           <Col xs={24} lg={12}>
-            <Card title="User Growth">
-              <div style={{ height: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f5f5f5', borderRadius: 8 }}>
+            <Card 
+              title={
+                <Text strong style={{ color: AdminDesignSystem.colors.text.primary }}>
+                  User Growth
+                </Text>
+              }
+              style={{
+                borderRadius: AdminDesignSystem.borderRadius.md,
+                border: `1px solid ${AdminDesignSystem.colors.card.border}`,
+                boxShadow: AdminDesignSystem.shadows.md,
+                background: AdminDesignSystem.colors.card.background,
+              }}
+            >
+              <div style={{ 
+                height: 300, 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center', 
+                background: AdminDesignSystem.colors.sidebar.background, 
+                borderRadius: AdminDesignSystem.borderRadius.md,
+              }}>
                 <div style={{ textAlign: 'center' }}>
-                  <UserOutlined style={{ fontSize: 48, color: '#52c41a' }} />
-                  <div style={{ marginTop: 16, color: '#666' }}>User Growth Chart</div>
-                  <div style={{ fontSize: '12px', color: '#999' }}>Chart visualization would be here</div>
+                  <UserOutlined style={{ fontSize: 48, color: AdminDesignSystem.colors.success }} />
+                  <div style={{ 
+                    marginTop: AdminDesignSystem.spacing.md, 
+                    color: AdminDesignSystem.colors.text.secondary,
+                  }}>
+                    User Growth Chart
+                  </div>
+                  <div style={{ 
+                    fontSize: AdminDesignSystem.typography.fontSize.tiny, 
+                    color: AdminDesignSystem.colors.text.disabled,
+                  }}>
+                    Chart visualization would be here
+                  </div>
                 </div>
               </div>
             </Card>

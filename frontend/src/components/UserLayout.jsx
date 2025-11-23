@@ -13,7 +13,9 @@ import {
   SearchOutlined,
   TeamOutlined,
   HeartOutlined,
-  UsergroupAddOutlined
+  UsergroupAddOutlined,
+  AppstoreOutlined,
+  PictureOutlined
 } from '@ant-design/icons'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from "../contexts/AuthContextOptimized"
@@ -42,9 +44,12 @@ const UserLayout = ({ children }) => {
   const getCurrentMenuKey = () => {
     const path = location.pathname
     if (path === '/dashboard' || path === '/user/dashboard') return 'dashboard'
+    if (path.includes('/feed')) return 'feed'
     if (path.includes('/products')) return 'products'
     if (path.includes('/purchases')) return 'purchases'
     if (path.includes('/favorites')) return 'favorites'
+    if (path.includes('/banner-store')) return 'banner-store'
+    if (path.includes('/banner-inventory')) return 'banner-inventory'
     if (path.includes('/courses')) return 'courses'
     if (path.includes('/sessions')) return 'sessions'
     if (path.includes('/chat')) return 'chat'
@@ -79,6 +84,11 @@ const UserLayout = ({ children }) => {
       label: 'Dashboard',
     },
     {
+      key: 'feed',
+      icon: <AppstoreOutlined />,
+      label: 'Feed',
+    },
+    {
       key: 'products',
       icon: <ShoppingCartOutlined />,
       label: 'Products',
@@ -87,6 +97,16 @@ const UserLayout = ({ children }) => {
       key: 'purchases',
       icon: <ShoppingCartOutlined />,
       label: 'My Purchases',
+    },
+    {
+      key: 'banner-store',
+      icon: <PictureOutlined />,
+      label: 'Banner Store',
+    },
+    {
+      key: 'banner-inventory',
+      icon: <PictureOutlined />,
+      label: 'My Banners',
     },
     {
       key: 'favorites',
@@ -141,6 +161,9 @@ const UserLayout = ({ children }) => {
       case 'dashboard':
         navigate('/dashboard')
         break
+      case 'feed':
+        navigate('/feed')
+        break
       case 'products':
         navigate('/dashboard/products')
         break
@@ -149,6 +172,12 @@ const UserLayout = ({ children }) => {
         break
       case 'favorites':
         navigate('/favorites')
+        break
+      case 'banner-store':
+        navigate('/dashboard/banner-store')
+        break
+      case 'banner-inventory':
+        navigate('/dashboard/banner-inventory')
         break
       case 'courses':
         navigate('/user/courses')

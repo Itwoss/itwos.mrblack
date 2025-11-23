@@ -59,6 +59,7 @@ export default function ChatInputWithMedia({
   const audioContextRef = useRef(null);
   const [showAudioModal, setShowAudioModal] = useState(false);
   const audioFileRef = useRef(null);
+  const textAreaRef = useRef(null);
 
   // Cleanup audio URL on unmount
   useEffect(() => {
@@ -284,6 +285,11 @@ export default function ChatInputWithMedia({
       setShowAudioModal(false);
       if (audioFileRef.current) audioFileRef.current.value = '';
       
+      // Refocus input after sending audio
+      setTimeout(() => {
+        textAreaRef.current?.focus();
+      }, 100);
+      
       antMessage.success('Audio trimmed and ready to send');
     } catch (error) {
       console.error('Error trimming audio:', error);
@@ -345,6 +351,10 @@ export default function ChatInputWithMedia({
         sticker: selectedSticker
       });
       setSelectedSticker(null);
+      // Refocus input after sending
+      setTimeout(() => {
+        textAreaRef.current?.focus();
+      }, 100);
       return;
     }
 
@@ -357,6 +367,10 @@ export default function ChatInputWithMedia({
       });
       removeImage();
       setText('');
+      // Refocus input after sending
+      setTimeout(() => {
+        textAreaRef.current?.focus();
+      }, 100);
       return;
     }
 
@@ -367,6 +381,10 @@ export default function ChatInputWithMedia({
         text: text.trim()
       });
       setText('');
+      // Refocus input after sending
+      setTimeout(() => {
+        textAreaRef.current?.focus();
+      }, 100);
     }
   };
 
@@ -510,6 +528,7 @@ export default function ChatInputWithMedia({
 
         {/* Text Input */}
         <TextArea
+          ref={textAreaRef}
           value={text}
           onChange={(e) => setText(e.target.value)}
           placeholder={placeholder}

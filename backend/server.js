@@ -3,6 +3,7 @@ const mongoose = require('mongoose')
 const cors = require('cors')
 const helmet = require('helmet')
 const path = require('path')
+const fs = require('fs')
 const { createServer } = require('http')
 const { Server } = require('socket.io')
 require('dotenv').config()
@@ -349,7 +350,105 @@ mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/itwos-ai'
 .then(() => console.log('✅ MongoDB connected successfully'))
 .catch(err => console.error('❌ MongoDB connection error:', err))
 
-// Serve static files from uploads directory with CORS headers
+// Custom middleware to handle avatar files with fallback
+app.use('/uploads/avatars', (req, res, next) => {
+  // Set CORS headers
+  res.header('Access-Control-Allow-Origin', '*')
+  res.header('Access-Control-Allow-Methods', 'GET, OPTIONS')
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept')
+  res.header('Cross-Origin-Resource-Policy', 'cross-origin')
+  
+  const filePath = path.join(__dirname, 'uploads', 'avatars', path.basename(req.path))
+  
+  // Check if file exists
+  if (fs.existsSync(filePath)) {
+    // File exists, serve it normally
+    return express.static(path.join(__dirname, 'uploads', 'avatars'))(req, res, next)
+  } else {
+    // File doesn't exist - serve a transparent 1x1 PNG to prevent 404 errors
+    // This prevents console errors while allowing Avatar component to show fallback
+    const transparentPng = Buffer.from(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+      'base64'
+    )
+    res.header('Content-Type', 'image/png')
+    res.header('Content-Length', transparentPng.length)
+    res.header('Cache-Control', 'no-cache, no-store, must-revalidate')
+    return res.send(transparentPng)
+  }
+})
+
+// Custom middleware to handle image files with fallback
+app.use('/uploads/images', (req, res, next) => {
+  // Set CORS headers
+  res.header('Access-Control-Allow-Origin', '*')
+  res.header('Access-Control-Allow-Methods', 'GET, OPTIONS')
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept')
+  res.header('Cross-Origin-Resource-Policy', 'cross-origin')
+  
+  const filePath = path.join(__dirname, 'uploads', 'images', path.basename(req.path))
+  
+  // Check if file exists
+  if (fs.existsSync(filePath)) {
+    // File exists, serve it normally
+    return express.static(path.join(__dirname, 'uploads', 'images'))(req, res, next)
+  } else {
+    // File doesn't exist - serve a transparent 1x1 PNG to prevent 404 errors
+    const transparentPng = Buffer.from(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+      'base64'
+    )
+    res.header('Content-Type', 'image/png')
+    res.header('Content-Length', transparentPng.length)
+    res.header('Cache-Control', 'no-cache, no-store, must-revalidate')
+    return res.send(transparentPng)
+  }
+})
+
+// Serve audio files with proper headers
+app.use('/uploads/audio', (req, res, next) => {
+  // Set CORS headers
+  res.header('Access-Control-Allow-Origin', '*')
+  res.header('Access-Control-Allow-Methods', 'GET, OPTIONS, HEAD')
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Range')
+  res.header('Cross-Origin-Resource-Policy', 'cross-origin')
+  res.header('Accept-Ranges', 'bytes')
+  
+  // Set appropriate content type based on file extension
+  const ext = path.extname(req.path).toLowerCase()
+  if (ext === '.wav' || ext === '.wave') {
+    res.header('Content-Type', 'audio/wav')
+  } else if (ext === '.mp3') {
+    res.header('Content-Type', 'audio/mpeg')
+  } else if (ext === '.ogg') {
+    res.header('Content-Type', 'audio/ogg')
+  } else if (ext === '.m4a') {
+    res.header('Content-Type', 'audio/mp4')
+  } else {
+    res.header('Content-Type', 'audio/wav') // Default to wav
+  }
+  
+  next()
+}, express.static(path.join(__dirname, 'uploads', 'audio'), {
+  fallthrough: true,
+  setHeaders: (res, filePath) => {
+    // Ensure proper content type is set
+    const ext = path.extname(filePath).toLowerCase()
+    if (!res.getHeader('Content-Type')) {
+      if (ext === '.wav' || ext === '.wave') {
+        res.setHeader('Content-Type', 'audio/wav')
+      } else if (ext === '.mp3') {
+        res.setHeader('Content-Type', 'audio/mpeg')
+      } else if (ext === '.ogg') {
+        res.setHeader('Content-Type', 'audio/ogg')
+      } else if (ext === '.m4a') {
+        res.setHeader('Content-Type', 'audio/mp4')
+      }
+    }
+  }
+}))
+
+// Serve other static files from uploads directory with CORS headers
 app.use('/uploads', (req, res, next) => {
   // Set CORS headers for static files
   res.header('Access-Control-Allow-Origin', '*')
@@ -357,7 +456,20 @@ app.use('/uploads', (req, res, next) => {
   res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept')
   res.header('Cross-Origin-Resource-Policy', 'cross-origin')
   next()
-}, express.static(path.join(__dirname, 'uploads')))
+}, express.static(path.join(__dirname, 'uploads'), {
+  // Allow fallthrough to handle missing files
+  fallthrough: true
+}))
+
+// Handle 404 for missing upload files gracefully (non-avatar files)
+app.use('/uploads', (req, res) => {
+  // For other files, return JSON error
+  res.status(404).json({
+    success: false,
+    message: 'File not found',
+    path: req.path
+  })
+})
 
 // Routes
 app.use('/api/auth', require('./src/routes/auth'))
@@ -373,6 +485,7 @@ app.use('/api/threads', require('./src/routes/threads')) // Thread and messaging
 app.use('/api/subscriptions', require('./src/routes/subscriptions')) // Subscription endpoints
 app.use('/api/payment-tracking', require('./src/routes/paymentTracking')) // Payment tracking endpoints
 app.use('/api/posts', require('./src/routes/posts')) // Post endpoints
+app.use('/api/banners', require('./src/routes/banners')) // Banner system endpoints
 
 // Admin routes
 app.use('/api/admin', require('./src/routes/admin'))

@@ -522,5 +522,63 @@ router.get('/current', authenticateToken, requireUser, async (req, res) => {
   }
 });
 
+// POST /api/subscriptions/cancel - Cancel active subscription
+router.post('/cancel', authenticateToken, requireUser, async (req, res) => {
+  try {
+    const userId = req.user._id.toString();
+
+    // Find active subscription
+    const subscription = await Subscription.findOne({
+      userId: userId,
+      status: 'active',
+      expiryDate: { $gt: new Date() }
+    }).sort({ expiryDate: -1 });
+
+    if (!subscription) {
+      return res.status(404).json({
+        success: false,
+        message: 'No active subscription found to cancel'
+      });
+    }
+
+    // Update subscription status
+    subscription.status = 'cancelled';
+    subscription.cancelledAt = new Date();
+    await subscription.save();
+
+    // Update user verification status
+    const user = await User.findById(userId);
+    if (user) {
+      // Check if user has any other active subscriptions
+      const otherActiveSubscription = await Subscription.findOne({
+        userId: userId,
+        status: 'active',
+        expiryDate: { $gt: new Date() },
+        _id: { $ne: subscription._id }
+      });
+
+      if (!otherActiveSubscription) {
+        // No other active subscriptions, remove verification
+        user.isVerified = false;
+        user.verifiedTill = null;
+        await user.save();
+      }
+    }
+
+    res.json({
+      success: true,
+      message: 'Subscription cancelled successfully',
+      subscription: subscription.getPublicData()
+    });
+  } catch (error) {
+    console.error('Cancel subscription error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to cancel subscription',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+    });
+  }
+});
+
 module.exports = router;
 

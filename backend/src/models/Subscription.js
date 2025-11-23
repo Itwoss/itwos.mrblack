@@ -69,6 +69,13 @@ const subscriptionSchema = new mongoose.Schema({
   },
   refundedAt: {
     type: Date
+  },
+  cancelledAt: {
+    type: Date
+  },
+  cancellationReason: {
+    type: String,
+    trim: true
   }
 }, {
   timestamps: true

@@ -38,6 +38,8 @@ import MyPrebooks from './pages/User/MyPrebooks'
 import VerifiedBadge from './pages/User/VerifiedBadge'
 import Feed from './pages/User/Feed'
 import PostCreation from './pages/User/PostCreation'
+import BannerStore from './pages/User/BannerStore'
+import BannerInventory from './pages/User/BannerInventory'
 import AboutPage from './pages/AboutPage'
 import ContactPage from './pages/ContactPage'
 import AdminLoginPage from './pages/Admin/AdminLoginPage'
@@ -47,8 +49,6 @@ import UserManagement from './pages/Admin/UserManagement'
 import OrdersSales from './pages/Admin/OrdersSales'
 import Analytics from './pages/Admin/Analytics'
 import ContentManagement from './pages/Admin/ContentManagement'
-import LiveSessions from './pages/Admin/LiveSessions'
-import ChatModeration from './pages/Admin/ChatModeration'
 import AdminNotifications from './pages/Admin/Notifications'
 import AdminSettings from './pages/Admin/Settings'
 import NotFoundPage from './pages/NotFoundPage'
@@ -56,6 +56,7 @@ import ErrorBoundary from './components/ErrorBoundary'
 import AddProduct from './pages/Admin/AddProduct'
 import Products from './pages/Admin/Products'
 import PrebookManagement from './pages/Admin/PrebookManagement'
+import BannerManagement from './pages/Admin/BannerManagement'
 import PaymentTracking from './pages/Admin/PaymentTracking'
 import UserActivities from './pages/Admin/UserActivities'
 import ProductsPage from './pages/Products/ProductsPage'
@@ -151,6 +152,16 @@ function App() {
                       <UserLayout><PostCreation /></UserLayout>
                     </ProtectedRoute>
                   } />
+                  <Route path="/dashboard/banner-store" element={
+                    <ProtectedRoute requiredRole="user">
+                      <UserLayout><BannerStore /></UserLayout>
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/dashboard/banner-inventory" element={
+                    <ProtectedRoute requiredRole="user">
+                      <UserLayout><BannerInventory /></UserLayout>
+                    </ProtectedRoute>
+                  } />
                   <Route path="/discover" element={
                     <ProtectedRoute requiredRole="user">
                       <UserLayout><UserDiscovery /></UserLayout>
@@ -238,16 +249,6 @@ function App() {
                       <AdminLayout><ContentManagement /></AdminLayout>
                     </ProtectedRoute>
                   } />
-                  <Route path="/admin/sessions" element={
-                    <ProtectedRoute requiredRole="admin">
-                      <AdminLayout><LiveSessions /></AdminLayout>
-                    </ProtectedRoute>
-                  } />
-                  <Route path="/admin/chat" element={
-                    <ProtectedRoute requiredRole="admin">
-                      <AdminLayout><ChatModeration /></AdminLayout>
-                    </ProtectedRoute>
-                  } />
                   <Route path="/admin/notifications" element={
                     <ProtectedRoute requiredRole="admin">
                       <AdminLayout><AdminNotifications /></AdminLayout>
@@ -281,6 +282,11 @@ function App() {
                   <Route path="/admin/products/new" element={
                     <ProtectedRoute requiredRole="admin">
                       <AdminLayout><AddProduct /></AdminLayout>
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/admin/banners" element={
+                    <ProtectedRoute requiredRole="admin">
+                      <AdminLayout><BannerManagement /></AdminLayout>
                     </ProtectedRoute>
                   } />
                   

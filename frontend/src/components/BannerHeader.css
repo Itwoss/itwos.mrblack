@@ -1,0 +1,143 @@
+/* Banner Header Effects */
+.banner-header {
+  transition: all 0.3s ease;
+}
+
+/* Glow Effect */
+.banner-effect-glow {
+  box-shadow: 0 0 30px rgba(255, 215, 0, 0.8);
+  animation: banner-glow-pulse 2s ease-in-out infinite;
+}
+
+@keyframes banner-glow-pulse {
+  0%, 100% {
+    box-shadow: 0 0 30px rgba(255, 215, 0, 0.8);
+  }
+  50% {
+    box-shadow: 0 0 50px rgba(255, 215, 0, 1);
+  }
+}
+
+/* Fire Effect */
+.banner-effect-fire {
+  box-shadow: 0 0 40px rgba(255, 69, 0, 0.9);
+  animation: banner-fire-flicker 1.5s ease-in-out infinite;
+}
+
+@keyframes banner-fire-flicker {
+  0%, 100% {
+    box-shadow: 0 0 40px rgba(255, 69, 0, 0.9);
+  }
+  50% {
+    box-shadow: 0 0 60px rgba(255, 140, 0, 1);
+  }
+}
+
+/* Neon Effect */
+.banner-effect-neon {
+  box-shadow: 0 0 35px rgba(0, 255, 255, 1);
+  animation: banner-neon-pulse 1s ease-in-out infinite alternate;
+}
+
+@keyframes banner-neon-pulse {
+  from {
+    box-shadow: 0 0 35px rgba(0, 255, 255, 1);
+  }
+  to {
+    box-shadow: 0 0 50px rgba(0, 255, 255, 1);
+  }
+}
+
+/* Ice Effect */
+.banner-effect-ice {
+  box-shadow: 0 0 40px rgba(135, 206, 250, 1);
+  animation: banner-ice-shimmer 2s ease-in-out infinite;
+}
+
+@keyframes banner-ice-shimmer {
+  0%, 100% {
+    box-shadow: 0 0 40px rgba(135, 206, 250, 1);
+  }
+  50% {
+    box-shadow: 0 0 60px rgba(173, 216, 230, 1);
+  }
+}
+
+/* Thunder Effect */
+.banner-effect-thunder {
+  box-shadow: 0 0 35px rgba(138, 43, 226, 0.9);
+  animation: banner-thunder-flash 3s ease-in-out infinite;
+}
+
+@keyframes banner-thunder-flash {
+  0%, 90%, 100% {
+    box-shadow: 0 0 35px rgba(138, 43, 226, 0.9);
+  }
+  95% {
+    box-shadow: 0 0 70px rgba(138, 43, 226, 1);
+  }
+}
+
+/* Sparkle Effect */
+.banner-effect-sparkle {
+  position: relative;
+}
+
+.banner-effect-sparkle::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.3) 50%,
+    transparent 100%
+  );
+  animation: banner-sparkle-sweep 3s ease-in-out infinite;
+  z-index: 1;
+}
+
+@keyframes banner-sparkle-sweep {
+  0% {
+    left: -100%;
+  }
+  100% {
+    left: 200%;
+  }
+}
+
+/* Animated Effect */
+.banner-effect-animated {
+  animation: banner-float 3s ease-in-out infinite;
+}
+
+@keyframes banner-float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-5px);
+  }
+}
+
+/* Default Banner Animation */
+.default-banner {
+  animation: default-gradient 10s ease infinite;
+  background-size: 200% 200%;
+}
+
+@keyframes default-gradient {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+

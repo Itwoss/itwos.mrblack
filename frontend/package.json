@@ -4,9 +4,10 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "node --max-old-space-size=8192 --optimize-for-size node_modules/.bin/vite",
-    "dev:memory": "node --max-old-space-size=8192 --optimize-for-size --expose-gc node_modules/.bin/vite",
-    "build": "node --max-old-space-size=8192 vite build",
+    "dev": "NODE_OPTIONS='--max-old-space-size=8192' vite",
+    "dev:memory": "NODE_OPTIONS='--max-old-space-size=8192 --expose-gc' vite",
+    "dev:high": "NODE_OPTIONS='--max-old-space-size=12288' vite",
+    "build": "NODE_OPTIONS='--max-old-space-size=8192' vite build",
     "lint": "eslint . --ext js,jsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview"
   },
@@ -25,6 +26,7 @@
     "antd": "^5.27.6",
     "autoprefixer": "^10.4.21",
     "axios": "^1.12.2",
+    "browser-image-compression": "^2.0.2",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "crypto-js": "^4.2.0",

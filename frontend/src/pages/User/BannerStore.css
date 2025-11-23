@@ -1,0 +1,129 @@
+/* Banner Card Effects */
+.banner-card {
+  transition: all 0.3s ease;
+}
+
+.banner-card:hover {
+  transform: translateY(-4px);
+}
+
+/* Glow Effect */
+.banner-glow {
+  box-shadow: 0 0 20px rgba(255, 215, 0, 0.6);
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 20px rgba(255, 215, 0, 0.6);
+  }
+  50% {
+    box-shadow: 0 0 30px rgba(255, 215, 0, 0.9);
+  }
+}
+
+/* Fire Effect */
+.banner-fire {
+  box-shadow: 0 0 25px rgba(255, 69, 0, 0.7);
+  animation: fire-flicker 1.5s ease-in-out infinite;
+}
+
+@keyframes fire-flicker {
+  0%, 100% {
+    box-shadow: 0 0 25px rgba(255, 69, 0, 0.7);
+  }
+  50% {
+    box-shadow: 0 0 35px rgba(255, 140, 0, 0.9);
+  }
+}
+
+/* Neon Effect */
+.banner-neon {
+  box-shadow: 0 0 20px rgba(0, 255, 255, 0.8);
+  animation: neon-pulse 1s ease-in-out infinite alternate;
+}
+
+@keyframes neon-pulse {
+  from {
+    box-shadow: 0 0 20px rgba(0, 255, 255, 0.8);
+  }
+  to {
+    box-shadow: 0 0 30px rgba(0, 255, 255, 1);
+  }
+}
+
+/* Ice Effect */
+.banner-ice {
+  box-shadow: 0 0 25px rgba(135, 206, 250, 0.8);
+  animation: ice-shimmer 2s ease-in-out infinite;
+}
+
+@keyframes ice-shimmer {
+  0%, 100% {
+    box-shadow: 0 0 25px rgba(135, 206, 250, 0.8);
+  }
+  50% {
+    box-shadow: 0 0 35px rgba(173, 216, 230, 1);
+  }
+}
+
+/* Thunder Effect */
+.banner-thunder {
+  box-shadow: 0 0 20px rgba(138, 43, 226, 0.7);
+  animation: thunder-flash 3s ease-in-out infinite;
+}
+
+@keyframes thunder-flash {
+  0%, 90%, 100% {
+    box-shadow: 0 0 20px rgba(138, 43, 226, 0.7);
+  }
+  95% {
+    box-shadow: 0 0 40px rgba(138, 43, 226, 1);
+  }
+}
+
+/* Sparkle Effect */
+.banner-sparkle {
+  position: relative;
+  overflow: hidden;
+}
+
+.banner-sparkle::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: linear-gradient(
+    45deg,
+    transparent 30%,
+    rgba(255, 255, 255, 0.3) 50%,
+    transparent 70%
+  );
+  animation: sparkle-sweep 3s ease-in-out infinite;
+}
+
+@keyframes sparkle-sweep {
+  0% {
+    transform: translateX(-100%) translateY(-100%) rotate(45deg);
+  }
+  100% {
+    transform: translateX(100%) translateY(100%) rotate(45deg);
+  }
+}
+
+/* Animated Effect */
+.banner-animated {
+  animation: banner-float 3s ease-in-out infinite;
+}
+
+@keyframes banner-float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+

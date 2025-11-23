@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Button, Space, Typography, message, Spin, Badge, Tag, Empty, Modal } from 'antd';
-import { CheckCircleOutlined, CrownOutlined, ThunderboltOutlined } from '@ant-design/icons';
+import { Card, Button, Space, Typography, message, Spin, Badge, Tag, Empty, Modal, Dropdown } from 'antd';
+import { CheckCircleOutlined, CrownOutlined, ThunderboltOutlined, MoreOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
 import { useAuth } from '../../contexts/AuthContextOptimized';
 import { useNavigate } from 'react-router-dom';
 import api, { userAPI } from '../../services/api';
@@ -16,6 +16,8 @@ const VerifiedBadge = () => {
   const [processing, setProcessing] = useState(false);
   const [currentSubscription, setCurrentSubscription] = useState(null);
   const [userSubscriptions, setUserSubscriptions] = useState([]);
+  const [cancelling, setCancelling] = useState(false);
+  const [cancelModalVisible, setCancelModalVisible] = useState(false);
 
   useEffect(() => {
     fetchPlans();
@@ -68,6 +70,71 @@ const VerifiedBadge = () => {
     } catch (error) {
       console.error('Failed to fetch user subscriptions:', error);
     }
+  };
+
+  const handleCancelSubscription = async () => {
+    try {
+      setCancelling(true);
+      const response = await api.post('/subscriptions/cancel');
+      
+      if (response.data.success) {
+        message.success('Subscription cancelled successfully');
+        setCancelModalVisible(false);
+        
+        // Refresh subscription data
+        await fetchCurrentSubscription();
+        await fetchUserSubscriptions();
+        
+        // Update user context
+        if (updateUser) {
+          const userResponse = await api.get('/users/me');
+          if (userResponse.data.success) {
+            updateUser(userResponse.data.user);
+          }
+        }
+      } else {
+        message.error(response.data.message || 'Failed to cancel subscription');
+      }
+    } catch (error) {
+      console.error('Cancel subscription error:', error);
+      message.error(error.response?.data?.message || 'Failed to cancel subscription. Please try again.');
+    } finally {
+      setCancelling(false);
+    }
+  };
+
+  const showCancelModal = () => {
+    Modal.confirm({
+      title: 'Cancel Verified Badge Subscription',
+      icon: <ExclamationCircleOutlined style={{ color: '#ff4d4f' }} />,
+      content: (
+        <div>
+          <p style={{ marginBottom: '12px', fontWeight: 'bold', color: '#ff4d4f' }}>
+            ⚠️ Money Will Not Be Refunded
+          </p>
+          <p style={{ marginBottom: '8px' }}>
+            Are you sure you want to cancel your Verified Badge subscription?
+          </p>
+          <p style={{ marginBottom: '8px', color: '#666' }}>
+            <strong>Important:</strong> Cancelling your subscription will:
+          </p>
+          <ul style={{ marginLeft: '20px', color: '#666' }}>
+            <li>Remove your verified badge immediately</li>
+            <li>Stop access to verified badge features</li>
+            <li><strong style={{ color: '#ff4d4f' }}>No refund will be provided</strong></li>
+          </ul>
+          <p style={{ marginTop: '12px', color: '#666', fontSize: '12px' }}>
+            Your subscription will remain active until the expiry date ({currentSubscription ? new Date(currentSubscription.expiryDate).toLocaleDateString() : ''}), but your verified badge will be removed immediately upon cancellation.
+          </p>
+        </div>
+      ),
+      okText: 'Yes, Cancel Subscription',
+      okType: 'danger',
+      cancelText: 'Keep Subscription',
+      onOk: handleCancelSubscription,
+      width: 500,
+      centered: true
+    });
   };
 
   const handleBuyPlan = async (planMonths) => {
@@ -356,22 +423,49 @@ const VerifiedBadge = () => {
           style={{
             borderRadius: '12px',
             marginBottom: '24px',
-            border: '1px solid #e0e0e0'
+            border: '1px solid #e0e0e0',
+            position: 'relative'
           }}
         >
           <Space direction="vertical" style={{ width: '100%' }}>
-            <Text strong style={{ fontSize: '16px' }}>Current Subscription</Text>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div>
-                <Text>{currentSubscription.planMonths} Month Plan</Text>
-                <br />
-                <Text type="secondary" style={{ fontSize: '12px' }}>
-                  Expires: {new Date(currentSubscription.expiryDate).toLocaleDateString()}
-                </Text>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <div style={{ flex: 1 }}>
+                <Text strong style={{ fontSize: '16px' }}>Current Subscription</Text>
+                <div style={{ marginTop: '8px' }}>
+                  <Text>{currentSubscription.planMonths} Month Plan</Text>
+                  <br />
+                  <Text type="secondary" style={{ fontSize: '12px' }}>
+                    Expires: {new Date(currentSubscription.expiryDate).toLocaleDateString()}
+                  </Text>
+                </div>
               </div>
-              <Tag color={currentSubscription.status === 'active' ? 'success' : 'default'}>
-                {currentSubscription.status}
-              </Tag>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <Tag color={currentSubscription.status === 'active' ? 'success' : 'default'}>
+                  {currentSubscription.status}
+                </Tag>
+                <Dropdown
+                  menu={{
+                    items: [
+                      {
+                        key: 'cancel',
+                        label: 'Cancel Subscription',
+                        danger: true,
+                        icon: <ExclamationCircleOutlined />,
+                        onClick: showCancelModal
+                      }
+                    ]
+                  }}
+                  trigger={['click']}
+                  placement="bottomRight"
+                >
+                  <Button
+                    type="text"
+                    icon={<MoreOutlined />}
+                    style={{ fontSize: '18px' }}
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                </Dropdown>
+              </div>
             </div>
           </Space>
         </Card>
@@ -416,17 +510,31 @@ const VerifiedBadge = () => {
             // Check if user has purchased this plan
             // plan.id is the planMonths (1, 2, 3, 4, 5, 6)
             const planMonths = plan.id || plan.months;
-            const hasPurchasedPlan = userSubscriptions.some(sub => 
+            
+            // Only consider active subscriptions that haven't expired
+            const activeSubscription = userSubscriptions.find(sub => 
               sub.planMonths === planMonths && 
-              (sub.status === 'active' || (sub.expiryDate && new Date(sub.expiryDate) > new Date()))
+              sub.status === 'active' &&
+              sub.expiryDate && 
+              new Date(sub.expiryDate) > new Date()
             );
-            const purchasedSubscription = userSubscriptions.find(sub => 
+            
+            // Check for any past purchase (including expired/cancelled) only if no active subscription
+            const hasPurchasedPlan = activeSubscription || userSubscriptions.some(sub => 
               sub.planMonths === planMonths && 
-              (sub.status === 'active' || (sub.expiryDate && new Date(sub.expiryDate) > new Date()))
+              sub.status !== 'cancelled' &&
+              sub.expiryDate && 
+              new Date(sub.expiryDate) > new Date()
             );
-            const isActive = purchasedSubscription && purchasedSubscription.status === 'active' && 
-                             purchasedSubscription.expiryDate && 
-                             new Date(purchasedSubscription.expiryDate) > new Date();
+            
+            const purchasedSubscription = activeSubscription || userSubscriptions.find(sub => 
+              sub.planMonths === planMonths && 
+              sub.status !== 'cancelled' &&
+              sub.expiryDate && 
+              new Date(sub.expiryDate) > new Date()
+            );
+            
+            const isActive = activeSubscription !== undefined;
 
             return (
               <Card
