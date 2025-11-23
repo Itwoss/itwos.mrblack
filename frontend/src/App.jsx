@@ -36,6 +36,8 @@ import UserNetwork from './pages/User/UserNetwork'
 import NewUsers from './pages/User/NewUsers'
 import MyPrebooks from './pages/User/MyPrebooks'
 import VerifiedBadge from './pages/User/VerifiedBadge'
+import Feed from './pages/User/Feed'
+import PostCreation from './pages/User/PostCreation'
 import AboutPage from './pages/AboutPage'
 import ContactPage from './pages/ContactPage'
 import AdminLoginPage from './pages/Admin/AdminLoginPage'
@@ -137,6 +139,16 @@ function App() {
                   <Route path="/chat" element={
                     <ProtectedRoute requiredRole="user">
                       <UserLayout><UserChat /></UserLayout>
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/feed" element={
+                    <ProtectedRoute requiredRole="user">
+                      <UserLayout><Feed /></UserLayout>
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/post/create" element={
+                    <ProtectedRoute requiredRole="user">
+                      <UserLayout><PostCreation /></UserLayout>
                     </ProtectedRoute>
                   } />
                   <Route path="/discover" element={

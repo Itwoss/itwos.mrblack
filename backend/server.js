@@ -372,6 +372,7 @@ app.use('/api/follow', require('./src/routes/followNew')) // New follow/unfollow
 app.use('/api/threads', require('./src/routes/threads')) // Thread and messaging endpoints
 app.use('/api/subscriptions', require('./src/routes/subscriptions')) // Subscription endpoints
 app.use('/api/payment-tracking', require('./src/routes/paymentTracking')) // Payment tracking endpoints
+app.use('/api/posts', require('./src/routes/posts')) // Post endpoints
 
 // Admin routes
 app.use('/api/admin', require('./src/routes/admin'))
