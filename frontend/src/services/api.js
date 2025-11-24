@@ -211,6 +211,9 @@ export const threadsAPI = {
   sendThreadMessage: (threadId, messageData) => api.post(`/threads/${threadId}/messages`, messageData),
   editMessage: (threadId, messageId, messageData) => api.put(`/threads/${threadId}/messages/${messageId}`, messageData),
   deleteMessage: (threadId, messageId) => api.delete(`/threads/${threadId}/messages/${messageId}`),
+  deleteThread: (threadId) => api.delete(`/threads/${threadId}`),
+  // Secure message deletion methods
+  clearThreadMessages: (threadId) => api.delete(`/threads/${threadId}/messages`), // Clear all messages in a thread
 }
 
 // Users List API (for finding users to chat with)
@@ -261,6 +264,26 @@ export const prebookAPI = {
   getAllPrebooks: (params) => api.get('/prebook/admin/all', { params }),
   updatePrebookStatus: (id, data) => api.put(`/prebook/admin/${id}/status`, data),
   getPrebookStats: () => api.get('/prebook/admin/stats'),
+}
+
+// Posts API
+export const postsAPI = {
+  createPost: (formData) => api.post('/posts', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  }),
+  getFeed: (params) => api.get('/posts/feed', { params }),
+  getMyPosts: (params) => api.get('/posts/my-posts', { params }),
+  likePost: (postId) => api.post(`/posts/${postId}/like`),
+  viewPost: (postId) => api.post(`/posts/${postId}/view`),
+  savePost: (postId) => api.post(`/posts/${postId}/save`),
+  sharePost: (postId) => api.post(`/posts/${postId}/share`),
+  reportPost: (postId, data) => api.post(`/posts/${postId}/report`, data),
+  // Admin endpoints
+  getAdminPosts: (params) => api.get('/admin/posts', { params }),
+  getAdminPost: (postId) => api.get(`/admin/posts/${postId}`),
+  moderatePost: (postId, data) => api.post(`/admin/posts/${postId}/moderate`, data),
+  featurePost: (postId, data) => api.post(`/admin/posts/${postId}/feature`, data),
+  adjustPostScore: (postId, data) => api.post(`/admin/posts/${postId}/adjust-score`, data),
 }
 
 // Admin API

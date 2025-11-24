@@ -59,6 +59,7 @@ import PrebookManagement from './pages/Admin/PrebookManagement'
 import BannerManagement from './pages/Admin/BannerManagement'
 import PaymentTracking from './pages/Admin/PaymentTracking'
 import UserActivities from './pages/Admin/UserActivities'
+import PostManagement from './pages/Admin/PostManagement'
 import ProductsPage from './pages/Products/ProductsPage'
 import ProductDetail from './pages/Products/ProductDetail'
 import PrebookPreview from './pages/Products/PrebookPreview'
@@ -287,6 +288,11 @@ function App() {
                   <Route path="/admin/banners" element={
                     <ProtectedRoute requiredRole="admin">
                       <AdminLayout><BannerManagement /></AdminLayout>
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/admin/posts" element={
+                    <ProtectedRoute requiredRole="admin">
+                      <AdminLayout><PostManagement /></AdminLayout>
                     </ProtectedRoute>
                   } />
                   

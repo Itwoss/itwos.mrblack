@@ -97,6 +97,27 @@ const chatRoomSchema = new mongoose.Schema({
     type: Boolean,
     default: true
   },
+  deletedAt: {
+    type: Date,
+    default: null
+  },
+  deletedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    default: null
+  },
+  // Track which users have deleted this conversation (per-user deletion)
+  deletedByUsers: [{
+    userId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: true
+    },
+    deletedAt: {
+      type: Date,
+      default: Date.now
+    }
+  }],
   createdBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',

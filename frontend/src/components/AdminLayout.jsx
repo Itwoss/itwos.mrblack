@@ -42,6 +42,7 @@ const AdminLayout = ({ children }) => {
     if (path.includes('/admin/payments')) return 'payments'
     if (path.includes('/admin/user-activities')) return 'activities'
     if (path.includes('/admin/banners')) return 'banners'
+    if (path.includes('/admin/posts')) return 'posts'
     return 'dashboard'
   }
 
@@ -81,6 +82,11 @@ const AdminLayout = ({ children }) => {
       key: 'banners',
       icon: <PictureOutlined />,
       label: 'Banner Management',
+    },
+    {
+      key: 'posts',
+      icon: <FileTextOutlined />,
+      label: 'Post Management',
     },
     {
       key: 'orders',
@@ -138,6 +144,9 @@ const AdminLayout = ({ children }) => {
         break
       case 'banners':
         navigate('/admin/banners')
+        break
+      case 'posts':
+        navigate('/admin/posts')
         break
       case 'orders':
         navigate('/admin/orders')

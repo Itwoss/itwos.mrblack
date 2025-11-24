@@ -29,8 +29,8 @@ const NotificationBell = () => {
       <Badge 
         count={displayCount} 
         size="small"
-        style={{
-          '.ant-badge-count': {
+        styles={{
+          indicator: {
             backgroundColor: AdminDesignSystem.colors.error,
             color: AdminDesignSystem.colors.text.white,
           }

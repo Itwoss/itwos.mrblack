@@ -31,12 +31,13 @@ import {
   EditOutlined,
   DeleteOutlined,
   CloseOutlined,
-  UndoOutlined
+  UndoOutlined,
+  ArrowLeftOutlined
 } from '@ant-design/icons'
 import { useAuth } from "../../contexts/AuthContextOptimized"
 import api from '../../services/api'
 import { threadsAPI, usersListAPI } from '../../services/api'
-import { getUserAvatarUrl, getUserInitials } from '../../utils/avatarUtils'
+import { getUserAvatarUrl, getUserInitials, getAvatarProps } from '../../utils/avatarUtils'
 import { io } from 'socket.io-client'
 import ChatInputWithMedia from '../../components/ChatInputWithMedia'
 
@@ -74,6 +75,9 @@ const UserChat = () => {
   const [failedAudioFiles, setFailedAudioFiles] = useState(new Set())
   const [replyingTo, setReplyingTo] = useState(null)
   const [showThemeMenu, setShowThemeMenu] = useState(false)
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768)
+  const [longPressMessageId, setLongPressMessageId] = useState(null)
+  const longPressTimerRef = useRef(null)
 
   // iOS Messages Style Themes
   const chatThemes = {
@@ -311,6 +315,25 @@ const UserChat = () => {
     }
   }, [selectedRoom, isAuthenticated, currentUser])
 
+  // Handle window resize for responsiveness
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth <= 768);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Cleanup long press timer on unmount
+  useEffect(() => {
+    return () => {
+      if (longPressTimerRef.current) {
+        clearTimeout(longPressTimerRef.current);
+        longPressTimerRef.current = null;
+      }
+    };
+  }, []);
+
   useEffect(() => {
     scrollToBottom()
   }, [messages])
@@ -384,9 +407,21 @@ const UserChat = () => {
           const exists = prev.some(msg => msg._id === newMsg._id)
           if (exists) return prev
           
+          // Log replyTo for debugging
+          if (newMsg.replyTo) {
+            console.log('📩 New message with replyTo:', {
+              messageId: newMsg._id,
+              replyTo: newMsg.replyTo,
+              replyToType: typeof newMsg.replyTo,
+              replyToId: typeof newMsg.replyTo === 'string' ? newMsg.replyTo : (newMsg.replyTo?._id || newMsg.replyTo)
+            })
+          }
+          
           return [...prev, {
             ...newMsg,
-            sender: newMsg.sender || { _id: newMsg.sender, name: 'Unknown' }
+            sender: newMsg.sender || { _id: newMsg.sender, name: 'Unknown' },
+            // Ensure replyTo is preserved
+            replyTo: newMsg.replyTo || null
           }]
         })
       }
@@ -695,6 +730,17 @@ const UserChat = () => {
       if (response.data.success) {
         const messagesList = response.data.messages || []
         console.log(`✅ Loaded ${messagesList.length} messages`)
+        
+        // Log messages with replyTo for debugging
+        const messagesWithReply = messagesList.filter(m => m.replyTo)
+        if (messagesWithReply.length > 0) {
+          console.log('📩 Messages with replyTo:', messagesWithReply.map(m => ({
+            id: m._id,
+            replyTo: m.replyTo,
+            replyToType: typeof m.replyTo
+          })))
+        }
+        
         // Sort messages: oldest first (top), newest last (bottom) - Instagram style
         const sortedMessages = messagesList.sort((a, b) => {
           const dateA = new Date(a.createdAt || 0)
@@ -782,6 +828,7 @@ const UserChat = () => {
         messageType: 'text',
         replyTo: replyingTo?._id || null
       }
+      console.log('📩 Sending text message with replyTo:', replyingTo?._id || null, replyingTo)
       // Clear reply after sending
       setReplyingTo(null)
     } else if (payload.type === 'sticker') {
@@ -807,8 +854,12 @@ const UserChat = () => {
           messageData = {
             text: payload.text || '',
             messageType: 'image',
-            imageUrl: uploadResponse.data.url || uploadResponse.data.data?.url
+            imageUrl: uploadResponse.data.url || uploadResponse.data.data?.url,
+            replyTo: replyingTo?._id || null
           }
+          console.log('📩 Sending image message with replyTo:', replyingTo?._id || null, replyingTo)
+          // Clear reply after sending
+          setReplyingTo(null)
         } else {
           message.error('Failed to upload image')
           return
@@ -853,8 +904,12 @@ const UserChat = () => {
             messageType: 'audio',
             audioUrl: audioUrl,
             audioTitle: payload.title,
-            audioDuration: payload.duration
+            audioDuration: payload.duration,
+            replyTo: replyingTo?._id || null
           }
+          console.log('📩 Sending audio message with replyTo:', replyingTo?._id || null, replyingTo)
+          // Clear reply after sending
+          setReplyingTo(null)
         } else {
           const errorMsg = uploadResponse.data.message || 'Failed to upload audio'
           console.error('❌ Audio upload failed:', errorMsg)
@@ -1184,16 +1239,45 @@ const UserChat = () => {
         .ios-typing-dot:nth-child(3) {
           animation-delay: 0s;
         }
+        @media (max-width: 768px) {
+          .chat-sidebar {
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 100%;
+            z-index: 100;
+            transition: transform 0.3s ease-out;
+          }
+          .chat-sidebar.hidden {
+            transform: translateX(-100%);
+          }
+          .chat-main {
+            width: 100%;
+          }
+          .chat-main.hidden {
+            display: none;
+          }
+        }
+        @media (min-width: 769px) {
+          .chat-sidebar {
+            width: 350px;
+            flex-shrink: 0;
+          }
+          .chat-main {
+            flex: 1;
+          }
+        }
       `}</style>
       <div style={{ 
         display: 'flex',
         height: 'calc(100vh - 80px)',
         background: '#fff',
-        overflow: 'hidden'
+        overflow: 'hidden',
+        position: 'relative'
       }}>
       {/* iOS Style Left Sidebar - Conversations List */}
-      <div style={{
-        width: '350px',
+      <div className={`chat-sidebar ${selectedRoom && isMobile ? 'hidden' : ''}`} style={{
         borderRight: '0.5px solid rgba(0,0,0,0.1)',
         display: 'flex',
         flexDirection: 'column',
@@ -1297,6 +1381,12 @@ const UserChat = () => {
                       src={getRoomAvatar(room)}
                       icon={<UserOutlined />}
                       size={56}
+                      onError={(e) => {
+                        // Handle 429 and other image errors - fallback to initials
+                        if (e && e.target) {
+                          e.target.style.display = 'none';
+                        }
+                      }}
                     >
                       {otherParticipant ? getUserInitials(otherParticipant.name) : 'U'}
                     </Avatar>
@@ -1359,13 +1449,13 @@ const UserChat = () => {
       </div>
 
       {/* Right Side - iOS Style Chat Messages */}
-      <div style={{
-        flex: 1,
+      <div className={`chat-main ${!selectedRoom && isMobile ? 'hidden' : ''}`} style={{
         display: 'flex',
         flexDirection: 'column',
         position: 'relative',
         background: currentTheme.background,
-        overflow: 'hidden'
+        overflow: 'hidden',
+        width: '100%'
       }}>
         {/* iOS Style Blur overlay */}
         <div style={{
@@ -1407,6 +1497,20 @@ const UserChat = () => {
               minHeight: '60px',
               overflow: 'hidden'
             }}>
+              {/* Back button for mobile */}
+              {isMobile && (
+                <Button
+                  type="text"
+                  icon={<ArrowLeftOutlined />}
+                  onClick={() => setSelectedRoom(null)}
+                  style={{
+                    marginRight: '8px',
+                    padding: '4px',
+                    color: otherParticipantBanner ? '#fff' : undefined,
+                    textShadow: otherParticipantBanner ? '0 1px 2px rgba(0,0,0,0.5)' : undefined
+                  }}
+                />
+              )}
               {/* Banner overlay for better text readability */}
               {otherParticipantBanner && (
                 <>
@@ -1443,6 +1547,13 @@ const UserChat = () => {
                   src={getRoomAvatar(selectedRoom)}
                   icon={<UserOutlined />}
                   size={32}
+                  onError={(e) => {
+                    // Handle 429 and other image errors - fallback to initials
+                    if (e && e.target) {
+                      e.target.style.display = 'none';
+                    }
+                  }}
+                  crossOrigin={undefined}
                 >
                   {getOtherParticipant(selectedRoom) ? getUserInitials(getOtherParticipant(selectedRoom).name) : 'U'}
                 </Avatar>
@@ -1512,6 +1623,41 @@ const UserChat = () => {
                       type: 'divider'
                     },
                     {
+                      key: 'clearMessages',
+                      label: 'Clear Messages',
+                      icon: <DeleteOutlined />,
+                      danger: true,
+                      onClick: () => {
+                        if (!selectedRoom?._id) {
+                          message.error('No conversation selected')
+                          return
+                        }
+                        Modal.confirm({
+                          title: 'Clear all messages?',
+                          content: 'All messages in this conversation will be cleared for you. Other participants will still see the messages.',
+                          okText: 'Clear',
+                          okType: 'danger',
+                          cancelText: 'Cancel',
+                          onOk: async () => {
+                            try {
+                              const response = await threadsAPI.clearThreadMessages(selectedRoom._id)
+                              message.success(response.data?.message || `Cleared ${response.data?.deletedCount || 0} message(s)`)
+                              // Reload messages to reflect deletion
+                              if (selectedRoom?._id) {
+                                loadMessages(selectedRoom._id)
+                              }
+                            } catch (error) {
+                              console.error('Clear messages error:', error)
+                              message.error(error.response?.data?.message || 'Failed to clear messages')
+                            }
+                          }
+                        })
+                      }
+                    },
+                    {
+                      type: 'divider'
+                    },
+                    {
                       key: 'delete',
                       label: 'Delete Conversation',
                       icon: <DeleteOutlined />,
@@ -1525,12 +1671,17 @@ const UserChat = () => {
                           cancelText: 'Cancel',
                           onOk: async () => {
                             try {
-                              // TODO: Implement delete conversation API call
+                              if (!selectedRoom?._id) {
+                                message.error('No conversation selected')
+                                return
+                              }
+                              await threadsAPI.deleteThread(selectedRoom._id)
                               message.success('Conversation deleted')
                               setSelectedRoom(null)
                               loadChatRooms()
                             } catch (error) {
-                              message.error('Failed to delete conversation')
+                              console.error('Delete conversation error:', error)
+                              message.error(error.response?.data?.message || 'Failed to delete conversation')
                             }
                           }
                         })
@@ -1556,7 +1707,7 @@ const UserChat = () => {
               style={{
                 flex: 1,
                 overflowY: 'auto',
-                padding: '12px 16px',
+                padding: isMobile ? '8px 12px' : '12px 16px',
                 background: 'transparent',
                 display: 'flex',
                 flexDirection: 'column',
@@ -1603,6 +1754,7 @@ const UserChat = () => {
                   return (
                     <div
                       key={msg._id || index}
+                      data-message-id={msg._id}
                       style={{
                         display: 'flex',
                         justifyContent: isOwnMessage ? 'flex-end' : 'flex-start',
@@ -1611,10 +1763,50 @@ const UserChat = () => {
                         marginBottom: showAvatar ? '12px' : '1px',
                         paddingLeft: isOwnMessage ? '60px' : '0',
                         paddingRight: isOwnMessage ? '0' : '60px',
-                        position: 'relative'
+                        position: 'relative',
+                        transition: 'background-color 0.3s ease'
                       }}
-                      onMouseEnter={() => isOwnMessage && !msg.isDeleted && setHoveredMessageId(msg._id)}
-                      onMouseLeave={() => setHoveredMessageId(null)}
+                      onMouseEnter={() => {
+                        if (!isMobile && !msg.isDeleted) {
+                          setHoveredMessageId(msg._id)
+                        }
+                      }}
+                      onMouseLeave={() => {
+                        if (!isMobile) {
+                          setHoveredMessageId(null)
+                        }
+                      }}
+                      onTouchStart={(e) => {
+                        if (isMobile && !msg.isDeleted) {
+                          // Clear any existing timer
+                          if (longPressTimerRef.current) {
+                            clearTimeout(longPressTimerRef.current)
+                          }
+                          // Start long press timer
+                          longPressTimerRef.current = setTimeout(() => {
+                            setLongPressMessageId(msg._id)
+                            setHoveredMessageId(msg._id)
+                            // Vibrate if supported
+                            if (navigator.vibrate) {
+                              navigator.vibrate(50)
+                            }
+                            longPressTimerRef.current = null
+                          }, 500) // 500ms for long press
+                        }
+                      }}
+                      onTouchEnd={(e) => {
+                        if (isMobile && longPressTimerRef.current) {
+                          clearTimeout(longPressTimerRef.current)
+                          longPressTimerRef.current = null
+                        }
+                      }}
+                      onTouchMove={(e) => {
+                        if (isMobile && longPressTimerRef.current) {
+                          // Cancel long press if user moves finger
+                          clearTimeout(longPressTimerRef.current)
+                          longPressTimerRef.current = null
+                        }
+                      }}
                     >
                       {!isOwnMessage && (
                         <Avatar
@@ -1624,6 +1816,12 @@ const UserChat = () => {
                           style={{ 
                             flexShrink: 0,
                             visibility: showAvatar ? 'visible' : 'hidden'
+                          }}
+                          onError={(e) => {
+                            // Handle 429 and other image errors - fallback to initials
+                            if (e && e.target) {
+                              e.target.style.display = 'none';
+                            }
                           }}
                         >
                           {msg.sender ? getUserInitials(msg.sender.name) : 'U'}
@@ -1662,40 +1860,93 @@ const UserChat = () => {
                             transition: 'transform 0.2s ease-out'
                           }}
                           >
-                          {/* Reply Preview */}
+                          {/* Reply Preview - Instagram Style */}
                           {msg.replyTo && (() => {
-                            const repliedMessage = messages.find(m => m._id === msg.replyTo)
-                            if (!repliedMessage) return null
+                            // Handle replyTo as object or ID string
+                            const replyToId = typeof msg.replyTo === 'string' 
+                              ? msg.replyTo 
+                              : (msg.replyTo?._id || msg.replyTo)
+                            
+                            if (!replyToId) return null
+                            
+                            // Find the replied message by ID
+                            const repliedMessage = messages.find(m => {
+                              const msgId = m._id?.toString() || m._id
+                              const replyId = replyToId?.toString() || replyToId
+                              return msgId === replyId
+                            })
+                            
+                            if (!repliedMessage) {
+                              console.warn('Reply message not found:', replyToId, 'Available messages:', messages.map(m => m._id))
+                              return null
+                            }
+                            
                             const isRepliedOwn = repliedMessage.sender?._id?.toString() === currentUser?._id?.toString()
+                            const repliedMessageId = repliedMessage._id?.toString() || repliedMessage._id
+                            
                             return (
-                              <div style={{
-                                marginBottom: '8px',
-                                padding: '6px 10px',
-                                background: isOwnMessage 
-                                  ? 'rgba(255,255,255,0.2)' 
-                                  : 'rgba(0,0,0,0.05)',
-                                borderRadius: '6px',
-                                borderLeft: `2px solid ${currentTheme.accentColor || '#0A84FF'}`,
-                                fontSize: '13px'
-                              }}>
+                              <div 
+                                style={{
+                                  marginBottom: '8px',
+                                  padding: '6px 10px',
+                                  background: isOwnMessage 
+                                    ? 'rgba(255,255,255,0.2)' 
+                                    : 'rgba(0,0,0,0.05)',
+                                  borderRadius: '6px',
+                                  borderLeft: `3px solid ${isOwnMessage ? 'rgba(255,255,255,0.6)' : (currentTheme.accentColor || '#0A84FF')}`,
+                                  fontSize: '13px',
+                                  cursor: 'pointer',
+                                  transition: 'all 0.2s ease'
+                                }}
+                                onClick={() => {
+                                  // Scroll to the original message when clicking reply preview
+                                  const messageElement = document.querySelector(`[data-message-id="${repliedMessageId}"]`)
+                                  if (messageElement) {
+                                    messageElement.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                                    // Highlight the message briefly
+                                    messageElement.style.backgroundColor = isOwnMessage ? 'rgba(255,255,255,0.1)' : 'rgba(0, 122, 255, 0.1)'
+                                    setTimeout(() => {
+                                      messageElement.style.backgroundColor = 'transparent'
+                                    }, 1500)
+                                  } else {
+                                    console.warn('Reply target message element not found:', repliedMessageId)
+                                  }
+                                }}
+                                onMouseEnter={(e) => {
+                                  e.currentTarget.style.background = isOwnMessage 
+                                    ? 'rgba(255,255,255,0.25)' 
+                                    : 'rgba(0,0,0,0.08)'
+                                }}
+                                onMouseLeave={(e) => {
+                                  e.currentTarget.style.background = isOwnMessage 
+                                    ? 'rgba(255,255,255,0.2)' 
+                                    : 'rgba(0,0,0,0.05)'
+                                }}
+                              >
                                 <div style={{ 
                                   fontSize: '11px', 
                                   fontWeight: 600, 
                                   color: isOwnMessage ? 'rgba(255,255,255,0.9)' : '#666',
-                                  marginBottom: '2px'
+                                  marginBottom: '2px',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '4px'
                                 }}>
-                                  {isRepliedOwn ? 'You' : getRoomDisplayName(selectedRoom)}
+                                  <UndoOutlined style={{ fontSize: '10px', transform: 'scaleX(-1)' }} />
+                                  <span>{isRepliedOwn ? 'You' : (repliedMessage.sender?.name || getRoomDisplayName(selectedRoom))}</span>
                                 </div>
                                 <div style={{ 
                                   fontSize: '12px', 
                                   color: isOwnMessage ? 'rgba(255,255,255,0.7)' : '#999',
                                   overflow: 'hidden',
                                   textOverflow: 'ellipsis',
-                                  whiteSpace: 'nowrap'
+                                  whiteSpace: 'nowrap',
+                                  lineHeight: '1.3'
                                 }}>
-                                  {repliedMessage.text || repliedMessage.message || 
+                                  {repliedMessage.text || repliedMessage.message || repliedMessage.ciphertext || 
                                    (repliedMessage.messageType === 'image' ? '📷 Image' : 
-                                    repliedMessage.messageType === 'audio' ? '🎵 Audio' : 'Message')}
+                                    repliedMessage.messageType === 'audio' ? '🎵 Audio' : 
+                                    repliedMessage.messageType === 'sticker' ? 'Sticker' : 'Message')}
                                 </div>
                               </div>
                             )
@@ -1779,7 +2030,9 @@ const UserChat = () => {
                                       alt="Shared image"
                                       onError={(e) => {
                                         console.error('🖼️ Image load error:', imageSrc)
-                                        e.target.style.display = 'none'
+                                        if (e && e.target) {
+                                          e.target.style.display = 'none'
+                                        }
                                       }}
                                       style={{
                                         maxWidth: '280px',
@@ -1818,7 +2071,9 @@ const UserChat = () => {
                                       onError={(e) => {
                                         console.error('Audio load error:', audioSrc, 'Original URL:', msg.audioUrl)
                                         setFailedAudioFiles(prev => new Set([...prev, msg._id]))
-                                        e.target.style.display = 'none'
+                                        if (e && e.target) {
+                                          e.target.style.display = 'none'
+                                        }
                                       }}
                                       onLoadStart={() => {
                                         console.log('🎵 Loading audio:', audioSrc)
@@ -1896,48 +2151,125 @@ const UserChat = () => {
                             </>
                           )}
                         </div>
-                        {/* Edit/Unsend Menu - Show on hover for own messages */}
-                        {isOwnMessage && !msg.isDeleted && hoveredMessageId === msg._id && editingMessageId !== msg._id && (
-                          <Dropdown
-                            menu={{
-                              items: [
-                                {
-                                  key: 'reply',
-                                  label: 'Reply',
-                                  icon: <UndoOutlined />,
-                                  onClick: () => setReplyingTo(msg)
-                                },
-                                {
-                                  key: 'edit',
-                                  label: 'Edit',
-                                  icon: <EditOutlined />,
-                                  onClick: () => handleEditMessage(msg),
-                                  disabled: msg.messageType !== 'text'
-                                },
-                                {
-                                  key: 'unsend',
-                                  label: 'Unsend',
-                                  icon: <DeleteOutlined />,
-                                  danger: true,
-                                  onClick: () => handleDeleteMessage(msg._id)
-                                }
-                              ]
-                            }}
-                            trigger={['click']}
-                            placement="bottomRight"
+                        {/* Reply button - Show for all messages (Instagram style) */}
+                        {/* Desktop: Show on hover | Mobile: Show on long press */}
+                        {!msg.isDeleted && (hoveredMessageId === msg._id || longPressMessageId === msg._id) && editingMessageId !== msg._id && (
+                          <div style={{
+                            position: 'absolute',
+                            right: isOwnMessage ? (isMobile ? '8px' : '-35px') : 'auto',
+                            left: isOwnMessage ? 'auto' : (isMobile ? '8px' : '-35px'),
+                            top: isMobile ? '50%' : '8px',
+                            transform: isMobile ? 'translateY(-50%)' : 'none',
+                            zIndex: 100,
+                            pointerEvents: 'auto'
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                          onTouchStart={(e) => e.stopPropagation()}
                           >
-                            <Button
-                              type="text"
-                              icon={<MoreOutlined />}
-                              size="small"
-                              style={{
-                                padding: '4px',
-                                minWidth: '24px',
-                                height: '24px',
-                                opacity: 0.7
+                            <Dropdown
+                              menu={{
+                                items: [
+                                  {
+                                    key: 'reply',
+                                    label: 'Reply',
+                                    icon: <UndoOutlined style={{ transform: 'scaleX(-1)' }} />,
+                                    onClick: () => {
+                                      console.log('📩 Setting reply to:', msg)
+                                      setReplyingTo(msg)
+                                      setHoveredMessageId(null)
+                                      setLongPressMessageId(null)
+                                      // Scroll input into view
+                                      setTimeout(() => {
+                                        const inputArea = document.querySelector('[data-chat-input]')
+                                        if (inputArea) {
+                                          inputArea.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+                                        }
+                                      }, 100)
+                                    }
+                                  },
+                                  // Edit/Unsend only for own messages
+                                  ...(isOwnMessage ? [
+                                    {
+                                      key: 'edit',
+                                      label: 'Edit',
+                                      icon: <EditOutlined />,
+                                      onClick: () => {
+                                        handleEditMessage(msg)
+                                        setHoveredMessageId(null)
+                                        setLongPressMessageId(null)
+                                      },
+                                      disabled: msg.messageType !== 'text'
+                                    },
+                                    {
+                                      key: 'unsend',
+                                      label: 'Unsend',
+                                      icon: <DeleteOutlined />,
+                                      danger: true,
+                                      onClick: () => {
+                                        handleDeleteMessage(msg._id)
+                                        setHoveredMessageId(null)
+                                        setLongPressMessageId(null)
+                                      }
+                                    }
+                                  ] : [])
+                                ],
+                                onClick: ({ key }) => {
+                                  // Close menu after selection
+                                  if (key !== 'reply' && key !== 'edit' && key !== 'unsend') {
+                                    setHoveredMessageId(null)
+                                    setLongPressMessageId(null)
+                                  }
+                                }
                               }}
-                            />
-                          </Dropdown>
+                              trigger={['click']}
+                              placement={isOwnMessage ? 'bottomRight' : 'bottomLeft'}
+                              open={hoveredMessageId === msg._id || longPressMessageId === msg._id}
+                              onOpenChange={(open) => {
+                                if (!open) {
+                                  setHoveredMessageId(null)
+                                  setLongPressMessageId(null)
+                                }
+                              }}
+                            >
+                              <Button
+                                type="text"
+                                icon={<MoreOutlined />}
+                                size="small"
+                                style={{
+                                  padding: '4px',
+                                  minWidth: '24px',
+                                  height: '24px',
+                                  opacity: 0.9,
+                                  background: isMobile ? 'rgba(0, 0, 0, 0.6)' : 'rgba(255, 255, 255, 0.95)',
+                                  boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+                                  borderRadius: '50%',
+                                  color: isMobile ? '#fff' : undefined
+                                }}
+                              />
+                            </Dropdown>
+                          </div>
+                        )}
+                        {/* Click outside to close on mobile */}
+                        {isMobile && longPressMessageId === msg._id && (
+                          <div
+                            style={{
+                              position: 'fixed',
+                              top: 0,
+                              left: 0,
+                              right: 0,
+                              bottom: 0,
+                              zIndex: 99,
+                              background: 'transparent'
+                            }}
+                            onClick={() => {
+                              setHoveredMessageId(null)
+                              setLongPressMessageId(null)
+                            }}
+                            onTouchStart={() => {
+                              setHoveredMessageId(null)
+                              setLongPressMessageId(null)
+                            }}
+                          />
                         )}
                         {(index === messages.length - 1 || 
                           (messages[index + 1] && 
@@ -1969,6 +2301,12 @@ const UserChat = () => {
                           icon={<UserOutlined />}
                           size={28}
                           style={{ flexShrink: 0 }}
+                          onError={(e) => {
+                            // Handle 429 and other image errors - fallback to initials
+                            if (e && e.target) {
+                              e.target.style.display = 'none';
+                            }
+                          }}
                         >
                           {getUserInitials(currentUser?.name)}
                         </Avatar>
@@ -2031,54 +2369,92 @@ const UserChat = () => {
             </div>
 
             {/* iOS Style Message Input */}
-            <div style={{
-              padding: '8px 16px',
-              paddingBottom: 'max(8px, env(safe-area-inset-bottom))',
-              background: currentTheme.inputBg,
-              backdropFilter: 'blur(20px) saturate(180%)',
-              WebkitBackdropFilter: 'blur(20px) saturate(180%)',
-              borderTop: '0.5px solid rgba(0,0,0,0.1)',
-              position: 'relative',
-              zIndex: 10
-            }}>
-              {/* Reply Preview */}
+            <div 
+              data-chat-input
+              style={{
+                padding: '8px 16px',
+                paddingBottom: 'max(8px, env(safe-area-inset-bottom))',
+                background: currentTheme.inputBg,
+                backdropFilter: 'blur(20px) saturate(180%)',
+                WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+                borderTop: '0.5px solid rgba(0,0,0,0.1)',
+                position: 'relative',
+                zIndex: 10
+              }}
+            >
+              {/* Reply Preview - Instagram Style */}
               {replyingTo && (
-                <div style={{
-                  marginBottom: '8px',
-                  padding: '8px 12px',
-                  background: 'rgba(0,0,0,0.05)',
-                  borderRadius: '8px',
-                  borderLeft: `3px solid ${currentTheme.accentColor || '#0A84FF'}`,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  gap: '8px'
-                }}>
+                <div 
+                  style={{
+                    marginBottom: '8px',
+                    padding: '8px 12px',
+                    background: 'rgba(0,0,0,0.03)',
+                    borderRadius: '8px',
+                    borderLeft: `3px solid ${currentTheme.accentColor || '#0A84FF'}`,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: '8px',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                    position: 'relative'
+                  }}
+                  onClick={() => {
+                    // Scroll to the original message when clicking reply preview
+                    const messageElement = document.querySelector(`[data-message-id="${replyingTo._id}"]`)
+                    if (messageElement) {
+                      messageElement.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                      // Highlight the message briefly
+                      messageElement.style.backgroundColor = 'rgba(0, 122, 255, 0.1)'
+                      setTimeout(() => {
+                        messageElement.style.backgroundColor = 'transparent'
+                      }, 1500)
+                    }
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = 'rgba(0,0,0,0.05)'
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'rgba(0,0,0,0.03)'
+                  }}
+                >
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ 
                       fontSize: '12px', 
                       fontWeight: 600, 
                       color: currentTheme.accentColor || '#0A84FF',
-                      marginBottom: '4px'
+                      marginBottom: '4px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px'
                     }}>
-                      Replying to {replyingTo.sender?._id?.toString() === currentUser?._id?.toString() ? 'yourself' : getRoomDisplayName(selectedRoom)}
+                      <UndoOutlined style={{ fontSize: '11px', transform: 'scaleX(-1)' }} />
+                      <span>{replyingTo.sender?._id?.toString() === currentUser?._id?.toString() ? 'Replying to yourself' : `Replying to ${getRoomDisplayName(selectedRoom)}`}</span>
                     </div>
                     <div style={{ 
                       fontSize: '13px', 
                       color: '#666',
                       overflow: 'hidden',
                       textOverflow: 'ellipsis',
-                      whiteSpace: 'nowrap'
+                      whiteSpace: 'nowrap',
+                      lineHeight: '1.3'
                     }}>
-                      {replyingTo.text || replyingTo.message || (replyingTo.messageType === 'image' ? '📷 Image' : replyingTo.messageType === 'audio' ? '🎵 Audio' : 'Message')}
+                      {replyingTo.text || replyingTo.message || replyingTo.ciphertext || (replyingTo.messageType === 'image' ? '📷 Image' : replyingTo.messageType === 'audio' ? '🎵 Audio' : replyingTo.messageType === 'sticker' ? 'Sticker' : 'Message')}
                     </div>
                   </div>
                   <Button
                     type="text"
                     icon={<CloseOutlined />}
                     size="small"
-                    onClick={() => setReplyingTo(null)}
-                    style={{ flexShrink: 0 }}
+                    onClick={(e) => {
+                      e.stopPropagation() // Prevent triggering the scroll
+                      setReplyingTo(null)
+                    }}
+                    style={{ 
+                      flexShrink: 0,
+                      color: '#8E8E93',
+                      padding: '4px'
+                    }}
                   />
                 </div>
               )}
@@ -2210,7 +2586,11 @@ const UserChat = () => {
                       marginBottom: '4px'
                     }}
                   >
-                    <Avatar src={getUserAvatarUrl(user)} icon={<UserOutlined />} size={44}>
+                    <Avatar 
+                      icon={<UserOutlined />} 
+                      size={44}
+                      {...getAvatarProps(user)}
+                    >
                       {getUserInitials(user.name)}
                     </Avatar>
                     <div style={{ marginLeft: '12px', flex: 1 }}>
@@ -2249,7 +2629,12 @@ const UserChat = () => {
                         color="blue"
                         style={{ margin: 0, padding: '4px 12px', fontSize: '14px' }}
                       >
-                        <Avatar src={getUserAvatarUrl(user)} icon={<UserOutlined />} size={16} style={{ marginRight: '6px' }}>
+                        <Avatar 
+                          icon={<UserOutlined />} 
+                          size={16} 
+                          style={{ marginRight: '6px' }}
+                          {...getAvatarProps(user)}
+                        >
                           {getUserInitials(user.name)}
                         </Avatar>
                         {user.name}

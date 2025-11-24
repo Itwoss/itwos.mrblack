@@ -135,9 +135,25 @@ router.get('/user/inventory', authenticateToken, requireUser, async (req, res) =
   }
 });
 
-// POST /api/banners/user/purchase/:id - Purchase a banner
-router.post('/user/purchase/:id', authenticateToken, requireUser, async (req, res) => {
+// POST /api/banners/user/purchase/:id/create-order - Create Razorpay order for banner purchase
+router.post('/user/purchase/:id/create-order', authenticateToken, requireUser, async (req, res) => {
   try {
+    const Razorpay = require('razorpay');
+    const RAZORPAY_KEY_ID = process.env.RAZORPAY_KEY_ID;
+    const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_SECRET || process.env.RAZORPAY_KEY_SECRET;
+
+    if (!RAZORPAY_KEY_ID || !RAZORPAY_KEY_SECRET) {
+      return res.status(500).json({
+        success: false,
+        message: 'Payment service not configured'
+      });
+    }
+
+    const razorpay = new Razorpay({
+      key_id: RAZORPAY_KEY_ID,
+      key_secret: RAZORPAY_KEY_SECRET
+    });
+
     const banner = await Banner.findById(req.params.id);
     
     if (!banner) {
@@ -175,10 +191,106 @@ router.post('/user/purchase/:id', authenticateToken, requireUser, async (req, re
         message: 'You already own this banner'
       });
     }
+
+    // Create Razorpay order
+    const receipt = `banner_${req.params.id.slice(-8)}_${Date.now().toString().slice(-8)}`.substring(0, 40);
+    const amount = Math.round(banner.price * 100); // Convert to paise
+
+    const orderData = {
+      amount: amount,
+      currency: 'INR',
+      receipt: receipt,
+      notes: {
+        userId: req.user._id.toString(),
+        bannerId: banner._id.toString(),
+        bannerName: banner.name
+      }
+    };
+
+    const order = await razorpay.orders.create(orderData);
+
+    res.json({
+      success: true,
+      data: {
+        order_id: order.id,
+        amount: order.amount,
+        currency: order.currency,
+        key: RAZORPAY_KEY_ID
+      }
+    });
+  } catch (error) {
+    console.error('Create banner order error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to create payment order',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+    });
+  }
+});
+
+// POST /api/banners/user/purchase/:id/verify - Verify banner purchase payment
+router.post('/user/purchase/:id/verify', authenticateToken, requireUser, async (req, res) => {
+  try {
+    const crypto = require('crypto');
+    const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_SECRET || process.env.RAZORPAY_KEY_SECRET;
     
-    // TODO: Implement payment logic here
-    // For now, we'll just add it to inventory (free purchase for testing)
+    const { 
+      razorpay_payment_id, 
+      razorpay_order_id, 
+      razorpay_signature 
+    } = req.body;
+
+    if (!razorpay_payment_id || !razorpay_order_id || !razorpay_signature) {
+      return res.status(400).json({
+        success: false,
+        message: 'Missing required payment verification fields'
+      });
+    }
+
+    const banner = await Banner.findById(req.params.id);
     
+    if (!banner) {
+      return res.status(404).json({
+        success: false,
+        message: 'Banner not found'
+      });
+    }
+
+    const user = await User.findById(req.user._id);
+    
+    // Check if user already owns this banner
+    const alreadyOwned = user.bannerInventory.some(
+      item => item.bannerId.toString() === banner._id.toString()
+    );
+    
+    if (alreadyOwned) {
+      return res.status(400).json({
+        success: false,
+        message: 'You already own this banner'
+      });
+    }
+
+    // Verify payment signature
+    const body = razorpay_order_id + '|' + razorpay_payment_id;
+    const expectedSignature = crypto
+      .createHmac('sha256', RAZORPAY_KEY_SECRET)
+      .update(body.toString())
+      .digest('hex');
+
+    const isAuthentic = expectedSignature === razorpay_signature;
+    const isDevelopment = process.env.NODE_ENV === 'development';
+
+    // Skip signature verification in development
+    if (!isDevelopment && !isAuthentic) {
+      return res.status(400).json({
+        success: false,
+        message: 'Payment verification failed'
+      });
+    }
+
+    // Check if user had an equipped banner before
+    const hadEquippedBanner = !!user.equippedBanner;
+
     // Add banner to user's inventory
     user.bannerInventory.push({
       bannerId: banner._id,
@@ -186,6 +298,7 @@ router.post('/user/purchase/:id', authenticateToken, requireUser, async (req, re
     });
     
     // If user has no equipped banner, equip this one automatically
+    const wasAutoEquipped = !user.equippedBanner;
     if (!user.equippedBanner) {
       user.equippedBanner = banner._id;
     }
@@ -202,13 +315,17 @@ router.post('/user/purchase/:id', authenticateToken, requireUser, async (req, re
     res.json({
       success: true,
       message: 'Banner purchased successfully',
-      banner: banner.getPublicData()
+      banner: banner.getPublicData(),
+      paymentId: razorpay_payment_id,
+      orderId: razorpay_order_id,
+      wasAutoEquipped: wasAutoEquipped, // Indicates if banner was auto-equipped
+      hadEquippedBanner: hadEquippedBanner // Indicates if user had a banner equipped before
     });
   } catch (error) {
-    console.error('Purchase banner error:', error);
+    console.error('Verify banner purchase error:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to purchase banner',
+      message: 'Failed to verify payment',
       error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
     });
   }

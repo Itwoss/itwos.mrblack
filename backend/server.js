@@ -27,8 +27,9 @@ const io = new Server(server, {
   allowEIO3: true // Allow Engine.IO v3 clients
 })
 
-// Make io available to routes
+// Make io available to routes and globally for services
 app.set('io', io)
+global.io = io // Also set globally for services to access
 
 // Socket.IO connection handling
 io.on('connection', async (socket) => {
@@ -405,7 +406,7 @@ app.use('/uploads/images', (req, res, next) => {
   }
 })
 
-// Serve audio files with proper headers
+// Custom middleware to handle audio files with fallback
 app.use('/uploads/audio', (req, res, next) => {
   // Set CORS headers
   res.header('Access-Control-Allow-Origin', '*')
@@ -414,39 +415,48 @@ app.use('/uploads/audio', (req, res, next) => {
   res.header('Cross-Origin-Resource-Policy', 'cross-origin')
   res.header('Accept-Ranges', 'bytes')
   
-  // Set appropriate content type based on file extension
-  const ext = path.extname(req.path).toLowerCase()
-  if (ext === '.wav' || ext === '.wave') {
-    res.header('Content-Type', 'audio/wav')
-  } else if (ext === '.mp3') {
-    res.header('Content-Type', 'audio/mpeg')
-  } else if (ext === '.ogg') {
-    res.header('Content-Type', 'audio/ogg')
-  } else if (ext === '.m4a') {
-    res.header('Content-Type', 'audio/mp4')
-  } else {
-    res.header('Content-Type', 'audio/wav') // Default to wav
-  }
+  const filePath = path.join(__dirname, 'uploads', 'audio', path.basename(req.path))
   
-  next()
-}, express.static(path.join(__dirname, 'uploads', 'audio'), {
-  fallthrough: true,
-  setHeaders: (res, filePath) => {
-    // Ensure proper content type is set
-    const ext = path.extname(filePath).toLowerCase()
-    if (!res.getHeader('Content-Type')) {
-      if (ext === '.wav' || ext === '.wave') {
-        res.setHeader('Content-Type', 'audio/wav')
-      } else if (ext === '.mp3') {
-        res.setHeader('Content-Type', 'audio/mpeg')
-      } else if (ext === '.ogg') {
-        res.setHeader('Content-Type', 'audio/ogg')
-      } else if (ext === '.m4a') {
-        res.setHeader('Content-Type', 'audio/mp4')
-      }
+  // Check if file exists
+  if (fs.existsSync(filePath)) {
+    // File exists, serve it normally with proper content type
+    const ext = path.extname(req.path).toLowerCase()
+    if (ext === '.wav' || ext === '.wave') {
+      res.header('Content-Type', 'audio/wav')
+    } else if (ext === '.mp3') {
+      res.header('Content-Type', 'audio/mpeg')
+    } else if (ext === '.ogg') {
+      res.header('Content-Type', 'audio/ogg')
+    } else if (ext === '.m4a') {
+      res.header('Content-Type', 'audio/mp4')
+    } else {
+      res.header('Content-Type', 'audio/wav')
     }
+    return express.static(path.join(__dirname, 'uploads', 'audio'))(req, res, next)
+  } else {
+    // File doesn't exist - serve a minimal silent WAV file (1 second of silence)
+    // This is a valid minimal WAV file (44 bytes)
+    const silentWav = Buffer.from([
+      0x52, 0x49, 0x46, 0x46, // "RIFF"
+      0x24, 0x00, 0x00, 0x00, // File size - 8 (36 bytes)
+      0x57, 0x41, 0x56, 0x45, // "WAVE"
+      0x66, 0x6D, 0x74, 0x20, // "fmt "
+      0x10, 0x00, 0x00, 0x00, // fmt chunk size (16)
+      0x01, 0x00,             // Audio format (PCM)
+      0x01, 0x00,             // Number of channels (1 = mono)
+      0x44, 0xAC, 0x00, 0x00, // Sample rate (44100)
+      0x88, 0x58, 0x01, 0x00, // Byte rate (88200)
+      0x02, 0x00,             // Block align (2)
+      0x10, 0x00,             // Bits per sample (16)
+      0x64, 0x61, 0x74, 0x61, // "data"
+      0x00, 0x00, 0x00, 0x00  // Data chunk size (0 = empty/silent)
+    ])
+    res.header('Content-Type', 'audio/wav')
+    res.header('Content-Length', silentWav.length)
+    res.header('Cache-Control', 'no-cache, no-store, must-revalidate')
+    return res.send(silentWav)
   }
-}))
+})
 
 // Serve other static files from uploads directory with CORS headers
 app.use('/uploads', (req, res, next) => {
@@ -485,19 +495,26 @@ app.use('/api/threads', require('./src/routes/threads')) // Thread and messaging
 app.use('/api/subscriptions', require('./src/routes/subscriptions')) // Subscription endpoints
 app.use('/api/payment-tracking', require('./src/routes/paymentTracking')) // Payment tracking endpoints
 app.use('/api/posts', require('./src/routes/posts')) // Post endpoints
+app.use('/api/feed', require('./src/routes/feed')) // Feed endpoints (fan-out)
+app.use('/api/explore', require('./src/routes/explore')) // Explore/trending endpoints
 app.use('/api/banners', require('./src/routes/banners')) // Banner system endpoints
 
-// Admin routes
-app.use('/api/admin', require('./src/routes/admin'))
+// Admin routes - More specific routes first
+app.use('/api/admin/posts', require('./src/routes/adminPosts'))
 app.use('/api/admin/auth', require('./src/routes/adminAuth'))
 app.use('/api/admin/users', require('./src/routes/adminUsers'))
 app.use('/api/admin/orders', require('./src/routes/adminOrders'))
 app.use('/api/admin/products', require('./src/routes/adminProducts'))
+app.use('/api/admin', require('./src/routes/admin'))
 app.use('/api/admin', require('./src/routes/testUsers'))
 
 // Initialize subscription cron job
 const { startSubscriptionCron } = require('./src/services/subscriptionCron');
 startSubscriptionCron();
+
+// Initialize trending score update cron job
+const { startTrendingCron } = require('./src/services/trendingCron');
+startTrendingCron();
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

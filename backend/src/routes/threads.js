@@ -63,15 +63,26 @@ router.post('/', authenticateToken, requireUser, async (req, res) => {
     // Use MongoDB ObjectIds for participants
     const allMembers = members.map(m => m._id.toString());
     
-    // For direct messages (2 members), find existing thread
+    // For direct messages (2 members), find existing thread (even if deleted by current user, we can restore it)
     if (allMembers.length === 2) {
       const existingThread = await ChatRoom.findOne({
         participants: { $all: allMembers },
         isGroup: false,
-        isActive: true
+        isActive: true,
+        deletedAt: null
       }).populate('participants', 'name username email avatarUrl profilePic isVerified verifiedTill isOnline lastSeen');
       
+      // If thread exists but was deleted by current user, restore it by removing from deletedByUsers
       if (existingThread) {
+        const deletedByUser = existingThread.deletedByUsers.find(
+          entry => entry.userId.toString() === currentUserId
+        );
+        if (deletedByUser) {
+          existingThread.deletedByUsers = existingThread.deletedByUsers.filter(
+            entry => entry.userId.toString() !== currentUserId
+          );
+          await existingThread.save();
+        }
         // Initialize unread counts if not present
         let unreadCount = 0;
         try {
@@ -176,12 +187,9 @@ router.get('/', authenticateToken, requireUser, validatePagination, async (req, 
     
     const skip = (parseInt(page) - 1) * parseInt(limit);
     
-    // Handle both ObjectId and string user IDs (for Google users)
-    let participantQuery;
-    if (mongoose.Types.ObjectId.isValid(currentUserId)) {
-      participantQuery = { participants: currentUserId };
-    } else {
-      // For non-ObjectId user IDs (like Google user IDs), find user first
+    // Get the actual MongoDB user ID first (needed for queries)
+    let actualUserId = currentUserId;
+    if (!mongoose.Types.ObjectId.isValid(currentUserId)) {
       const user = await User.findOne({ 
         $or: [
           { googleId: currentUserId },
@@ -189,7 +197,7 @@ router.get('/', authenticateToken, requireUser, validatePagination, async (req, 
         ]
       });
       if (user) {
-        participantQuery = { participants: user._id };
+        actualUserId = user._id;
       } else {
         // If user not found, return empty threads
         return res.json({
@@ -205,30 +213,26 @@ router.get('/', authenticateToken, requireUser, validatePagination, async (req, 
       }
     }
     
-    // Find all threads for this user
+    // Handle both ObjectId and string user IDs (for Google users)
+    let participantQuery;
+    if (mongoose.Types.ObjectId.isValid(currentUserId)) {
+      participantQuery = { participants: currentUserId };
+    } else {
+      participantQuery = { participants: actualUserId };
+    }
+    
+    // Find all threads for this user (exclude conversations deleted by this user)
     const threads = await ChatRoom.find({
       ...participantQuery,
-      isActive: true
+      isActive: true,
+      deletedAt: null,
+      'deletedByUsers.userId': { $ne: actualUserId } // Exclude conversations deleted by this user
     })
     .populate('participants', 'name username email avatarUrl profilePic isOnline lastSeen isVerified verifiedTill')
     .populate('lastMessage', 'text messageType createdAt sender')
     .sort({ lastMessageAt: -1 })
     .limit(parseInt(limit))
     .skip(skip);
-    
-    // Get the actual MongoDB user ID for unread count and total count
-    let actualUserId = currentUserId;
-    if (!mongoose.Types.ObjectId.isValid(currentUserId)) {
-      const user = await User.findOne({ 
-        $or: [
-          { googleId: currentUserId },
-          { _id: currentUserId }
-        ]
-      });
-      if (user) {
-        actualUserId = user._id;
-      }
-    }
     
     // Add unread counts to each thread
     const threadsWithUnread = threads.map(thread => {
@@ -245,7 +249,9 @@ router.get('/', authenticateToken, requireUser, validatePagination, async (req, 
     // Get total count using the same query as threads
     const total = await ChatRoom.countDocuments({
       ...participantQuery,
-      isActive: true
+      isActive: true,
+      deletedAt: null,
+      'deletedByUsers.userId': { $ne: actualUserId } // Exclude conversations deleted by this user
     });
     
     res.json({
@@ -310,13 +316,22 @@ router.get('/:threadId/messages', authenticateToken, requireUser, validateObject
     // Calculate skip from page if provided
     const actualSkip = skip ? parseInt(skip) : (parseInt(page) - 1) * parseInt(limit || 50);
     
-    // Fetch messages
+    // Fetch messages - exclude messages deleted by current user
     const messages = await Message.find({
       chatRoom: threadId,
-      isDeleted: false
+      isDeleted: false,
+      'deletedByUsers.userId': { $ne: currentUserId } // Filter out messages deleted by this user
     })
     .populate('sender', 'name username email avatarUrl profilePic isVerified verifiedTill')
     .populate('readBy.userId', 'name username avatarUrl')
+    .populate({
+      path: 'replyTo',
+      select: 'text message ciphertext messageType sender createdAt',
+      populate: {
+        path: 'sender',
+        select: 'name username avatarUrl profilePic'
+      }
+    })
     .sort({ createdAt: -1 })
     .limit(parseInt(limit || 50))
     .skip(actualSkip);
@@ -571,7 +586,8 @@ router.post('/:threadId/messages', authenticateToken, requireUser, validateObjec
       imageUrl,
       audioUrl,
       audioTitle,
-      audioDuration
+      audioDuration,
+      replyTo
     } = req.body;
     const mongoose = require('mongoose');
     const authenticatedUserId = req.user._id ? req.user._id.toString() : null;
@@ -695,6 +711,17 @@ router.post('/:threadId/messages', authenticateToken, requireUser, validateObjec
       if (audioDuration !== undefined) messageData.audioDuration = audioDuration;
     }
     
+    // Handle reply to message
+    if (replyTo) {
+      // Validate that the replyTo message exists and is in the same thread
+      const repliedMessage = await Message.findById(replyTo);
+      if (repliedMessage && repliedMessage.chatRoom.toString() === threadId) {
+        messageData.replyTo = replyTo;
+      } else {
+        console.warn('Invalid replyTo message ID or not in same thread:', replyTo);
+      }
+    }
+    
     const message = new Message(messageData);
     
     await message.save();
@@ -714,8 +741,18 @@ router.post('/:threadId/messages', authenticateToken, requireUser, validateObjec
       await thread.incrementUnread(participantId);
     }
     
-    // Populate sender
+    // Populate sender and replyTo
     await message.populate('sender', 'name username email avatarUrl profilePic isVerified verifiedTill');
+    if (message.replyTo) {
+      await message.populate({
+        path: 'replyTo',
+        select: 'text message ciphertext messageType sender createdAt',
+        populate: {
+          path: 'sender',
+          select: 'name username avatarUrl profilePic'
+        }
+      });
+    }
     
     // Emit via Socket.IO if available
     const io = req.app.get('io');
@@ -742,6 +779,333 @@ router.post('/:threadId/messages', authenticateToken, requireUser, validateObjec
     res.status(500).json({
       success: false,
       message: 'Failed to send message',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+    });
+  }
+});
+
+// DELETE /api/threads - Delete all threads for current user (MUST come before /:threadId route)
+router.delete('/', authenticateToken, requireUser, async (req, res) => {
+  try {
+    const mongoose = require('mongoose');
+    const authenticatedUserId = req.user._id ? req.user._id.toString() : null;
+    
+    // Get actual MongoDB user ID
+    let currentUserId = authenticatedUserId;
+    if (!mongoose.Types.ObjectId.isValid(authenticatedUserId)) {
+      const user = await User.findOne({ 
+        $or: [
+          { googleId: authenticatedUserId },
+          { _id: authenticatedUserId }
+        ]
+      });
+      if (user) {
+        currentUserId = user._id.toString();
+      } else {
+        return res.status(400).json({
+          success: false,
+          message: 'User not found'
+        });
+      }
+    }
+    
+    // Mark all threads as deleted for this user only (per-user deletion)
+    const threads = await ChatRoom.find({
+      participants: currentUserId,
+      deletedAt: null,
+      'deletedByUsers.userId': { $ne: currentUserId } // Only threads not already deleted by this user
+    });
+    
+    let deletedCount = 0;
+    for (const thread of threads) {
+      // Check if user already deleted this thread
+      const alreadyDeleted = thread.deletedByUsers.some(
+        entry => entry.userId.toString() === currentUserId.toString()
+      );
+      
+      if (!alreadyDeleted) {
+        thread.deletedByUsers.push({
+          userId: currentUserId,
+          deletedAt: new Date()
+        });
+        await thread.save();
+        deletedCount++;
+      }
+    }
+    
+    // Emit via Socket.IO if available
+    const io = req.app.get('io');
+    if (io) {
+      io.emit('all_threads_deleted', {
+        userId: currentUserId
+      });
+    }
+    
+    res.json({
+      success: true,
+      message: `Deleted ${deletedCount} conversation(s) successfully`,
+      deletedCount: deletedCount
+    });
+  } catch (error) {
+    console.error('Delete all threads error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to delete threads',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+    });
+  }
+});
+
+// DELETE /api/threads/:threadId - Delete a thread (soft delete)
+router.delete('/:threadId', authenticateToken, requireUser, validateObjectId('threadId'), async (req, res) => {
+  try {
+    const { threadId } = req.params;
+    const mongoose = require('mongoose');
+    const authenticatedUserId = req.user._id ? req.user._id.toString() : null;
+    
+    // Get actual MongoDB user ID
+    let currentUserId = authenticatedUserId;
+    if (!mongoose.Types.ObjectId.isValid(authenticatedUserId)) {
+      const user = await User.findOne({ 
+        $or: [
+          { googleId: authenticatedUserId },
+          { _id: authenticatedUserId }
+        ]
+      });
+      if (user) {
+        currentUserId = user._id.toString();
+      } else {
+        return res.status(400).json({
+          success: false,
+          message: 'User not found'
+        });
+      }
+    }
+    
+    // Find thread
+    const thread = await ChatRoom.findById(threadId);
+    if (!thread) {
+      return res.status(404).json({
+        success: false,
+        message: 'Thread not found'
+      });
+    }
+    
+    // Check if user is a participant
+    const isParticipant = thread.participants.some(p => p.toString() === currentUserId);
+    if (!isParticipant) {
+      return res.status(403).json({
+        success: false,
+        message: 'You are not a participant in this thread'
+      });
+    }
+    
+    // Check if user already deleted this thread
+    const alreadyDeleted = thread.deletedByUsers.some(
+      entry => entry.userId.toString() === currentUserId.toString()
+    );
+    
+    if (!alreadyDeleted) {
+      // Mark as deleted for this user only (per-user deletion)
+      thread.deletedByUsers.push({
+        userId: currentUserId,
+        deletedAt: new Date()
+      });
+      await thread.save();
+    }
+    
+    // Emit via Socket.IO if available
+    const io = req.app.get('io');
+    if (io) {
+      io.to(threadId).emit('thread_deleted', {
+        threadId: threadId,
+        deletedBy: currentUserId
+      });
+    }
+    
+    res.json({
+      success: true,
+      message: 'Thread deleted successfully'
+    });
+  } catch (error) {
+    console.error('Delete thread error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to delete thread',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+    });
+  }
+});
+
+// DELETE /api/threads/:threadId/messages - Delete all messages in a thread for current user
+router.delete('/:threadId/messages', authenticateToken, requireUser, validateObjectId('threadId'), async (req, res) => {
+  try {
+    const { threadId } = req.params;
+    const mongoose = require('mongoose');
+    const authenticatedUserId = req.user._id ? req.user._id.toString() : null;
+    
+    // Get actual MongoDB user ID
+    let currentUserId = authenticatedUserId;
+    if (!mongoose.Types.ObjectId.isValid(authenticatedUserId)) {
+      const user = await User.findOne({ 
+        $or: [
+          { googleId: authenticatedUserId },
+          { _id: authenticatedUserId }
+        ]
+      });
+      if (user) {
+        currentUserId = user._id.toString();
+      } else {
+        return res.status(400).json({
+          success: false,
+          message: 'User not found'
+        });
+      }
+    }
+    
+    // Verify thread exists and user is a participant
+    const thread = await ChatRoom.findById(threadId);
+    if (!thread) {
+      return res.status(404).json({
+        success: false,
+        message: 'Thread not found'
+      });
+    }
+    
+    // SECURITY: Verify user is a participant
+    const isParticipant = thread.participants.some(p => p.toString() === currentUserId);
+    if (!isParticipant) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied: You are not a participant in this thread'
+      });
+    }
+    
+    // Find all messages in this thread that haven't been deleted by this user
+    const messages = await Message.find({
+      chatRoom: threadId,
+      'deletedByUsers.userId': { $ne: currentUserId } // Only messages not already deleted by this user
+    });
+    
+    // Mark messages as deleted for this user only (per-user deletion)
+    const updateResult = await Message.updateMany(
+      {
+        chatRoom: threadId,
+        'deletedByUsers.userId': { $ne: currentUserId }
+      },
+      {
+        $push: {
+          deletedByUsers: {
+            userId: currentUserId,
+            deletedAt: new Date()
+          }
+        }
+      }
+    );
+    
+    // Emit via Socket.IO if available
+    const io = req.app.get('io');
+    if (io) {
+      io.to(threadId).emit('messages_cleared', {
+        threadId: threadId,
+        clearedBy: currentUserId,
+        messageCount: updateResult.modifiedCount
+      });
+    }
+    
+    res.json({
+      success: true,
+      message: `Cleared ${updateResult.modifiedCount} message(s) successfully`,
+      deletedCount: updateResult.modifiedCount
+    });
+  } catch (error) {
+    console.error('Clear messages error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to clear messages',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+    });
+  }
+});
+
+// DELETE /api/threads/messages/all - Delete all messages for current user across all threads
+router.delete('/messages/all', authenticateToken, requireUser, async (req, res) => {
+  try {
+    const mongoose = require('mongoose');
+    const authenticatedUserId = req.user._id ? req.user._id.toString() : null;
+    
+    // Get actual MongoDB user ID
+    let currentUserId = authenticatedUserId;
+    if (!mongoose.Types.ObjectId.isValid(authenticatedUserId)) {
+      const user = await User.findOne({ 
+        $or: [
+          { googleId: authenticatedUserId },
+          { _id: authenticatedUserId }
+        ]
+      });
+      if (user) {
+        currentUserId = user._id.toString();
+      } else {
+        return res.status(400).json({
+          success: false,
+          message: 'User not found'
+        });
+      }
+    }
+    
+    // Find all threads where user is a participant
+    const userThreads = await ChatRoom.find({
+      participants: currentUserId,
+      deletedAt: null
+    }).select('_id');
+    
+    const threadIds = userThreads.map(t => t._id);
+    
+    if (threadIds.length === 0) {
+      return res.json({
+        success: true,
+        message: 'No messages to delete',
+        deletedCount: 0
+      });
+    }
+    
+    // SECURITY: Only delete messages from threads where user is a participant
+    // Mark all messages as deleted for this user only (per-user deletion)
+    // Using optimized bulk operation for large datasets
+    const updateResult = await Message.updateMany(
+      {
+        chatRoom: { $in: threadIds },
+        'deletedByUsers.userId': { $ne: currentUserId } // Only messages not already deleted by this user
+      },
+      {
+        $push: {
+          deletedByUsers: {
+            userId: currentUserId,
+            deletedAt: new Date()
+          }
+        }
+      }
+    );
+    
+    // Emit via Socket.IO if available
+    const io = req.app.get('io');
+    if (io) {
+      io.emit('all_messages_cleared', {
+        userId: currentUserId,
+        messageCount: updateResult.modifiedCount
+      });
+    }
+    
+    res.json({
+      success: true,
+      message: `Cleared ${updateResult.modifiedCount} message(s) across all conversations successfully`,
+      deletedCount: updateResult.modifiedCount
+    });
+  } catch (error) {
+    console.error('Clear all messages error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to clear all messages',
       error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
     });
   }

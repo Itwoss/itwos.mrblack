@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Card, Button, Tag, message, Spin, Empty, Row, Col, Typography, Badge, Modal, Select } from 'antd';
 import { CrownOutlined, FireOutlined, ThunderboltOutlined, ShoppingCartOutlined, CheckCircleOutlined } from '@ant-design/icons';
+import { useNavigate } from 'react-router-dom';
 import api from '../../services/api';
 import './BannerStore.css';
 
@@ -8,6 +9,7 @@ const { Title, Text, Paragraph } = Typography;
 const { Option } = Select;
 
 const BannerStore = () => {
+  const navigate = useNavigate();
   const [banners, setBanners] = useState([]);
   const [loading, setLoading] = useState(true);
   const [purchasing, setPurchasing] = useState(null);
@@ -49,18 +51,139 @@ const BannerStore = () => {
   const handlePurchase = async (bannerId) => {
     try {
       setPurchasing(bannerId);
-      const response = await api.post(`/banners/user/purchase/${bannerId}`);
       
-      if (response.data.success) {
-        message.success('Banner purchased successfully! 🎉');
-        fetchInventory();
-        // Refresh banners to update stock
-        fetchBanners();
+      // Load Razorpay script
+      const script = document.createElement('script');
+      script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+      script.onload = async () => {
+        try {
+          const token = localStorage.getItem('token') || localStorage.getItem('accessToken');
+          if (!token) {
+            message.error('Please login to purchase banners');
+            setPurchasing(null);
+            return;
+          }
+
+          // Get banner details for display
+          const banner = banners.find(b => b._id === bannerId);
+          if (!banner) {
+            message.error('Banner not found');
+            setPurchasing(null);
+            return;
+          }
+
+          // Create payment order
+          const orderResponse = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:7000/api'}/banners/user/purchase/${bannerId}/create-order`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            }
+          });
+
+          if (!orderResponse.ok) {
+            const errorData = await orderResponse.json();
+            throw new Error(errorData.message || 'Failed to create payment order');
+          }
+
+          const orderData = await orderResponse.json();
+          
+          if (!orderData.success) {
+            throw new Error(orderData.message || 'Failed to create payment order');
+          }
+
+          // Get user info for prefill
+          const userResponse = await api.get('/users/me');
+          const user = userResponse.data?.user || userResponse.data;
+
+          // Initialize Razorpay checkout
+          const RAZORPAY_KEY = import.meta.env.VITE_RAZORPAY_KEY_ID || orderData.data.key || 'rzp_live_RUuZIGTpYBor0z';
+          const options = {
+            key: RAZORPAY_KEY,
+            amount: orderData.data.amount,
+            currency: orderData.data.currency,
+            name: 'ITWOS AI',
+            description: `Banner: ${banner.name}`,
+            order_id: orderData.data.order_id,
+            handler: async function (response) {
+              try {
+                // Verify payment
+                const verifyResponse = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:7000/api'}/banners/user/purchase/${bannerId}/verify`, {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                  },
+                  body: JSON.stringify({
+                    razorpay_payment_id: response.razorpay_payment_id,
+                    razorpay_order_id: response.razorpay_order_id,
+                    razorpay_signature: response.razorpay_signature
+                  })
+                });
+
+                const verifyData = await verifyResponse.json();
+
+                if (verifyData.success) {
+                  message.success('Banner purchased successfully! 🎉');
+                  // Redirect to My Banners page with purchase info
+                  navigate('/dashboard/banner-inventory', {
+                    state: {
+                      message: 'Banner purchased successfully!',
+                      type: 'success',
+                      purchasedBannerId: bannerId,
+                      wasAutoEquipped: verifyData.wasAutoEquipped || false,
+                      hadEquippedBanner: verifyData.hadEquippedBanner || false,
+                      bannerName: banner.name
+                    }
+                  });
+                } else {
+                  message.error(verifyData.message || 'Payment verification failed');
+                }
+              } catch (error) {
+                console.error('Payment verification error:', error);
+                message.error('Payment verification failed. Please contact support.');
+              } finally {
+                setPurchasing(null);
+              }
+            },
+            prefill: {
+              name: user?.name || '',
+              email: user?.email || '',
+              contact: user?.phone || ''
+            },
+            theme: {
+              color: '#1890ff'
+            },
+            modal: {
+              ondismiss: function() {
+                setPurchasing(null);
+              }
+            }
+          };
+
+          const razorpay = new window.Razorpay(options);
+          razorpay.open();
+        } catch (error) {
+          console.error('Purchase error:', error);
+          message.error(error.message || 'Failed to initiate payment');
+          setPurchasing(null);
+        }
+      };
+      
+      script.onerror = () => {
+        message.error('Failed to load payment gateway');
+        setPurchasing(null);
+      };
+      
+      // Check if script already exists
+      if (document.querySelector('script[src="https://checkout.razorpay.com/v1/checkout.js"]')) {
+        script.onload();
+      } else {
+        document.body.appendChild(script);
       }
     } catch (error) {
       console.error('Purchase failed:', error);
       message.error(error.response?.data?.message || 'Failed to purchase banner');
-    } finally {
       setPurchasing(null);
     }
   };

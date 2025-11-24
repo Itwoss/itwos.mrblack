@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ITWOS AI - Full Stack Platform</title>
+    <meta name="description" content="ITWOS AI - A comprehensive full-stack platform for AI-powered applications" />
+    <meta name="keywords" content="AI, platform, full-stack, React, Node.js, MongoDB" />
+    
+    <!-- Open Graph Meta Tags -->
+    <meta property="og:title" content="ITWOS AI - Full Stack Platform" />
+    <meta property="og:description" content="A comprehensive full-stack platform for AI-powered applications" />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="http://localhost:5173" />
+    
+    <!-- Twitter Card Meta Tags -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="ITWOS AI - Full Stack Platform" />
+    <meta name="twitter:description" content="A comprehensive full-stack platform for AI-powered applications" />
+    
+    <!-- Preconnect to external domains for performance -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Favicon -->
+    <!-- <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+    <link rel="manifest" href="/site.webmanifest"> -->
+    
+    <!-- Theme Color -->
+    <meta name="theme-color" content="#6366f1" />
+    
+    <!-- Mobile App Meta Tags -->
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="ITWOS AI">
+    
+    <!-- Security Headers -->
+    <meta http-equiv="X-Content-Type-Options" content="nosniff">
+    <meta http-equiv="X-XSS-Protection" content="1; mode=block">
+    
+    <!-- Performance Hints -->
+    <link rel="dns-prefetch" href="//fonts.googleapis.com">
+    <link rel="dns-prefetch" href="//fonts.gstatic.com">
+    
+    <style>
+      /* Critical CSS for initial load */
+      body {
+        margin: 0;
+        padding: 0;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        background-color: #f8fafc;
+        color: #1e293b;
+      }
+      
+      #root {
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+      }
+      
+      /* Loading spinner */
+      .loading-spinner {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      }
+      
+      .spinner {
+        width: 40px;
+        height: 40px;
+        border: 4px solid rgba(255, 255, 255, 0.3);
+        border-top: 4px solid #ffffff;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+      }
+      
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+      
+      /* Hide loading spinner when React loads */
+      .react-loaded .loading-spinner {
+        display: none;
+      }
+    </style>
+    <script type="module" crossorigin src="/assets/index-DTTf-RNz.js"></script>
+    <link rel="modulepreload" crossorigin href="/assets/vendor-o6zXO7vr.js">
+    <link rel="modulepreload" crossorigin href="/assets/router-C42SdLRF.js">
+    <link rel="modulepreload" crossorigin href="/assets/antd-DTenvSkY.js">
+    <link rel="stylesheet" crossorigin href="/assets/index-zBbl4iBr.css">
+  </head>
+  <body>
+    <div id="root"></div>
+    
+    <!-- Service Worker Registration (disabled for development) -->
+    <!-- <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js')
+            .then((registration) => {
+              console.log('SW registered: ', registration);
+            })
+            .catch((registrationError) => {
+              console.log('SW registration failed: ', registrationError);
+            });
+        });
+      }
+    </script> -->
+    
+    <!-- React Loaded Handler -->
+    <script>
+      // Remove loading spinner when React loads
+      window.addEventListener('load', () => {
+        setTimeout(() => {
+          document.body.classList.add('react-loaded');
+        }, 100);
+      });
+    </script>
+  </body>
+</html>

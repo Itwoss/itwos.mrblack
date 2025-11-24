@@ -151,6 +151,18 @@ const messageSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
+  // Track which users have deleted this message (per-user deletion)
+  deletedByUsers: [{
+    userId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: true
+    },
+    deletedAt: {
+      type: Date,
+      default: Date.now
+    }
+  }],
   // For moderation
   moderationFlags: [{
     type: String,
@@ -170,10 +182,13 @@ const messageSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Indexes for better performance
-messageSchema.index({ chatRoom: 1, createdAt: -1 });
-messageSchema.index({ sender: 1 });
+// Indexes for better performance (optimized for large user bases)
+messageSchema.index({ chatRoom: 1, createdAt: -1 }); // For fetching messages in a thread
+messageSchema.index({ sender: 1, createdAt: -1 }); // For finding user's messages
 messageSchema.index({ status: 1 });
+messageSchema.index({ 'deletedByUsers.userId': 1 }); // For filtering deleted messages per user
+messageSchema.index({ isDeleted: 1, createdAt: -1 }); // For soft delete queries
+messageSchema.index({ chatRoom: 1, sender: 1, createdAt: -1 }); // Composite index for user's messages in a thread
 messageSchema.index({ 'reactions.user': 1 });
 messageSchema.index({ isDeleted: 1 });
 messageSchema.index({ isModerated: 1 });

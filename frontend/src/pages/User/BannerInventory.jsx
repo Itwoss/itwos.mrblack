@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Button, message, Spin, Empty, Row, Col, Typography, Badge, Tag, Avatar, Divider } from 'antd';
-import { CheckCircleOutlined, CrownOutlined, UserOutlined, MessageOutlined } from '@ant-design/icons';
+import { Card, Button, message, Spin, Empty, Row, Col, Typography, Badge, Tag, Avatar, Divider, Modal } from 'antd';
+import { CheckCircleOutlined, CrownOutlined, UserOutlined, MessageOutlined, CheckOutlined, ClockCircleOutlined } from '@ant-design/icons';
+import { useLocation, useNavigate } from 'react-router-dom';
 import api from '../../services/api';
 import { useAuth } from '../../contexts/AuthContextOptimized';
 import { getUserAvatarUrl, getUserInitials } from '../../utils/avatarUtils';
@@ -10,15 +11,40 @@ const { Title, Text, Paragraph } = Typography;
 
 const BannerInventory = () => {
   const { user: currentUser } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
   const [inventory, setInventory] = useState([]);
   const [equippedBanner, setEquippedBanner] = useState(null);
   const [loading, setLoading] = useState(true);
   const [equipping, setEquipping] = useState(null);
   const [previewBanner, setPreviewBanner] = useState(null);
+  const [equipModalVisible, setEquipModalVisible] = useState(false);
+  const [purchasedBannerInfo, setPurchasedBannerInfo] = useState(null);
 
   useEffect(() => {
     fetchInventory();
   }, []);
+
+  useEffect(() => {
+    // Check if redirected from purchase
+    if (location.state?.purchasedBannerId) {
+      const { purchasedBannerId, wasAutoEquipped, hadEquippedBanner, bannerName } = location.state;
+      setPurchasedBannerInfo({
+        bannerId: purchasedBannerId,
+        wasAutoEquipped: wasAutoEquipped,
+        hadEquippedBanner: hadEquippedBanner,
+        bannerName: bannerName
+      });
+      
+      // Show equip modal if banner was auto-equipped
+      if (wasAutoEquipped) {
+        setEquipModalVisible(true);
+      }
+      
+      // Clear location state to prevent showing modal again on refresh
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+  }, [location.state, navigate]);
 
   const fetchInventory = async () => {
     try {
@@ -54,6 +80,9 @@ const BannerInventory = () => {
         if (banner) {
           setPreviewBanner(banner);
         }
+        // Close equip modal if open
+        setEquipModalVisible(false);
+        setPurchasedBannerInfo(null);
       }
     } catch (error) {
       console.error('Equip failed:', error);
@@ -61,6 +90,12 @@ const BannerInventory = () => {
     } finally {
       setEquipping(null);
     }
+  };
+
+  const handleEquipLater = () => {
+    setEquipModalVisible(false);
+    setPurchasedBannerInfo(null);
+    message.info('You can equip this banner anytime from your inventory');
   };
 
   const handlePreviewBanner = (banner) => {
@@ -475,6 +510,66 @@ const BannerInventory = () => {
           })}
         </Row>
       )}
+
+      {/* Equip Confirmation Modal - Shown after purchase */}
+      <Modal
+        title={
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <CheckCircleOutlined style={{ color: '#52c41a', fontSize: '20px' }} />
+            <span>Banner Purchased Successfully! 🎉</span>
+          </div>
+        }
+        open={equipModalVisible}
+        onCancel={handleEquipLater}
+        footer={[
+          <Button key="later" onClick={handleEquipLater} icon={<ClockCircleOutlined />}>
+            Equip Later
+          </Button>,
+          <Button
+            key="equip"
+            type="primary"
+            onClick={() => {
+              if (purchasedBannerInfo?.bannerId) {
+                handleEquip(purchasedBannerInfo.bannerId);
+              }
+            }}
+            loading={equipping === purchasedBannerInfo?.bannerId}
+            icon={<CheckOutlined />}
+            style={{
+              background: purchasedBannerInfo ? getRarityColor(
+                inventory.find(b => b._id === purchasedBannerInfo.bannerId)?.rarity || 'Common'
+              ) : undefined
+            }}
+          >
+            Keep Equipped
+          </Button>
+        ]}
+        width={500}
+      >
+        {purchasedBannerInfo && (
+          <div>
+            <Paragraph>
+              Your banner <Text strong>"{purchasedBannerInfo.bannerName}"</Text> has been automatically equipped!
+            </Paragraph>
+            <Paragraph>
+              Would you like to keep it equipped or equip it later?
+            </Paragraph>
+            {purchasedBannerInfo.hadEquippedBanner && (
+              <div style={{
+                padding: '12px',
+                background: '#fff7e6',
+                borderRadius: '8px',
+                marginTop: '16px',
+                border: '1px solid #ffd591'
+              }}>
+                <Text type="warning">
+                  ⚠️ Note: Your previous equipped banner has been replaced.
+                </Text>
+              </div>
+            )}
+          </div>
+        )}
+      </Modal>
     </div>
   );
 };
