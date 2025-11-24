@@ -109,27 +109,83 @@ const ProductsEnhanced = () => {
     totalRevenue: 0
   })
 
+  // Fetch products and stats when component mounts or pagination changes
   useEffect(() => {
+    // Only fetch if authenticated
+    if (!isAuthenticated || user?.role !== 'admin') {
+      return
+    }
+    
     // Debounce the fetch to prevent rapid successive calls
     const timeoutId = setTimeout(() => {
       fetchProducts()
+      fetchStats()
     }, 100)
     
     return () => clearTimeout(timeoutId)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pagination.current, pagination.pageSize])
 
-  // Also fetch when authentication state changes
+  // Fetch when authentication state changes
   useEffect(() => {
     if (isAuthenticated && user?.role === 'admin') {
-      console.log('Admin authenticated, fetching products...')
+      console.log('Admin authenticated, fetching products and stats...')
       // Debounce this call too
       const timeoutId = setTimeout(() => {
         fetchProducts()
+        fetchStats()
       }, 100)
       
       return () => clearTimeout(timeoutId)
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated, user])
+
+  // Fetch statistics separately
+  const fetchStats = async () => {
+    try {
+      console.log('📊 Fetching admin products stats...')
+      const response = await productAPI.getAdminProductsStats()
+      console.log('📊 Stats response:', response.data)
+      if (response.data.success) {
+        setStats(response.data.data || {
+          totalProducts: 0,
+          publishedProducts: 0,
+          draftProducts: 0,
+          trendingProducts: 0,
+          previewSavedProducts: 0,
+          totalRevenue: 0
+        })
+        console.log('✅ Stats updated:', response.data.data)
+      } else {
+        console.warn('⚠️ Stats API returned unsuccessful response')
+        setStats({
+          totalProducts: 0,
+          publishedProducts: 0,
+          draftProducts: 0,
+          trendingProducts: 0,
+          previewSavedProducts: 0,
+          totalRevenue: 0
+        })
+      }
+    } catch (error) {
+      console.error('❌ Error fetching stats:', error)
+      console.error('Error details:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status
+      })
+      // Set default stats on error
+      setStats({
+        totalProducts: 0,
+        publishedProducts: 0,
+        draftProducts: 0,
+        trendingProducts: 0,
+        previewSavedProducts: 0,
+        totalRevenue: 0
+      })
+    }
+  }
 
   const fetchProducts = async () => {
     // Prevent multiple simultaneous requests
@@ -222,22 +278,7 @@ const ProductsEnhanced = () => {
           total: paginationData.total || productsList.length
         }))
         
-        // Calculate statistics from all products (not just current page)
-        // Note: These stats are for current page only, consider fetching total stats separately
-        const published = productsList.filter(p => p.status === 'published').length
-        const draft = productsList.filter(p => p.status === 'draft').length
-        const trending = productsList.filter(p => p.trending).length
-        const previewSaved = productsList.filter(p => p.previewSaved).length
-        const revenue = productsList.reduce((sum, p) => sum + (p.price || 0), 0)
-        
-        setStats({
-          totalProducts: paginationData.total || productsList.length,
-          publishedProducts: published,
-          draftProducts: draft,
-          trendingProducts: trending,
-          previewSavedProducts: previewSaved,
-          totalRevenue: revenue
-        })
+        // Stats are fetched separately via fetchStats()
         console.log('Products fetched successfully:', productsList.length, 'items')
       } else {
         console.error('Admin products API returned unsuccessful response:', response.data)
@@ -304,6 +345,7 @@ const ProductsEnhanced = () => {
   const handleSearch = (value) => {
     setSearchText(value)
     setPagination(prev => ({ ...prev, current: 1 }))
+    // Don't refetch stats on search - stats are global
     fetchProducts()
   }
 
@@ -314,6 +356,7 @@ const ProductsEnhanced = () => {
       setTrendingFilter(value)
     }
     setPagination(prev => ({ ...prev, current: 1 }))
+    // Don't refetch stats on filter change - stats are global
     fetchProducts()
   }
 
@@ -445,7 +488,7 @@ const ProductsEnhanced = () => {
         return
       }
       
-      await fetchProducts()
+      await Promise.all([fetchProducts(), fetchStats()])
       message.success('Products refreshed successfully!')
     } catch (error) {
       console.error('Error refreshing products:', error)

@@ -26,7 +26,7 @@ api.interceptors.request.use(
   (config) => {
     // Prioritize admin token for admin routes, then accessToken, then token
     let token = null
-    if (config.url?.includes('/admin/')) {
+    if (config.url?.includes('/admin/') || config.url?.includes('/notifications/admin')) {
       // For admin routes, prioritize adminToken
       token = localStorage.getItem('adminToken') || localStorage.getItem('accessToken') || localStorage.getItem('token')
     } else {
@@ -73,10 +73,25 @@ api.interceptors.response.use(
             refreshToken
           })
           
-          if (response.data && response.data.accessToken) {
-            const { accessToken } = response.data
+          if (response.data && (response.data.accessToken || response.data.tokens?.accessToken)) {
+            const accessToken = response.data.accessToken || response.data.tokens?.accessToken
+            const refreshToken = response.data.refreshToken || response.data.tokens?.refreshToken
+            
+            // Update all token storage locations
             localStorage.setItem('accessToken', accessToken)
             localStorage.setItem('token', accessToken) // Also store as 'token' for compatibility
+            
+            // If this is an admin route, also update adminToken
+            if (originalRequest.url?.includes('/admin/') || originalRequest.url?.includes('/notifications/admin')) {
+              localStorage.setItem('adminToken', accessToken)
+              console.log('✅ Admin token refreshed')
+            }
+            
+            // Update refresh token if provided
+            if (refreshToken) {
+              localStorage.setItem('refreshToken', refreshToken)
+            }
+            
             originalRequest.headers.Authorization = `Bearer ${accessToken}`
             
             console.log('✅ Token refreshed successfully')
@@ -90,6 +105,9 @@ api.interceptors.response.use(
       } catch (refreshError) {
         console.error('❌ Token refresh failed:', refreshError)
         
+        // Check if this is an admin route
+        const isAdminRoute = originalRequest.url?.includes('/admin/') || originalRequest.url?.includes('/notifications/admin')
+        
         // Clear all auth data
         localStorage.removeItem('accessToken')
         localStorage.removeItem('token')
@@ -98,9 +116,15 @@ api.interceptors.response.use(
         localStorage.removeItem('adminToken')
         localStorage.removeItem('adminUser')
         
-        // Redirect to login
-        if (window.location.pathname !== '/login') {
-          window.location.href = '/login'
+        // Redirect to appropriate login page
+        if (isAdminRoute) {
+          if (window.location.pathname !== '/admin/login') {
+            window.location.href = '/admin/login'
+          }
+        } else {
+          if (window.location.pathname !== '/login') {
+            window.location.href = '/login'
+          }
         }
         
         return Promise.reject(refreshError)
@@ -238,6 +262,7 @@ export const followAPI = {
 // Notifications API
 export const notificationsAPI = {
   getNotifications: (params) => api.get('/notifications', { params }),
+  getAdminNotifications: (params) => api.get('/notifications/admin', { params }),
   getUnreadCount: () => api.get('/notifications/unread-count'),
   markAsRead: (notificationId) => api.put(`/notifications/${notificationId}/read`),
   markAllAsRead: () => api.put('/notifications/read-all'),
@@ -420,6 +445,7 @@ export const productAPI = {
   },
   getAdminProducts: (params) => api.get('/admin/products', { params }),
   getAdminProduct: (productId) => api.get(`/admin/products/${productId}`),
+  getAdminProductsStats: () => api.get('/admin/products/stats'),
   generateDescription: (data) => api.post('/admin/products/generate-description', data),
   
   // Notification endpoints

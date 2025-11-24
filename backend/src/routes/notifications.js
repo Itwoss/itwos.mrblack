@@ -249,25 +249,43 @@ router.get('/admin', authenticateToken, requireAdmin, validatePagination, async 
     const { page = 1, limit = 20, type } = req.query
     const skip = (parseInt(page) - 1) * parseInt(limit)
     
-    // Build query for admin notifications
-    const query = { type: { $in: ['prebook_payment', 'admin_action', 'system_announcement'] } }
+    // Build query for admin notifications - MUST filter by current admin's userId
+    const query = { 
+      userId: req.user._id, // Only get notifications for the current admin
+      type: { $in: ['prebook_payment', 'admin_action', 'system_announcement', 'prebook_request'] } 
+    }
     if (type) {
       query.type = type
     }
     
-    const notifications = await require('../models/Notification').find(query)
+    console.log('🔔 Admin notifications query:', {
+      adminId: req.user._id,
+      query: query,
+      page: page,
+      limit: limit
+    })
+    
+    const Notification = require('../models/Notification')
+    const notifications = await Notification.find(query)
       .sort({ createdAt: -1 })
       .limit(parseInt(limit))
       .skip(skip)
       .populate('userId', 'name email')
 
-    const total = await require('../models/Notification').countDocuments(query)
-    const unreadCount = await require('../models/Notification').countDocuments({ 
+    const total = await Notification.countDocuments(query)
+    const unreadCount = await Notification.countDocuments({ 
       ...query, 
       read: false 
     })
+    
+    console.log('🔔 Admin notifications found:', {
+      count: notifications.length,
+      total: total,
+      unreadCount: unreadCount,
+      sampleNotification: notifications[0] || null
+    })
 
-    res.json({
+    const responseData = {
       success: true,
       data: {
         notifications,
@@ -279,7 +297,16 @@ router.get('/admin', authenticateToken, requireAdmin, validatePagination, async 
         },
         unreadCount
       }
+    }
+    
+    console.log('🔔 Sending admin notifications response:', {
+      success: responseData.success,
+      notificationsCount: responseData.data.notifications.length,
+      unreadCount: responseData.data.unreadCount,
+      hasPagination: !!responseData.data.pagination
     })
+
+    res.json(responseData)
   } catch (error) {
     console.error('Get admin notifications error:', error)
     res.status(500).json({

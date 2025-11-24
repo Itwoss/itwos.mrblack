@@ -682,10 +682,7 @@ const UserChat = () => {
       
       setRooms(allRooms)
       
-      // Only set selected room if we don't have one and there are rooms available
-      if (allRooms.length > 0 && !selectedRoom) {
-        setSelectedRoom(allRooms[0])
-      }
+      // Don't auto-select a room - user must click on a conversation to open it
     } catch (error) {
       console.error('❌ Error loading chat rooms:', error)
       console.error('Error details:', {

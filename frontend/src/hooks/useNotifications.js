@@ -36,86 +36,129 @@ const useNotifications = (userId, userRole = 'user') => {
     })
     
     try {
-      console.log('🔔 Fetching notifications from API...', {
-        userId,
-        userRole,
+      console.log('🔔 ========== FETCHING NOTIFICATIONS ==========')
+      console.log('🔔 Step 1: Hook called with:', {
+        userId: userId,
+        userRole: userRole,
+        userIdType: typeof userId,
+        userRoleType: typeof userRole,
+        isAdmin: userRole === 'admin',
         apiUrl: import.meta.env.VITE_API_URL || 'http://localhost:7000/api'
       })
       
+      // Use admin endpoint for admin users, regular endpoint for regular users
+      const isAdminUser = userRole === 'admin'
+      const apiCall = isAdminUser 
+        ? notificationsAPI.getAdminNotifications({ page: 1, limit: 50 })
+        : notificationsAPI.getNotifications({ page: 1, limit: 50 })
+      
+      console.log('🔔 Step 2: API Call selected:', {
+        isAdminUser: isAdminUser,
+        endpoint: isAdminUser ? '/api/notifications/admin' : '/api/notifications',
+        apiCallType: typeof apiCall
+      })
+      
       // Race between API call and timeout
+      console.log('🔔 Step 3: Making API request...')
       const response = await Promise.race([
-        notificationsAPI.getNotifications({ 
-          page: 1, 
-          limit: 50 
-        }),
+        apiCall,
         timeoutPromise
       ])
       
       clearTimeout(timeoutId) // Clear timeout on success
       
-      console.log('🔔 API Response received:', {
+      console.log('🔔 Step 4: API Response received:', {
         status: response.status,
         statusText: response.statusText,
         hasData: !!response.data,
         hasSuccess: !!response.data?.success,
-        responseKeys: Object.keys(response.data || {})
+        responseKeys: Object.keys(response.data || {}),
+        fullResponse: response.data
       })
       
-      console.log('🔔 Notifications response:', {
-        success: response.data.success,
-        data: response.data.data,
-        notifications: response.data.data?.notifications,
-        unreadCount: response.data.data?.unreadCount,
-        responseStatus: response.status
-      })
+      console.log('🔔 Step 5: Parsing response data...')
+      console.log('🔔 Raw response.data:', JSON.stringify(response.data, null, 2))
       
       // Handle response - check multiple possible structures
       let notificationsData = []
       let unreadCountData = 0
       
       if (response.data) {
+        console.log('🔔 Step 6: Checking response structure...')
         // Try response.data.data structure first
         if (response.data.success && response.data.data) {
+          console.log('🔔 Using response.data.data structure')
           notificationsData = response.data.data.notifications || []
           unreadCountData = response.data.data.unreadCount || 0
+          console.log('🔔 Found notifications in data.data:', {
+            count: notificationsData.length,
+            unreadCount: unreadCountData,
+            firstNotification: notificationsData[0]
+          })
         }
         // Fallback to response.data structure
         else if (response.data.notifications) {
+          console.log('🔔 Using response.data.notifications structure')
           notificationsData = response.data.notifications || []
           unreadCountData = response.data.unreadCount || 0
+          console.log('🔔 Found notifications in data:', {
+            count: notificationsData.length,
+            unreadCount: unreadCountData
+          })
         }
         // Fallback to direct response
         else if (Array.isArray(response.data)) {
+          console.log('🔔 Using direct array structure')
           notificationsData = response.data
           unreadCountData = response.data.filter(n => !n.read).length
+          console.log('🔔 Found notifications as array:', {
+            count: notificationsData.length,
+            unreadCount: unreadCountData
+          })
+        } else {
+          console.warn('🔔 ⚠️ Unknown response structure:', {
+            hasSuccess: !!response.data.success,
+            hasData: !!response.data.data,
+            hasNotifications: !!response.data.notifications,
+            isArray: Array.isArray(response.data),
+            keys: Object.keys(response.data || {})
+          })
         }
+      } else {
+        console.error('🔔 ❌ No response.data found!')
       }
       
       // Ensure notifications is always an array
+      console.log('🔔 Step 7: Validating notifications...')
       const validNotifications = Array.isArray(notificationsData) 
         ? notificationsData.filter(notification => {
             // Filter out invalid notifications
-            if (!notification) return false
+            if (!notification) {
+              console.warn('🔔 Skipping null/undefined notification')
+              return false
+            }
             // Must have an ID
-            if (!notification._id && !notification.id) return false
+            if (!notification._id && !notification.id) {
+              console.warn('🔔 Skipping notification without ID:', notification)
+              return false
+            }
             // Must have a message or title
-            if (!notification.message && !notification.title) return false
+            if (!notification.message && !notification.title) {
+              console.warn('🔔 Skipping notification without message/title:', notification)
+              return false
+            }
             return true
           })
         : []
       
-      console.log('🔔 Processed notifications:', {
-        count: validNotifications.length,
+      console.log('🔔 Step 8: Final processed notifications:', {
+        rawCount: notificationsData.length,
+        validCount: validNotifications.length,
         unreadCount: unreadCountData,
-        sample: validNotifications[0],
-        responseStructure: {
-          hasSuccess: !!response.data?.success,
-          hasData: !!response.data?.data,
-          hasNotifications: !!response.data?.data?.notifications,
-          notificationsType: Array.isArray(notificationsData) ? 'array' : typeof notificationsData,
-          rawResponse: response.data
-        }
+        sampleNotification: validNotifications[0],
+        allNotifications: validNotifications
       })
+      console.log('🔔 ========== FETCH COMPLETE ==========')
       
       // Always set notifications to stop loading, even if empty
       setNotifications(validNotifications)
@@ -216,7 +259,11 @@ const useNotifications = (userId, userRole = 'user') => {
   useEffect(() => {
     // Don't connect if userId is invalid or mock
     if (!userId || userId === 'mock-user-id') {
-      console.warn('⚠️ useNotifications: No valid userId provided, skipping socket connection')
+      // Only log in development and only if we've had time for auth to initialize
+      if (process.env.NODE_ENV === 'development') {
+        // Use debug log instead of warning for initial load cases
+        console.debug('🔔 useNotifications: No valid userId yet, skipping socket connection (this is normal during initial load)')
+      }
       return
     }
 

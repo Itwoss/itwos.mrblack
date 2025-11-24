@@ -128,6 +128,50 @@ router.get('/', authenticateToken, requireAdmin, async (req, res) => {
   }
 })
 
+// Get products statistics - MUST be before /:id route
+router.get('/stats', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    console.log('📊 Stats endpoint called')
+    const totalProducts = await Product.countDocuments({})
+    const publishedProducts = await Product.countDocuments({ status: 'published' })
+    const draftProducts = await Product.countDocuments({ status: 'draft' })
+    const trendingProducts = await Product.countDocuments({ trending: true })
+    const previewSavedProducts = await Product.countDocuments({ previewSaved: true })
+    
+    // Calculate total revenue from all published products
+    const revenueProducts = await Product.find({ status: 'published' }).select('price')
+    const totalRevenue = revenueProducts.reduce((sum, product) => sum + (product.price || 0), 0)
+
+    console.log('📊 Stats calculated:', {
+      totalProducts,
+      publishedProducts,
+      draftProducts,
+      trendingProducts,
+      previewSavedProducts,
+      totalRevenue
+    })
+
+    res.json({
+      success: true,
+      data: {
+        totalProducts,
+        publishedProducts,
+        draftProducts,
+        trendingProducts,
+        previewSavedProducts,
+        totalRevenue
+      }
+    })
+  } catch (error) {
+    console.error('Get products stats error:', error)
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get products statistics',
+      error: error.message
+    })
+  }
+})
+
 // Configure multer for file uploads
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -382,6 +426,23 @@ router.put('/:id', authenticateToken, requireAdmin, upload.single('thumbnail'), 
 // Get single product (admin)
 router.get('/:id', authenticateToken, requireAdmin, async (req, res) => {
   try {
+    // Reject special routes that should be handled by other routes
+    if (req.params.id === 'stats' || req.params.id === 'generate-description') {
+      return res.status(404).json({
+        success: false,
+        message: 'Route not found'
+      })
+    }
+    
+    // Validate ObjectId format
+    const mongoose = require('mongoose')
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid product ID format'
+      })
+    }
+    
     const product = await Product.findById(req.params.id)
     
     if (!product) {

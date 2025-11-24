@@ -341,15 +341,30 @@ router.post('/verify', authenticateToken, requireUser, async (req, res) => {
 
     // Create notifications using the notification service
     try {
+      // Ensure product is populated
+      if (!prebook.productId || typeof prebook.productId === 'string') {
+        await prebook.populate('productId', 'title slug thumbnailUrl')
+      }
+      
+      // Ensure user is populated if exists
+      if (prebook.userId && typeof prebook.userId === 'string') {
+        await prebook.populate('userId', 'name email')
+      }
+      
       const NotificationService = require('../services/notificationService')
-      await NotificationService.createPrebookPaymentNotification(
+      const result = await NotificationService.createPrebookPaymentNotification(
         prebook,
         prebook.productId,
         prebook.userId || null
       )
-      console.log('Notifications created successfully for prebook payment')
+      console.log('✅ Notifications created successfully for prebook payment:', {
+        userNotification: result.userNotification?._id,
+        adminNotifications: result.adminNotifications?.length || 0,
+        adminNotificationIds: result.adminNotifications?.map(n => n._id) || []
+      })
     } catch (notificationError) {
-      console.error('Error creating payment notifications:', notificationError)
+      console.error('❌ Error creating payment notifications:', notificationError)
+      console.error('Error stack:', notificationError.stack)
       // Don't fail the request if notification fails
     }
 

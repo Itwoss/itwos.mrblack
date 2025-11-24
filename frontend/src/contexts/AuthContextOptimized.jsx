@@ -513,19 +513,41 @@ export const AuthProvider = ({ children }) => {
       const data = await response.json()
 
       if (data.success) {
-        // Store admin data
-        localStorage.setItem('adminToken', data.data.accessToken)
-        localStorage.setItem('adminUser', JSON.stringify(data.data.user))
+        // Store admin data - also store as regular tokens for compatibility
+        const accessToken = data.data.accessToken || data.data.token
+        const refreshToken = data.data.refreshToken || data.tokens?.refreshToken
+        
+        localStorage.setItem('adminToken', accessToken)
+        // Normalize user object - backend returns 'id' but we need '_id' for consistency
+        const adminUser = {
+          ...data.data.user,
+          _id: data.data.user._id || data.data.user.id, // Ensure _id exists
+          id: data.data.user.id || data.data.user._id, // Keep id for compatibility
+          role: 'admin' // Ensure role is always 'admin' for admin login
+        }
+        localStorage.setItem('adminUser', JSON.stringify(adminUser))
+        localStorage.setItem('accessToken', accessToken) // Also store as accessToken
+        localStorage.setItem('token', accessToken) // Also store as token
+        if (refreshToken) {
+          localStorage.setItem('refreshToken', refreshToken)
+        }
+        
+        console.log('✅ Admin login - stored user:', {
+          _id: adminUser._id,
+          id: adminUser.id,
+          role: adminUser.role,
+          email: adminUser.email
+        })
         
         setAuthState({
-          user: data.data.user,
+          user: adminUser,
           isAuthenticated: true,
           authInitialized: true,
           isLoading: false
         })
         
         message.success('Admin login successful!')
-        return { success: true, user: data.data.user }
+        return { success: true, user: adminUser }
       } else {
         // If API returns success: false, also fall back to mock
         throw new Error(data.message || 'Admin login failed')

@@ -382,8 +382,8 @@ const BannerInventory = () => {
           description="No banners in inventory"
           image={Empty.PRESENTED_IMAGE_SIMPLE}
         >
-          <Button type="primary" href="/dashboard/banner-store">
-            Visit Banner Store
+          <Button type="primary" href="/dashboard/store">
+            Visit Store
           </Button>
         </Empty>
       ) : (

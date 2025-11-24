@@ -36,7 +36,10 @@ import { getUserAvatarUrl, getUserInitials } from '../utils/avatarUtils'
 const { Title, Text } = Typography
 
 const NotificationPopup = ({ visible, onClose, userId }) => {
-  const { user } = useAuth()
+  const { user, isAuthenticated } = useAuth()
+  const effectiveUserId = userId || (isAuthenticated && user?._id ? user._id : null)
+  // For admin users, ensure role is 'admin' to use admin endpoint
+  const userRole = user?.role || (localStorage.getItem('adminUser') ? 'admin' : 'user')
   const { 
     notifications, 
     unreadCount, 
@@ -45,7 +48,7 @@ const NotificationPopup = ({ visible, onClose, userId }) => {
     markAsRead, 
     markAllAsRead,
     fetchNotifications
-  } = useNotifications(userId || user?._id, user?.role)
+  } = useNotifications(effectiveUserId, userRole)
 
   // Get notification icon based on type
   const getNotificationIcon = (type) => {
@@ -199,41 +202,7 @@ const NotificationPopup = ({ visible, onClose, userId }) => {
     }
   }, [visible, fetchNotifications])
 
-  // Add demo notifications if none are available
-  useEffect(() => {
-    if (visible && (!notifications || notifications.length === 0) && !loading) {
-      const demoNotifications = [
-        {
-          _id: 'demo_1',
-          type: 'payment_success',
-          title: 'Payment Successful! 🎉',
-          message: 'Your payment of $99.99 has been processed successfully.',
-          read: false,
-          createdAt: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
-          data: { amount: 99.99, currency: 'USD' }
-        },
-        {
-          _id: 'demo_2',
-          type: 'prebook_confirmed',
-          title: 'Prebook Confirmed! ✅',
-          message: 'Your prebook request has been approved and confirmed.',
-          read: false,
-          createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-          data: { status: 'confirmed' }
-        },
-        {
-          _id: 'demo_3',
-          type: 'general',
-          title: 'Welcome to ITWOS AI! 👋',
-          message: 'Thank you for joining our platform. Explore our features and start learning!',
-          read: true,
-          createdAt: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-          data: { welcome: true }
-        }
-      ]
-      // This will be handled by the useNotifications hook
-    }
-  }, [visible, notifications, loading])
+  // No demo notifications - use real data only
 
   const popupContent = (
     <div style={{ width: 350, maxHeight: 500 }}>

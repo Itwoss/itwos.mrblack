@@ -47,7 +47,9 @@ const UserLayout = ({ children }) => {
     if (path.includes('/feed')) return 'feed'
     if (path.includes('/products')) return 'products'
     if (path.includes('/purchases')) return 'purchases'
+    if (path.includes('/prebooks')) return 'prebooks'
     if (path.includes('/favorites')) return 'favorites'
+    if (path.includes('/store')) return 'store'
     if (path.includes('/banner-store')) return 'banner-store'
     if (path.includes('/banner-inventory')) return 'banner-inventory'
     if (path.includes('/courses')) return 'courses'
@@ -99,9 +101,14 @@ const UserLayout = ({ children }) => {
       label: 'My Purchases',
     },
     {
-      key: 'banner-store',
+      key: 'prebooks',
+      icon: <BookOutlined />,
+      label: 'My Prebooks',
+    },
+    {
+      key: 'store',
       icon: <PictureOutlined />,
-      label: 'Banner Store',
+      label: 'Store',
     },
     {
       key: 'banner-inventory',
@@ -170,8 +177,14 @@ const UserLayout = ({ children }) => {
       case 'purchases':
         navigate('/purchases')
         break
+      case 'prebooks':
+        navigate('/prebooks')
+        break
       case 'favorites':
         navigate('/favorites')
+        break
+      case 'store':
+        navigate('/dashboard/store')
         break
       case 'banner-store':
         navigate('/dashboard/banner-store')

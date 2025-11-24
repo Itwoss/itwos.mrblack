@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { Card, Table, Button, Space, Tag, Typography, Row, Col, Statistic, Input, Select, Modal, Form, Switch, message, Tabs, Badge } from 'antd'
+import { Card, Table, Button, Space, Tag, Typography, Row, Col, Statistic, Input, Select, Modal, Form, Switch, App, Tabs, Badge } from 'antd'
 import { 
   BellOutlined, 
   EditOutlined, 
@@ -19,12 +19,12 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from "../../contexts/AuthContextOptimized"
 import DashboardLayout from '../../components/DashboardLayout'
 import AdminDesignSystem from '../../styles/admin-design-system'
+import { notificationsAPI } from '../../services/api'
 
 const { Title, Paragraph } = Typography
 const { Search } = Input
 const { Option } = Select
 const { TextArea } = Input
-const { TabPane } = Tabs
 
 const Notifications = () => {
   const [notifications, setNotifications] = useState([])
@@ -34,13 +34,14 @@ const Notifications = () => {
   const [editingNotification, setEditingNotification] = useState(null)
   const [form] = Form.useForm()
   const { user, isAuthenticated } = useAuth()
+  const { message } = App.useApp()
   const navigate = useNavigate()
 
   const [stats, setStats] = useState({
-    totalNotifications: 1247,
-    sentNotifications: 1089,
-    pendingNotifications: 23,
-    readRate: 78.5
+    totalNotifications: 0,
+    sentNotifications: 0,
+    pendingNotifications: 0,
+    readRate: 0
   })
 
   useEffect(() => {
@@ -51,55 +52,49 @@ const Notifications = () => {
   const fetchNotifications = async () => {
     setLoading(true)
     try {
-      // Mock data
-      const mockNotifications = [
-        {
-          _id: '1',
-          title: 'Welcome to our platform!',
-          content: 'Thank you for joining us. Get started with our amazing features.',
-          type: 'welcome',
-          status: 'sent',
-          recipients: 156,
-          sentDate: '2024-01-15 10:30:00',
-          readCount: 134,
-          priority: 'high'
-        },
-        {
-          _id: '2',
-          title: 'New product available',
-          content: 'Check out our latest product release with amazing features.',
-          type: 'product',
-          status: 'sent',
-          recipients: 89,
-          sentDate: '2024-01-14 14:20:00',
-          readCount: 67,
-          priority: 'medium'
-        },
-        {
-          _id: '3',
-          title: 'Maintenance scheduled',
-          content: 'We will be performing maintenance on our servers tonight.',
-          type: 'maintenance',
-          status: 'pending',
-          recipients: 0,
-          sentDate: null,
-          readCount: 0,
-          priority: 'high'
-        },
-        {
-          _id: '4',
-          title: 'Payment received',
-          content: 'Your payment has been successfully processed.',
-          type: 'payment',
-          status: 'sent',
-          recipients: 45,
-          sentDate: '2024-01-13 16:45:00',
-          readCount: 42,
-          priority: 'low'
-        }
-      ]
-      setNotifications(mockNotifications)
+      // Use the API service which handles token refresh automatically
+      const response = await notificationsAPI.getAdminNotifications({ page: 1, limit: 100 })
+      
+      if (response.data?.success) {
+        const fetchedNotifications = response.data.data?.notifications || []
+        
+        // Format notifications for display
+        const formattedNotifications = fetchedNotifications.map(notif => ({
+          _id: notif._id,
+          title: notif.title || notif.message || 'Notification',
+          content: notif.message || notif.title || 'No content',
+          type: notif.type || 'general',
+          status: notif.read ? 'sent' : 'pending',
+          recipients: 1, // Each notification is for one user
+          sentDate: notif.createdAt ? new Date(notif.createdAt).toLocaleString() : null,
+          readCount: notif.read ? 1 : 0,
+          priority: notif.type === 'admin_action' ? 'high' : 
+                   notif.type === 'prebook_payment' ? 'medium' : 'low',
+          read: notif.read || false,
+          createdAt: notif.createdAt
+        }))
+        
+        setNotifications(formattedNotifications)
+        
+        // Calculate real statistics
+        const total = formattedNotifications.length
+        const sent = formattedNotifications.filter(n => n.read).length
+        const pending = formattedNotifications.filter(n => !n.read).length
+        const readRate = total > 0 ? ((sent / total) * 100).toFixed(1) : 0
+        
+        setStats({
+          totalNotifications: total,
+          sentNotifications: sent,
+          pendingNotifications: pending,
+          readRate: parseFloat(readRate)
+        })
+      } else {
+        setNotifications([])
+        message.error('Failed to fetch notifications')
+      }
     } catch (error) {
+      console.error('Error fetching notifications:', error)
+      setNotifications([])
       message.error('Failed to fetch notifications')
     } finally {
       setLoading(false)
@@ -108,36 +103,11 @@ const Notifications = () => {
 
   const fetchTemplates = async () => {
     try {
-      // Mock data
-      const mockTemplates = [
-        {
-          _id: '1',
-          name: 'Welcome Email',
-          subject: 'Welcome to our platform!',
-          content: 'Thank you for joining us. Get started with our amazing features.',
-          type: 'email',
-          status: 'active'
-        },
-        {
-          _id: '2',
-          name: 'Product Launch',
-          subject: 'New product available',
-          content: 'Check out our latest product release with amazing features.',
-          type: 'email',
-          status: 'active'
-        },
-        {
-          _id: '3',
-          name: 'Payment Confirmation',
-          subject: 'Payment received',
-          content: 'Your payment has been successfully processed.',
-          type: 'email',
-          status: 'active'
-        }
-      ]
-      setTemplates(mockTemplates)
+      // Templates feature not implemented yet - set empty array
+      setTemplates([])
     } catch (error) {
-      message.error('Failed to fetch templates')
+      console.error('Error fetching templates:', error)
+      setTemplates([])
     }
   }
 
@@ -208,7 +178,7 @@ const Notifications = () => {
         <div>
           <div style={{ fontWeight: 'bold' }}>{text}</div>
           <div style={{ fontSize: '12px', color: '#666' }}>
-            {record.type.toUpperCase()} • {record.priority.toUpperCase()} Priority
+            {record.type?.toUpperCase() || 'GENERAL'} • {record.priority?.toUpperCase() || 'MEDIUM'} Priority
           </div>
         </div>
       )
@@ -316,7 +286,8 @@ const Notifications = () => {
   ]
 
   return (
-    <DashboardLayout userRole="admin">
+    <App>
+      <DashboardLayout userRole="admin">
       <div>
         {/* Header */}
         <div style={{ marginBottom: '2rem' }}>
@@ -371,108 +342,127 @@ const Notifications = () => {
 
         {/* Notifications Tabs */}
         <Card>
-          <Tabs defaultActiveKey="notifications">
-            <TabPane tab="Notifications" key="notifications">
-              <div style={{ marginBottom: 16 }}>
-                <Space>
-                  <Search placeholder="Search notifications..." style={{ width: 200 }} />
-                  <Select placeholder="Filter by status" style={{ width: 150 }}>
-                    <Option value="all">All Status</Option>
-                    <Option value="sent">Sent</Option>
-                    <Option value="pending">Pending</Option>
-                    <Option value="failed">Failed</Option>
-                  </Select>
-                  <Select placeholder="Filter by type" style={{ width: 150 }}>
-                    <Option value="all">All Types</Option>
-                    <Option value="welcome">Welcome</Option>
-                    <Option value="product">Product</Option>
-                    <Option value="maintenance">Maintenance</Option>
-                    <Option value="payment">Payment</Option>
-                  </Select>
-                  <Button type="primary" icon={<PlusOutlined />} onClick={() => setModalVisible(true)}>
-                    Create Notification
-                  </Button>
-                </Space>
-              </div>
-              <Table
-                columns={notificationColumns}
-                dataSource={notifications}
-                loading={loading}
-                rowKey="_id"
-                pagination={{
-                  pageSize: 10,
-                  showSizeChanger: true,
-                  showQuickJumper: true
-                }}
-              />
-            </TabPane>
-            <TabPane tab="Templates" key="templates">
-              <div style={{ marginBottom: 16 }}>
-                <Space>
-                  <Search placeholder="Search templates..." style={{ width: 200 }} />
-                  <Select placeholder="Filter by type" style={{ width: 150 }}>
-                    <Option value="all">All Types</Option>
-                    <Option value="email">Email</Option>
-                    <Option value="sms">SMS</Option>
-                    <Option value="push">Push</Option>
-                  </Select>
-                  <Button type="primary" icon={<PlusOutlined />}>
-                    Create Template
-                  </Button>
-                </Space>
-              </div>
-              <Table
-                columns={templateColumns}
-                dataSource={templates}
-                loading={loading}
-                rowKey="_id"
-                pagination={{
-                  pageSize: 10,
-                  showSizeChanger: true,
-                  showQuickJumper: true
-                }}
-              />
-            </TabPane>
-            <TabPane tab="Settings" key="settings">
-              <Card title="Notification Settings" size="small">
-                <div style={{ marginBottom: 16 }}>
-                  <h4>Email Settings</h4>
-                  <Form layout="vertical">
-                    <Form.Item label="SMTP Server">
-                      <Input placeholder="smtp.example.com" />
-                    </Form.Item>
-                    <Form.Item label="Port">
-                      <Input placeholder="587" />
-                    </Form.Item>
-                    <Form.Item label="Username">
-                      <Input placeholder="your-email@example.com" />
-                    </Form.Item>
-                    <Form.Item label="Password">
-                      <Input.Password placeholder="Your password" />
-                    </Form.Item>
-                  </Form>
-                </div>
-                <div style={{ marginBottom: 16 }}>
-                  <h4>Notification Preferences</h4>
-                  <Form layout="vertical">
-                    <Form.Item label="Send welcome emails">
-                      <Switch defaultChecked />
-                    </Form.Item>
-                    <Form.Item label="Send product updates">
-                      <Switch defaultChecked />
-                    </Form.Item>
-                    <Form.Item label="Send maintenance notifications">
-                      <Switch defaultChecked />
-                    </Form.Item>
-                    <Form.Item label="Send payment confirmations">
-                      <Switch defaultChecked />
-                    </Form.Item>
-                  </Form>
-                </div>
-                <Button type="primary">Save Settings</Button>
-              </Card>
-            </TabPane>
-          </Tabs>
+          <Tabs 
+            defaultActiveKey="notifications"
+            items={[
+              {
+                key: 'notifications',
+                label: 'Notifications',
+                children: (
+                  <>
+                    <div style={{ marginBottom: 16 }}>
+                      <Space>
+                        <Search placeholder="Search notifications..." style={{ width: 200 }} />
+                        <Select placeholder="Filter by status" style={{ width: 150 }}>
+                          <Option value="all">All Status</Option>
+                          <Option value="sent">Sent</Option>
+                          <Option value="pending">Pending</Option>
+                          <Option value="failed">Failed</Option>
+                        </Select>
+                        <Select placeholder="Filter by type" style={{ width: 150 }}>
+                          <Option value="all">All Types</Option>
+                          <Option value="welcome">Welcome</Option>
+                          <Option value="product">Product</Option>
+                          <Option value="maintenance">Maintenance</Option>
+                          <Option value="payment">Payment</Option>
+                        </Select>
+                        <Button type="primary" icon={<PlusOutlined />} onClick={() => setModalVisible(true)}>
+                          Create Notification
+                        </Button>
+                      </Space>
+                    </div>
+                    <Table
+                      columns={notificationColumns}
+                      dataSource={notifications}
+                      loading={loading}
+                      rowKey="_id"
+                      pagination={{
+                        pageSize: 10,
+                        showSizeChanger: true,
+                        showQuickJumper: true
+                      }}
+                    />
+                  </>
+                )
+              },
+              {
+                key: 'templates',
+                label: 'Templates',
+                children: (
+                  <>
+                    <div style={{ marginBottom: 16 }}>
+                      <Space>
+                        <Search placeholder="Search templates..." style={{ width: 200 }} />
+                        <Select placeholder="Filter by type" style={{ width: 150 }}>
+                          <Option value="all">All Types</Option>
+                          <Option value="email">Email</Option>
+                          <Option value="sms">SMS</Option>
+                          <Option value="push">Push</Option>
+                        </Select>
+                        <Button type="primary" icon={<PlusOutlined />}>
+                          Create Template
+                        </Button>
+                      </Space>
+                    </div>
+                    <Table
+                      columns={templateColumns}
+                      dataSource={templates}
+                      loading={loading}
+                      rowKey="_id"
+                      pagination={{
+                        pageSize: 10,
+                        showSizeChanger: true,
+                        showQuickJumper: true
+                      }}
+                    />
+                  </>
+                )
+              },
+              {
+                key: 'settings',
+                label: 'Settings',
+                children: (
+                  <Card title="Notification Settings" size="small">
+                    <div style={{ marginBottom: 16 }}>
+                      <h4>Email Settings</h4>
+                      <Form layout="vertical">
+                        <Form.Item label="SMTP Server">
+                          <Input placeholder="smtp.example.com" />
+                        </Form.Item>
+                        <Form.Item label="Port">
+                          <Input placeholder="587" />
+                        </Form.Item>
+                        <Form.Item label="Username">
+                          <Input placeholder="your-email@example.com" />
+                        </Form.Item>
+                        <Form.Item label="Password">
+                          <Input.Password placeholder="Your password" />
+                        </Form.Item>
+                      </Form>
+                    </div>
+                    <div style={{ marginBottom: 16 }}>
+                      <h4>Notification Preferences</h4>
+                      <Form layout="vertical">
+                        <Form.Item label="Send welcome emails">
+                          <Switch defaultChecked />
+                        </Form.Item>
+                        <Form.Item label="Send product updates">
+                          <Switch defaultChecked />
+                        </Form.Item>
+                        <Form.Item label="Send maintenance notifications">
+                          <Switch defaultChecked />
+                        </Form.Item>
+                        <Form.Item label="Send payment confirmations">
+                          <Switch defaultChecked />
+                        </Form.Item>
+                      </Form>
+                    </div>
+                    <Button type="primary">Save Settings</Button>
+                  </Card>
+                )
+              }
+            ]}
+          />
         </Card>
 
         {/* Notification Form Modal */}
@@ -558,8 +548,9 @@ const Notifications = () => {
             </Form.Item>
           </Form>
         </Modal>
-      </div>
-    </DashboardLayout>
+        </div>
+      </DashboardLayout>
+    </App>
   )
 }
 

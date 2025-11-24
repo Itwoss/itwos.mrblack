@@ -11,7 +11,7 @@ import {
   Typography, 
   Pagination, 
   Spin, 
-  message, 
+  App,
   Layout,
   Badge,
   Empty,
@@ -31,6 +31,7 @@ import {
   ThunderboltOutlined
 } from '@ant-design/icons'
 import { Link } from 'react-router-dom'
+import { productAPI } from '../../services/api'
 import '../../styles/mobile-products.css'
 import '../../styles/mobile-products-fix.css'
 
@@ -40,6 +41,7 @@ const { Search } = Input
 const { Sider, Content } = Layout
 
 const ProductsPage = () => {
+  const { message } = App.useApp()
   const [products, setProducts] = useState([])
   const [loading, setLoading] = useState(false)
   const [filters, setFilters] = useState({
@@ -69,7 +71,8 @@ const ProductsPage = () => {
   const fetchProducts = async () => {
     setLoading(true)
     try {
-      const params = new URLSearchParams({
+      // Prepare params for API call
+      const params = {
         page: pagination.current,
         limit: pagination.pageSize,
         ...(filters.search && { search: filters.search }),
@@ -80,28 +83,27 @@ const ProductsPage = () => {
           maxPrice: filters.priceRange.split('-')[1]
         }),
         sortBy: filters.sortBy
-      })
+      }
 
-      console.log('🔍 Fetching products with params:', params.toString())
-      const response = await fetch(`http://localhost:7000/api/products?${params}`)
-      const data = await response.json()
-      console.log('📦 Products response:', data)
+      console.log('🔍 Fetching products with params:', params)
+      const response = await productAPI.getProducts(params)
+      console.log('📦 Products response:', response.data)
       
-      if (data.success) {
-        setProducts(data.data.products)
+      if (response.data.success) {
+        setProducts(response.data.data?.products || response.data.products || [])
         setPagination(prev => ({ 
           ...prev, 
-          total: data.data.pagination.total 
+          total: response.data.data?.pagination?.total || response.data.pagination?.total || 0
         }))
-        console.log('✅ Products loaded successfully:', data.data.products.length)
+        console.log('✅ Products loaded successfully:', (response.data.data?.products || response.data.products || []).length)
       } else {
-        console.log('❌ API error:', data.message)
+        console.log('❌ API error:', response.data.message)
         setProducts([])
         setPagination(prev => ({ 
           ...prev, 
           total: 0 
         }))
-        message.error('Failed to load products. Please try again.')
+        message.error(response.data.message || 'Failed to load products. Please try again.')
       }
     } catch (error) {
       console.error('❌ Error fetching products:', error)
@@ -110,7 +112,7 @@ const ProductsPage = () => {
         ...prev, 
         total: 0 
       }))
-      message.error('Failed to load products. Please check your connection.')
+      message.error(error.response?.data?.message || 'Failed to load products. Please check your connection.')
     } finally {
       setLoading(false)
     }

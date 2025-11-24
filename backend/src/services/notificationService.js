@@ -39,6 +39,13 @@ class NotificationService {
         role: { $in: ['admin', 'superadmin'] } 
       })
       
+      console.log('🔔 Creating admin notifications:', {
+        type: type,
+        title: title,
+        adminCount: adminUsers.length,
+        adminIds: adminUsers.map(a => a._id)
+      })
+      
       const notifications = []
       
       for (const admin of adminUsers) {
@@ -53,11 +60,19 @@ class NotificationService {
         
         await notification.save()
         notifications.push(notification)
+        console.log('✅ Admin notification created:', {
+          notificationId: notification._id,
+          adminId: admin._id,
+          adminEmail: admin.email,
+          type: type
+        })
       }
       
+      console.log('✅ All admin notifications created:', notifications.length)
       return notifications
     } catch (error) {
-      console.error('Error creating admin notification:', error)
+      console.error('❌ Error creating admin notification:', error)
+      console.error('Error stack:', error.stack)
       throw error
     }
   }
@@ -65,21 +80,35 @@ class NotificationService {
   // Create prebook payment notification
   static async createPrebookPaymentNotification(prebook, product, user) {
     try {
+      // Ensure product has title (handle both populated and unpopulated cases)
+      const productTitle = product?.title || product?.name || 'Product'
+      const productId = product?._id || product
+      
+      console.log('🔔 Creating prebook payment notifications:', {
+        prebookId: prebook._id,
+        productId: productId,
+        productTitle: productTitle,
+        userId: user?._id,
+        userName: user?.name
+      })
+      
       // User notification (only if user exists)
+      let userNotification = null
       if (user && user._id) {
-        const userNotification = await this.createUserNotification(
+        userNotification = await this.createUserNotification(
           user._id,
           'payment_success',
           'Payment Successful! 🎉',
-          `Your payment for "${product.title}" has been processed successfully. Your prebook request is now under review.`,
+          `Your payment for "${productTitle}" has been processed successfully. Your prebook request is now under review.`,
           {
             prebookId: prebook._id,
-            productId: product._id,
+            productId: productId,
             paymentId: prebook.paymentId,
             amount: prebook.paymentAmount
           },
           'high'
         )
+        console.log('✅ User notification created:', userNotification._id)
       }
 
       // Admin notification
@@ -90,23 +119,29 @@ class NotificationService {
       const adminNotifications = await this.createAdminNotification(
         'prebook_payment',
         'New Paid Prebook Request 💰',
-        `New prebook request with payment for "${product.title}" from ${requesterName} (${requesterEmail})`,
+        `New prebook request with payment for "${productTitle}" from ${requesterName} (${requesterEmail})`,
         {
           prebookId: prebook._id,
-          productId: product._id,
+          productId: productId,
           requesterId: requesterId,
           requesterName: requesterName,
           requesterEmail: requesterEmail,
           paymentId: prebook.paymentId,
           amount: prebook.paymentAmount,
-          productTitle: product.title
+          productTitle: productTitle
         },
         'high'
       )
 
+      console.log('✅ Prebook payment notifications created:', {
+        userNotification: userNotification?._id,
+        adminNotificationsCount: adminNotifications?.length || 0
+      })
+
       return { userNotification, adminNotifications }
     } catch (error) {
-      console.error('Error creating prebook payment notification:', error)
+      console.error('❌ Error creating prebook payment notification:', error)
+      console.error('Error stack:', error.stack)
       throw error
     }
   }

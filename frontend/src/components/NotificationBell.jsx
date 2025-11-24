@@ -7,9 +7,35 @@ import NotificationPopup from './NotificationPopup'
 import AdminDesignSystem from '../styles/admin-design-system'
 
 const NotificationBell = () => {
-  const { user } = useAuth()
+  const { user, isAuthenticated } = useAuth()
   const [notificationVisible, setNotificationVisible] = useState(false)
-  const { unreadCount, fetchNotifications, notifications } = useNotifications(user?._id, user?.role)
+  
+  // Get admin user from localStorage if user object doesn't have role
+  const adminUserStr = localStorage.getItem('adminUser')
+  const adminUser = adminUserStr ? JSON.parse(adminUserStr) : null
+  
+  // Determine user role - prioritize user.role, then check adminUser, then check localStorage
+  const userRole = user?.role || adminUser?.role || (adminUserStr ? 'admin' : 'user')
+  
+  // Get userId - try user._id first, then user.id, then adminUser._id
+  const userId = (isAuthenticated && user?._id) 
+    ? user._id 
+    : (isAuthenticated && user?.id) 
+      ? user.id 
+      : (adminUser?._id || adminUser?.id) || null
+  
+  console.log('🔔 NotificationBell Debug:', {
+    userId,
+    userRole,
+    isAuthenticated,
+    userFromAuth: user,
+    adminUserFromStorage: adminUser,
+    hasAdminUser: !!adminUserStr,
+    finalUserRole: userRole,
+    finalUserId: userId
+  })
+  
+  const { unreadCount, fetchNotifications, notifications } = useNotifications(userId, userRole)
   
   // Use actual unread count (no demo count)
   const displayCount = unreadCount > 0 ? unreadCount : 0

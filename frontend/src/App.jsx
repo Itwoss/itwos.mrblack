@@ -40,6 +40,7 @@ import Feed from './pages/User/Feed'
 import PostCreation from './pages/User/PostCreation'
 import BannerStore from './pages/User/BannerStore'
 import BannerInventory from './pages/User/BannerInventory'
+import Store from './pages/User/Store'
 import AboutPage from './pages/AboutPage'
 import ContactPage from './pages/ContactPage'
 import AdminLoginPage from './pages/Admin/AdminLoginPage'
@@ -100,7 +101,7 @@ function App() {
                   } />
                   <Route path="/dashboard/products" element={
                     <ProtectedRoute requiredRole="user">
-                      <UserLayout><VerifiedBadge /></UserLayout>
+                      <UserLayout><ProductsPage /></UserLayout>
                     </ProtectedRoute>
                   } />
                   <Route path="/profile/:userId" element={
@@ -130,7 +131,7 @@ function App() {
                   } />
                   <Route path="/prebooks" element={
                     <ProtectedRoute requiredRole="user">
-                      <DashboardLayout><MyPrebooks /></DashboardLayout>
+                      <UserLayout><MyPrebooks /></UserLayout>
                     </ProtectedRoute>
                   } />
                   <Route path="/favorites" element={
@@ -151,6 +152,11 @@ function App() {
                   <Route path="/post/create" element={
                     <ProtectedRoute requiredRole="user">
                       <UserLayout><PostCreation /></UserLayout>
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/dashboard/store" element={
+                    <ProtectedRoute requiredRole="user">
+                      <UserLayout><Store /></UserLayout>
                     </ProtectedRoute>
                   } />
                   <Route path="/dashboard/banner-store" element={

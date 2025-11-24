@@ -25,7 +25,7 @@ router.get('/admin/all', async (req, res) => {
     }
 
     const prebooks = await PrebookRequest.find(query)
-      .populate('productId', 'title slug thumbnailUrl')
+      .populate('productId', 'title slug thumbnailUrl price prebookAmount currency')
       .populate('userId', 'name email')
       .sort({ createdAt: -1 })
       .skip(skip)
@@ -84,7 +84,7 @@ router.put('/admin/:id/status', requireAdmin, async (req, res) => {
         updatedAt: new Date()
       },
       { new: true }
-    ).populate('productId', 'title slug')
+    ).populate('productId', 'title slug thumbnailUrl price prebookAmount currency')
      .populate('userId', 'name email')
 
     if (!prebook) {
@@ -183,7 +183,7 @@ router.post('/', authenticateToken, requireUser, async (req, res) => {
     await prebookRequest.save()
 
     // Populate the response
-    await prebookRequest.populate('productId', 'title slug thumbnailUrl price')
+    await prebookRequest.populate('productId', 'title slug thumbnailUrl price prebookAmount currency')
 
     // Create notification for admin
     try {
@@ -242,7 +242,7 @@ router.get('/', authenticateToken, requireUser, async (req, res) => {
     }
 
     const prebooks = await PrebookRequest.find(query)
-      .populate('productId', 'title slug thumbnailUrl')
+      .populate('productId', 'title slug thumbnailUrl price prebookAmount currency')
       .populate('userId', 'name email')
       .sort({ createdAt: -1 })
       .skip(skip)
@@ -277,7 +277,7 @@ router.get('/:id', authenticateToken, requireUser, async (req, res) => {
     const prebook = await PrebookRequest.findOne({
       _id: req.params.id,
       userId: req.user._id || req.user.id
-    }).populate('productId', 'title slug thumbnailUrl')
+    }).populate('productId', 'title slug thumbnailUrl price prebookAmount currency')
 
     if (!prebook) {
       return res.status(404).json({
@@ -317,7 +317,7 @@ router.put('/:id', authenticateToken, requireUser, async (req, res) => {
       { _id: req.params.id, userId: req.user.id },
       updateData,
       { new: true, runValidators: true }
-    ).populate('productId', 'title slug thumbnailUrl')
+    ).populate('productId', 'title slug thumbnailUrl price prebookAmount currency')
 
     if (!prebook) {
       return res.status(404).json({
@@ -431,7 +431,7 @@ router.get('/admin/all', requireAdmin, async (req, res) => {
     if (productId) query.productId = productId
 
     const prebooks = await PrebookRequest.find(query)
-      .populate('productId', 'title slug thumbnailUrl')
+      .populate('productId', 'title slug thumbnailUrl price prebookAmount currency')
       .populate('userId', 'name email')
       .sort({ createdAt: -1 })
       .skip(skip)
@@ -474,7 +474,7 @@ router.put('/admin/:id/status', requireAdmin, async (req, res) => {
       req.params.id,
       updateData,
       { new: true, runValidators: true }
-    ).populate('productId', 'title slug thumbnailUrl')
+    ).populate('productId', 'title slug thumbnailUrl price prebookAmount currency')
      .populate('userId', 'name email')
 
     if (!prebook) {
@@ -511,7 +511,7 @@ router.get('/admin/stats', requireAdmin, async (req, res) => {
 
     // Get recent prebooks
     const recent = await PrebookRequest.find()
-      .populate('productId', 'title slug')
+      .populate('productId', 'title slug thumbnailUrl price prebookAmount currency')
       .populate('userId', 'name email')
       .sort({ createdAt: -1 })
       .limit(5)
@@ -558,7 +558,7 @@ router.put('/:id/status', authenticateToken, requireAdmin, async (req, res) => {
     // Find prebook
     const prebook = await PrebookRequest.findById(id)
       .populate('userId', 'name email')
-      .populate('productId', 'title')
+      .populate('productId', 'title slug thumbnailUrl price prebookAmount currency')
 
     if (!prebook) {
       return res.status(404).json({

@@ -29,14 +29,14 @@ import useNotifications from '../hooks/useNotifications'
 const { Title, Text } = Typography
 
 const AdminNotificationCenter = () => {
-  const { user } = useAuth()
+  const { user, isAuthenticated } = useAuth()
   
   // Debug logging
   console.log('🔔 AdminNotificationCenter Debug:', {
     user: user,
     userId: user?._id,
     userRole: user?.role,
-    isAuthenticated: !!user
+    isAuthenticated: isAuthenticated
   })
   
   const { 
@@ -47,7 +47,10 @@ const AdminNotificationCenter = () => {
     markAsRead, 
     markAllAsRead,
     fetchNotifications 
-  } = useNotifications(user?._id, user?.role)
+  } = useNotifications(
+    isAuthenticated && user?._id ? user._id : null, 
+    user?.role || 'admin'
+  )
   
   // Debug notifications data
   console.log('🔔 Notifications Debug:', {

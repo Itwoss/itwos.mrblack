@@ -352,25 +352,124 @@ router.get('/:id/followers', validateObjectId('id'), async (req, res) => {
   }
 });
 
-// Get user's purchases (including subscriptions)
+// Get user's purchases (including subscriptions and banners)
 router.get('/:id/purchases', authenticateToken, validateObjectId('id'), requireOwnershipOrAdmin('id'), async (req, res) => {
   try {
+    console.log('🛒 Getting purchases for user:', req.params.id)
     const Purchase = require('../models/Purchase');
     const Subscription = require('../models/Subscription');
+    const Banner = require('../models/Banner');
     
     // Get product purchases
     const purchases = await Purchase.findByBuyer(req.params.id);
+    console.log('🛒 Product purchases found:', purchases.length)
     
     // Get subscriptions (verified badge purchases)
     const subscriptions = await Subscription.find({ userId: req.params.id })
       .sort({ createdAt: -1 });
+    console.log('🛒 Subscriptions found:', subscriptions.length)
+    
+    // Get user's banner purchases from bannerInventory
+    const user = await User.findById(req.params.id).populate('bannerInventory.bannerId');
+    const bannerPurchases = [];
+    if (user && user.bannerInventory && user.bannerInventory.length > 0) {
+      for (const item of user.bannerInventory) {
+        if (item.bannerId) {
+          bannerPurchases.push({
+            _id: item.bannerId._id || item._id,
+            type: 'banner',
+            product: {
+              _id: item.bannerId._id,
+              title: item.bannerId.name || 'Banner',
+              description: item.bannerId.description || 'Profile Banner',
+              thumbnailUrl: item.bannerId.imageUrl,
+              price: item.bannerId.price || 0
+            },
+            amount: item.bannerId.price || 0,
+            currency: 'INR',
+            status: 'paid', // Banners are always paid when in inventory
+            paymentMethod: 'card',
+            razorpayOrderId: `banner_${item.bannerId._id}`,
+            createdAt: item.purchasedAt || item.bannerId.createdAt,
+            updatedAt: item.bannerId.updatedAt,
+            isBanner: true
+          });
+        }
+      }
+    }
+    console.log('🛒 Banner purchases found:', bannerPurchases.length)
+    
+    // Get prebook purchases (prebooks with completed payments)
+    const PrebookRequest = require('../models/PrebookRequest');
+    const prebookPurchases = await PrebookRequest.find({
+      userId: req.params.id,
+      paymentStatus: 'completed'
+    })
+      .populate('productId', 'title slug thumbnailUrl price prebookAmount currency')
+      .sort({ paymentDate: -1, createdAt: -1 });
+    console.log('🛒 Prebook purchases found:', prebookPurchases.length)
+    
+    // Format prebook purchases
+    const formattedPrebookPurchases = prebookPurchases.map(prebook => ({
+      _id: prebook._id,
+      type: 'prebook',
+      product: {
+        _id: prebook.productId?._id || prebook.productId,
+        title: prebook.productId?.title || 'Prebook Product',
+        description: prebook.productId?.description || 'Prebooked Product',
+        thumbnailUrl: prebook.productId?.thumbnailUrl,
+        price: prebook.productId?.price || prebook.productId?.prebookAmount || 0
+      },
+      amount: (prebook.paymentAmount || 0) / 100, // Convert from paise to rupees
+      currency: prebook.productId?.currency || 'INR',
+      status: prebook.paymentStatus === 'completed' ? 'paid' : prebook.paymentStatus || 'pending',
+      paymentMethod: 'card',
+      razorpayOrderId: prebook.paymentOrderId || prebook.paymentId,
+      razorpayPaymentId: prebook.paymentId,
+      createdAt: prebook.paymentDate || prebook.createdAt,
+      updatedAt: prebook.updatedAt,
+      isPrebook: true,
+      prebookStatus: prebook.status,
+      prebookId: prebook._id
+    }))
     
     // Format purchases
-    const formattedPurchases = purchases.map(purchase => ({
-      ...purchase.getPublicData(),
-      type: 'product',
-      product: purchase.product
-    }));
+    const formattedPurchases = purchases.map(purchase => {
+      try {
+        const publicData = purchase.getPublicData ? purchase.getPublicData() : {
+          _id: purchase._id,
+          product: purchase.product,
+          amount: purchase.amount,
+          currency: purchase.currency,
+          status: purchase.status,
+          paymentMethod: purchase.paymentMethod,
+          razorpayOrderId: purchase.razorpayOrderId,
+          razorpayPaymentId: purchase.razorpayPaymentId,
+          createdAt: purchase.createdAt,
+          updatedAt: purchase.updatedAt
+        };
+        return {
+          ...publicData,
+          type: 'product',
+          product: purchase.product
+        };
+      } catch (error) {
+        console.error('Error formatting purchase:', error);
+        return {
+          _id: purchase._id,
+          type: 'product',
+          product: purchase.product,
+          amount: purchase.amount || 0,
+          currency: purchase.currency || 'INR',
+          status: purchase.status || 'created',
+          paymentMethod: purchase.paymentMethod || 'card',
+          razorpayOrderId: purchase.razorpayOrderId,
+          razorpayPaymentId: purchase.razorpayPaymentId,
+          createdAt: purchase.createdAt,
+          updatedAt: purchase.updatedAt
+        };
+      }
+    });
     
     // Format subscriptions as purchases
     const formattedSubscriptions = subscriptions.map(subscription => ({
@@ -381,15 +480,15 @@ router.get('/:id/purchases', authenticateToken, validateObjectId('id'), requireO
         title: `Verified Badge - ${subscription.planMonths} Month${subscription.planMonths > 1 ? 's' : ''}`,
         description: 'Blue Checkmark – Verified Badge Subscription'
       },
-      amount: subscription.price,
+      amount: subscription.price || 0,
       currency: subscription.currency || 'INR',
-      status: subscription.status === 'active' ? 'paid' : subscription.status === 'expired' ? 'completed' : subscription.status === 'cancelled' ? 'cancelled' : subscription.status,
+      status: subscription.status === 'active' ? 'paid' : subscription.status === 'expired' ? 'completed' : subscription.status === 'cancelled' ? 'cancelled' : subscription.status || 'created',
       paymentMethod: subscription.paymentMethod || 'card',
       razorpayOrderId: subscription.razorpayOrderId || subscription.paymentId,
       razorpayPaymentId: subscription.razorpayPaymentId || subscription.paymentId,
       createdAt: subscription.createdAt,
       updatedAt: subscription.updatedAt,
-      cancelledAt: subscription.cancelledAt, // Include cancellation date
+      cancelledAt: subscription.cancelledAt,
       // Subscription-specific fields
       planMonths: subscription.planMonths,
       startDate: subscription.startDate,
@@ -398,9 +497,13 @@ router.get('/:id/purchases', authenticateToken, validateObjectId('id'), requireO
     }));
     
     // Combine and sort by creation date (newest first)
-    const allPurchases = [...formattedPurchases, ...formattedSubscriptions].sort((a, b) => {
-      return new Date(b.createdAt) - new Date(a.createdAt);
+    const allPurchases = [...formattedPurchases, ...formattedSubscriptions, ...bannerPurchases, ...formattedPrebookPurchases].sort((a, b) => {
+      const dateA = a.createdAt ? new Date(a.createdAt) : new Date(0);
+      const dateB = b.createdAt ? new Date(b.createdAt) : new Date(0);
+      return dateB - dateA;
     });
+
+    console.log('🛒 Total purchases to return:', allPurchases.length)
 
     res.json({
       success: true,
@@ -408,6 +511,7 @@ router.get('/:id/purchases', authenticateToken, validateObjectId('id'), requireO
     });
   } catch (error) {
     console.error('Get purchases error:', error);
+    console.error('Error stack:', error.stack);
     res.status(500).json({
       success: false,
       message: 'Failed to get purchases',

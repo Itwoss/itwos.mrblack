@@ -249,7 +249,17 @@ const MyPrebooks = () => {
           <div>
             <Text strong style={{ fontSize: '14px' }}>{product?.title || 'Unknown Product'}</Text>
             <br />
-            <Text type="secondary" style={{ fontSize: '12px' }}>${product?.price || 0}</Text>
+            {product?.prebookAmount ? (
+              <Text type="secondary" style={{ fontSize: '12px', color: '#52c41a', fontWeight: 'bold' }}>
+                Prebook: ${product.prebookAmount.toLocaleString()} {product?.currency || 'USD'}
+              </Text>
+            ) : product?.price ? (
+              <Text type="secondary" style={{ fontSize: '12px' }}>
+                ${product.price.toLocaleString()} {product?.currency || 'USD'}
+              </Text>
+            ) : (
+              <Text type="secondary" style={{ fontSize: '12px' }}>Price: N/A</Text>
+            )}
           </div>
         ),
         responsive: ['lg']
@@ -539,7 +549,19 @@ const MyPrebooks = () => {
           {selectedPrebook && (
             <Descriptions bordered column={1} size="small">
               <Descriptions.Item label="Product">
-                <Text strong>{selectedPrebook.productId?.title || 'Unknown Product'}</Text>
+                <div>
+                  <Text strong>{selectedPrebook.productId?.title || 'Unknown Product'}</Text>
+                  <br />
+                  {selectedPrebook.productId?.prebookAmount ? (
+                    <Text type="secondary" style={{ color: '#52c41a', fontWeight: 'bold' }}>
+                      Prebook Price: ${selectedPrebook.productId.prebookAmount.toLocaleString()} {selectedPrebook.productId?.currency || 'USD'}
+                    </Text>
+                  ) : selectedPrebook.productId?.price ? (
+                    <Text type="secondary">
+                      Price: ${selectedPrebook.productId.price.toLocaleString()} {selectedPrebook.productId?.currency || 'USD'}
+                    </Text>
+                  ) : null}
+                </div>
               </Descriptions.Item>
               <Descriptions.Item label="Project Type">
                 <Tag color="blue">{selectedPrebook.projectType}</Tag>

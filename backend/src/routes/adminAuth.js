@@ -112,6 +112,7 @@ router.post('/login', [
           lastLogin: user.lastLogin
         },
         accessToken,
+        refreshToken, // Include refresh token in response
         expiresIn: '15m'
       }
     })

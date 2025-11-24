@@ -14,12 +14,15 @@ const UserPurchases = () => {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    if (isAuthenticated && user) {
+    if (isAuthenticated && user && user._id) {
+      console.log('🛒 User authenticated, loading purchases for:', user._id)
       loadPurchases()
     } else {
+      console.log('🛒 User not authenticated or no user ID')
       setLoading(false)
     }
-  }, [isAuthenticated, user])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated, user?._id])
 
   const loadPurchases = async () => {
     if (!user || !user._id) {
@@ -29,17 +32,27 @@ const UserPurchases = () => {
 
     try {
       setLoading(true)
+      console.log('🛒 Loading purchases for user:', user._id)
       // Use the user ID endpoint: /users/:id/purchases
       const response = await api.get(`/users/${user._id}/purchases`)
+      console.log('🛒 Purchases response:', response.data)
       
       if (response.data.success) {
         const purchasesData = response.data.purchases || response.data.data || []
+        console.log('✅ Purchases loaded:', purchasesData.length, 'items')
         setPurchases(purchasesData)
       } else {
+        console.warn('⚠️ Purchases API returned unsuccessful response')
         setPurchases([])
       }
     } catch (error) {
-      console.error('Error loading purchases:', error)
+      console.error('❌ Error loading purchases:', error)
+      console.error('Error details:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+        url: error.config?.url
+      })
       setPurchases([])
       // Don't show error message if it's just no purchases
       if (error.response?.status !== 404) {
@@ -92,6 +105,7 @@ const UserPurchases = () => {
       render: (_, record) => {
         const product = record.product || {}
         const isSubscription = record.isSubscription || record.type === 'subscription'
+        const isPrebook = record.isPrebook || record.type === 'prebook'
         return (
           <div>
             <div style={{ fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -99,6 +113,11 @@ const UserPurchases = () => {
               {isSubscription && (
                 <Tag color="blue" style={{ fontSize: '11px', padding: '0 6px', height: '20px', lineHeight: '20px' }}>
                   Subscription
+                </Tag>
+              )}
+              {isPrebook && (
+                <Tag color="green" style={{ fontSize: '11px', padding: '0 6px', height: '20px', lineHeight: '20px' }}>
+                  Prebook
                 </Tag>
               )}
             </div>
@@ -187,10 +206,20 @@ const UserPurchases = () => {
         const productId = record.product?._id || record.product
         const isPaid = record.status === 'paid' || record.status === 'completed'
         const isSubscription = record.isSubscription || record.type === 'subscription'
+        const isPrebook = record.isPrebook || record.type === 'prebook'
         
         return (
           <Space>
-            {productId && productId !== 'verified-badge' && (
+            {isPrebook && record.prebookId && (
+              <Button 
+                type="link" 
+                icon={<EyeOutlined />}
+                onClick={() => navigate(`/prebooks`)}
+              >
+                View Prebook
+              </Button>
+            )}
+            {productId && productId !== 'verified-badge' && !isPrebook && (
               <Button 
                 type="link" 
                 icon={<EyeOutlined />}
@@ -208,7 +237,7 @@ const UserPurchases = () => {
                 View Details
               </Button>
             )}
-            {isPaid && !isSubscription && (
+            {isPaid && !isSubscription && !isPrebook && (
               <Button 
                 type="link" 
                 icon={<DownloadOutlined />}
