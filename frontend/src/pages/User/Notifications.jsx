@@ -368,12 +368,43 @@ const Notifications = () => {
               const style = getNotificationStyle(notification.type)
               return (
                     <List.Item
+                      onClick={async (e) => {
+                        e.stopPropagation()
+                        if (!notification.read) {
+                          console.log('🔔 User Notifications: Marking as read:', notification._id)
+                          try {
+                            const notificationId = notification._id || notification.id
+                            if (!notificationId) {
+                              console.error('❌ No notification ID found')
+                              return
+                            }
+                            await markAsRead(notificationId)
+                            console.log('✅ Notification marked as read')
+                            // Refresh notifications to get updated state
+                            setTimeout(() => {
+                              fetchNotifications()
+                            }, 500)
+                          } catch (error) {
+                            console.error('❌ Error marking notification as read:', error)
+                            console.error('Error details:', {
+                              message: error.message,
+                              response: error.response?.data,
+                              status: error.response?.status
+                            })
+                          }
+                        } else {
+                          console.log('ℹ️ Notification already read')
+                        }
+                      }}
                       style={{
                     backgroundColor: notification.read ? '#fff' : style.bgColor,
                     borderLeft: `4px solid ${style.color}`,
                     padding: '12px 16px',
                     marginBottom: '8px',
-                    borderRadius: '6px'
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                    opacity: notification.read ? 0.7 : 1
                       }}
                       actions={
                         notification.type === 'follow_request' ? [

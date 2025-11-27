@@ -1594,7 +1594,7 @@ const UserChat = () => {
                     </Text>
                   )
                 })()}
-                </div>
+              </div>
               </div>
               <Dropdown
                 menu={{
@@ -1689,11 +1689,11 @@ const UserChat = () => {
                 trigger={['click']}
                 placement="bottomRight"
               >
-                <Button 
-                  type="text"
-                  icon={<MoreOutlined />}
-                  style={{ padding: '4px' }}
-                />
+              <Button 
+                type="text"
+                icon={<MoreOutlined />}
+                style={{ padding: '4px' }}
+              />
               </Dropdown>
               </div>
             </div>
@@ -1931,7 +1931,7 @@ const UserChat = () => {
                                 }}>
                                   <UndoOutlined style={{ fontSize: '10px', transform: 'scaleX(-1)' }} />
                                   <span>{isRepliedOwn ? 'You' : (repliedMessage.sender?.name || getRoomDisplayName(selectedRoom))}</span>
-                                </div>
+                        </div>
                                 <div style={{ 
                                   fontSize: '12px', 
                                   color: isOwnMessage ? 'rgba(255,255,255,0.7)' : '#999',
@@ -2388,10 +2388,10 @@ const UserChat = () => {
                     background: 'rgba(0,0,0,0.03)',
                     borderRadius: '8px',
                     borderLeft: `3px solid ${currentTheme.accentColor || '#0A84FF'}`,
-                    display: 'flex',
+                display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
-                    gap: '8px',
+                gap: '8px',
                     cursor: 'pointer',
                     transition: 'all 0.2s ease',
                     position: 'relative'
@@ -2439,21 +2439,21 @@ const UserChat = () => {
                       {replyingTo.text || replyingTo.message || replyingTo.ciphertext || (replyingTo.messageType === 'image' ? '📷 Image' : replyingTo.messageType === 'audio' ? '🎵 Audio' : replyingTo.messageType === 'sticker' ? 'Sticker' : 'Message')}
                     </div>
                   </div>
-                  <Button
-                    type="text"
+                <Button 
+                  type="text"
                     icon={<CloseOutlined />}
                     size="small"
                     onClick={(e) => {
                       e.stopPropagation() // Prevent triggering the scroll
                       setReplyingTo(null)
                     }}
-                    style={{ 
-                      flexShrink: 0,
+                  style={{
+                    flexShrink: 0,
                       color: '#8E8E93',
                       padding: '4px'
-                    }}
-                  />
-                </div>
+                  }}
+                />
+              </div>
               )}
               <ChatInputWithMedia
                 onSend={handleSendMessage}

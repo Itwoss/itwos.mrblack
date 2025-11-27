@@ -230,77 +230,157 @@ router.post('/accept/:userId', authenticateToken, requireUser, validateObjectId(
     const currentUserId = req.user._id.toString();
     
     // Find the follow request where current user is followee and requester is userId
-    const follow = await Follow.findOne({
+    console.log('🔍 Looking for follow request:', {
+      followerId: userId,
+      followeeId: currentUserId,
+      currentUser: req.user.name
+    });
+    
+    // First try to find pending request
+    let follow = await Follow.findOne({
       followerId: userId,
       followeeId: currentUserId,
       status: 'pending'
     });
     
+    // If not found, check if it already exists (might be accepted/declined)
     if (!follow) {
-      return res.status(404).json({
-        success: false,
-        message: 'Follow request not found'
+      follow = await Follow.findOne({
+        followerId: userId,
+        followeeId: currentUserId
       });
+      
+      if (follow) {
+        console.log('📋 Found follow relationship with status:', follow.status);
+        if (follow.status === 'accepted') {
+          // Already accepted - return success (idempotent operation)
+          console.log('✅ Follow request already accepted, returning success');
+          return res.json({
+            success: true,
+            message: 'Follow request was already accepted',
+            follow: {
+              _id: follow._id,
+              followerId: follow.followerId,
+              followeeId: follow.followeeId,
+              status: follow.status
+            }
+          });
+        } else if (follow.status === 'declined') {
+          // Allow re-accepting a declined request by updating it
+          console.log('🔄 Re-accepting declined follow request');
+          follow.status = 'pending';
+        } else {
+          return res.status(404).json({
+            success: false,
+            message: 'Follow request not found or already processed'
+          });
+        }
+      } else {
+        // No follow relationship exists at all
+        console.log('❌ No follow relationship found');
+        const requester = await User.findById(userId);
+        if (!requester) {
+          return res.status(404).json({
+            success: false,
+            message: 'User not found'
+          });
+        }
+        
+        // Check if there's a notification that suggests a follow request was sent
+        // If so, we might need to create the follow relationship
+        // For now, return a helpful error message
+        return res.status(404).json({
+          success: false,
+          message: 'Follow request not found. The user may not have sent a follow request, or it may have been removed.',
+          debug: {
+            followerId: userId,
+            followeeId: currentUserId,
+            requesterName: requester.name
+          }
+        });
+      }
+    } else {
+      console.log('✅ Found pending follow request');
     }
     
     // Update status to accepted
+    const wasAlreadyAccepted = follow.status === 'accepted';
     follow.status = 'accepted';
     await follow.save();
     
-    // Update counters
-    await User.findByIdAndUpdate(follow.followerId, {
-      $inc: { followingCount: 1 }
-    });
-    
-    await User.findByIdAndUpdate(follow.followeeId, {
-      $inc: { followersCount: 1 }
-    });
-    
-    // Create notification for follower
-    try {
-      const followee = await User.findById(follow.followeeId).select('name email avatarUrl');
-      
+    // Only update counters if it wasn't already accepted (to avoid double counting)
+    if (!wasAlreadyAccepted) {
       await User.findByIdAndUpdate(follow.followerId, {
-        $push: {
+        $inc: { followingCount: 1 }
+      });
+      
+      await User.findByIdAndUpdate(follow.followeeId, {
+        $inc: { followersCount: 1 }
+      });
+    }
+    
+    // Remove the follow_request notification from the followee's notifications
+    try {
+      await User.findByIdAndUpdate(follow.followeeId, {
+        $pull: {
           notifications: {
-            type: 'follow_accepted',
-            from: follow.followeeId,
-            message: `${req.user.name} accepted your follow request`,
-            createdAt: new Date(),
-            metadata: {
-              followId: follow._id.toString()
-            }
+            type: 'follow_request',
+            from: follow.followerId
           }
         }
       });
-      
-      console.log(`✅ Follow accepted notification created for user: ${follow.followerId.toString()}`);
-      
-      // Emit real-time notification
-      const io = req.app.get('io');
-      if (io) {
-        io.to(`user:${follow.followerId.toString()}`).emit('new_notification', {
-          type: 'follow_accepted',
-          from: {
-            _id: followee._id,
-            name: followee.name,
-            email: followee.email,
-            avatarUrl: followee.avatarUrl
-          },
-          message: `${req.user.name} accepted your follow request`,
-          metadata: {
-            followId: follow._id.toString()
-          },
-          createdAt: new Date()
+      console.log(`✅ Removed follow_request notification for user: ${follow.followeeId.toString()}`);
+    } catch (removeNotifError) {
+      console.error('Failed to remove follow_request notification:', removeNotifError);
+    }
+    
+    // Create notification for follower (only if not already accepted)
+    if (!wasAlreadyAccepted) {
+      try {
+        const followee = await User.findById(follow.followeeId).select('name email avatarUrl');
+        
+        await User.findByIdAndUpdate(follow.followerId, {
+          $push: {
+            notifications: {
+              type: 'follow_accepted',
+              from: follow.followeeId,
+              message: `${req.user.name} accepted your follow request`,
+              createdAt: new Date(),
+              metadata: {
+                followId: follow._id.toString()
+              }
+            }
+          }
         });
+        
+        console.log(`✅ Follow accepted notification created for user: ${follow.followerId.toString()}`);
+        
+        // Emit real-time notification
+        const io = req.app.get('io');
+        if (io) {
+          io.to(`user:${follow.followerId.toString()}`).emit('new_notification', {
+            type: 'follow_accepted',
+            from: {
+              _id: followee._id,
+              name: followee.name,
+              email: followee.email,
+              avatarUrl: followee.avatarUrl
+            },
+            message: `${req.user.name} accepted your follow request`,
+            metadata: {
+              followId: follow._id.toString()
+            },
+            createdAt: new Date()
+          });
+        }
+      } catch (notifError) {
+        console.error('Failed to create acceptance notification:', notifError);
       }
-    } catch (notifError) {
-      console.error('Failed to create acceptance notification:', notifError);
     }
     
     res.json({
       success: true,
-      message: 'Follow request accepted',
+      message: wasAlreadyAccepted ? 'Follow request was already accepted' : 'Follow request accepted',
       follow: {
         _id: follow._id,
         followerId: follow.followerId,
@@ -475,6 +555,49 @@ router.post('/decline/:followId', authenticateToken, requireUser, validateObject
         success: false,
         message: 'Follow request not found or already processed'
       });
+    }
+    
+    // Create notification for follower that request was declined
+    try {
+      const followee = await User.findById(currentUserId).select('name email avatarUrl');
+      const follower = await User.findById(follow.followerId).select('name email avatarUrl');
+      
+      await User.findByIdAndUpdate(follow.followerId, {
+        $push: {
+          notifications: {
+            type: 'follow_declined',
+            from: currentUserId,
+            message: `${req.user.name} declined your follow request`,
+            createdAt: new Date(),
+            metadata: {
+              followId: follow._id.toString()
+            }
+          }
+        }
+      });
+      
+      console.log(`✅ Follow declined notification created for user: ${follow.followerId.toString()}`);
+      
+      // Emit real-time notification
+      const io = req.app.get('io');
+      if (io) {
+        io.to(`user:${follow.followerId.toString()}`).emit('new_notification', {
+          type: 'follow_declined',
+          from: {
+            _id: followee._id,
+            name: followee.name,
+            email: followee.email,
+            avatarUrl: followee.avatarUrl
+          },
+          message: `${req.user.name} declined your follow request`,
+          metadata: {
+            followId: follow._id.toString()
+          },
+          createdAt: new Date()
+        });
+      }
+    } catch (notifError) {
+      console.error('Failed to create decline notification:', notifError);
     }
     
     res.json({
@@ -874,6 +997,40 @@ router.get('/requests', authenticateToken, requireUser, async (req, res) => {
   }
 });
 
+// GET /api/follow/followers - Get current user's followers list
+router.get('/followers', authenticateToken, requireUser, async (req, res) => {
+  try {
+    const currentUserId = req.user._id.toString();
+    
+    // Find all accepted follow relationships where current user is the followee
+    const followersList = await Follow.find({
+      followeeId: currentUserId,
+      status: 'accepted'
+    }).populate('followerId', 'name email avatarUrl bio isOnline lastSeen isVerified verifiedTill createdAt')
+      .sort({ createdAt: -1 });
+    
+    // Extract user data from populated followerId
+    const followers = followersList.map(follow => ({
+      ...follow.followerId.toObject(),
+      _id: follow.followerId._id,
+      followedAt: follow.createdAt
+    }));
+    
+    res.json({
+      success: true,
+      followers: followers,
+      count: followers.length
+    });
+  } catch (error) {
+    console.error('Get followers error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get followers list',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+    });
+  }
+});
+
 // GET /api/follow/following - Get current user's following list
 router.get('/following', authenticateToken, requireUser, async (req, res) => {
   try {
@@ -952,7 +1109,51 @@ router.get('/check/:userId', authenticateToken, requireUser, validateObjectId('u
   }
 });
 
-// DELETE /api/follow - Unfollow a user
+// DELETE /api/follow/unfollow/:userId - Unfollow a user by userId (URL parameter)
+router.delete('/unfollow/:userId', authenticateToken, requireUser, validateObjectId('userId'), async (req, res) => {
+  try {
+    const followeeId = req.params.userId;
+    const currentUserId = req.user._id.toString();
+    
+    // Find and delete follow relationship
+    const follow = await Follow.findOneAndDelete({
+      followerId: currentUserId,
+      followeeId: followeeId
+    });
+    
+    if (!follow) {
+      return res.status(404).json({
+        success: false,
+        message: 'You are not following this user'
+      });
+    }
+    
+    // Update counters atomically (only if status was accepted)
+    if (follow.status === 'accepted') {
+      await User.findByIdAndUpdate(currentUserId, {
+        $inc: { followingCount: -1 }
+      });
+      
+      await User.findByIdAndUpdate(followeeId, {
+        $inc: { followersCount: -1 }
+      });
+    }
+    
+    res.json({
+      success: true,
+      message: 'User unfollowed successfully'
+    });
+  } catch (error) {
+    console.error('Unfollow user error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to unfollow user',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+    });
+  }
+});
+
+// DELETE /api/follow - Unfollow a user (body parameter - for backward compatibility)
 router.delete('/', authenticateToken, requireUser, async (req, res) => {
   try {
     const { followerId, followeeId } = req.body;
@@ -1008,6 +1209,74 @@ router.delete('/', authenticateToken, requireUser, async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to unfollow user',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+    });
+  }
+});
+
+// GET /api/follow/followers/:userId - Get followers list for a specific user
+router.get('/followers/:userId', authenticateToken, async (req, res) => {
+  try {
+    const targetUserId = req.params.userId;
+    
+    // Find all accepted follow relationships where target user is the followee
+    const followersList = await Follow.find({
+      followeeId: targetUserId,
+      status: 'accepted'
+    }).populate('followerId', 'name email avatarUrl bio isOnline lastSeen isVerified verifiedTill createdAt')
+      .sort({ createdAt: -1 });
+    
+    // Extract user data from populated followerId
+    const followers = followersList.map(follow => ({
+      ...follow.followerId.toObject(),
+      _id: follow.followerId._id,
+      followedAt: follow.createdAt
+    }));
+    
+    res.json({
+      success: true,
+      followers: followers,
+      count: followers.length
+    });
+  } catch (error) {
+    console.error('Get followers error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get followers list',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+    });
+  }
+});
+
+// GET /api/follow/following/:userId - Get following list for a specific user
+router.get('/following/:userId', authenticateToken, async (req, res) => {
+  try {
+    const targetUserId = req.params.userId;
+    
+    // Find all accepted follow relationships where target user is the follower
+    const followingList = await Follow.find({
+      followerId: targetUserId,
+      status: 'accepted'
+    }).populate('followeeId', 'name email avatarUrl bio isOnline lastSeen isVerified verifiedTill createdAt')
+      .sort({ createdAt: -1 });
+    
+    // Extract user data from populated followeeId
+    const following = followingList.map(follow => ({
+      ...follow.followeeId.toObject(),
+      _id: follow.followeeId._id,
+      followedAt: follow.createdAt
+    }));
+    
+    res.json({
+      success: true,
+      following: following,
+      count: following.length
+    });
+  } catch (error) {
+    console.error('Get following error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get following list',
       error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
     });
   }

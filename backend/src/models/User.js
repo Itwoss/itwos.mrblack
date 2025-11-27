@@ -189,7 +189,12 @@ const userSchema = new mongoose.Schema({
   },
   publicKey: {
     type: String,
-    required: [true, 'Public key is required for E2EE chat']
+    required: [true, 'Public key is required for E2EE chat'],
+    default: function() {
+      // Generate a default public key if not provided
+      const crypto = require('crypto');
+      return crypto.randomBytes(32).toString('hex');
+    }
   },
   isEmailVerified: {
     type: Boolean,

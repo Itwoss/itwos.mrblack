@@ -112,8 +112,34 @@ const NotificationPopup = ({ visible, onClose, userId }) => {
     if (notification.type === 'follow_request') {
       return
     }
+    // Mark as read if not already read
     if (!notification.read) {
-      await markAsRead(notification._id || notification.id)
+      console.log('🔔 Marking notification as read:', {
+        notificationId: notification._id || notification.id,
+        notification: notification
+      })
+      try {
+        const notificationId = notification._id || notification.id
+        if (!notificationId) {
+          console.error('❌ No notification ID found:', notification)
+          return
+        }
+        await markAsRead(notificationId)
+        console.log('✅ Notification marked as read successfully')
+        // Refresh notifications to get updated state
+        setTimeout(() => {
+          fetchNotifications()
+        }, 500)
+      } catch (error) {
+        console.error('❌ Error marking notification as read:', error)
+        console.error('Error details:', {
+          message: error.message,
+          response: error.response?.data,
+          status: error.response?.status
+        })
+      }
+    } else {
+      console.log('ℹ️ Notification already read:', notification._id || notification.id)
     }
   }
 
@@ -260,7 +286,8 @@ const NotificationPopup = ({ visible, onClose, userId }) => {
                   borderBottom: '1px solid #f0f0f0',
                   cursor: notification.type === 'follow_request' ? 'default' : 'pointer',
                   background: notification.read ? '#fff' : '#f6ffed',
-                  transition: 'all 0.2s'
+                  transition: 'all 0.2s',
+                  opacity: notification.read ? 0.7 : 1
                 }}
                 onClick={() => handleNotificationClick(notification)}
                 onMouseEnter={(e) => {

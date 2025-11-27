@@ -101,6 +101,28 @@ const Notifications = () => {
     }
   }
 
+  const handleMarkAsRead = async (notificationId) => {
+    try {
+      await notificationsAPI.markAdminAsRead(notificationId)
+      message.success('Notification marked as read')
+      fetchNotifications()
+    } catch (error) {
+      console.error('Error marking notification as read:', error)
+      message.error('Failed to mark notification as read')
+    }
+  }
+
+  const handleMarkAllAsRead = async () => {
+    try {
+      await notificationsAPI.markAllAdminAsRead()
+      message.success('All notifications marked as read')
+      fetchNotifications()
+    } catch (error) {
+      console.error('Error marking all notifications as read:', error)
+      message.error('Failed to mark all notifications as read')
+    }
+  }
+
   const fetchTemplates = async () => {
     try {
       // Templates feature not implemented yet - set empty array
@@ -366,6 +388,15 @@ const Notifications = () => {
                           <Option value="maintenance">Maintenance</Option>
                           <Option value="payment">Payment</Option>
                         </Select>
+                        {stats.pendingNotifications > 0 && (
+                          <Button 
+                            type="default" 
+                            icon={<CheckCircleOutlined />}
+                            onClick={handleMarkAllAsRead}
+                          >
+                            Mark All as Read
+                          </Button>
+                        )}
                         <Button type="primary" icon={<PlusOutlined />} onClick={() => setModalVisible(true)}>
                           Create Notification
                         </Button>

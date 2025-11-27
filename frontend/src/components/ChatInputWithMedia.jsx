@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Button, Input, Space, Image, Modal, Slider, message as antMessage } from 'antd';
+import { Button, Input, Space, Image, Modal, Slider, message as antMessage, Typography } from 'antd';
 import { 
   SendOutlined, 
   PictureOutlined, 
@@ -7,10 +7,13 @@ import {
   SoundOutlined,
   DeleteOutlined,
   PlayCircleOutlined,
-  PauseCircleOutlined
+  PauseCircleOutlined,
+  AudioOutlined,
+  StopOutlined
 } from '@ant-design/icons';
 
 const { TextArea } = Input;
+const { Text } = Typography;
 
 /**
  * ChatInputWithMedia Component
@@ -61,8 +64,182 @@ export default function ChatInputWithMedia({
   const audioFileRef = useRef(null);
   const textAreaRef = useRef(null);
 
-  // Cleanup audio URL on unmount
+  // Voice recording state
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingTime, setRecordingTime] = useState(0);
+  const [recordedAudioBlob, setRecordedAudioBlob] = useState(null);
+  const [recordedAudioURL, setRecordedAudioURL] = useState(null);
+  const mediaRecorderRef = useRef(null);
+  const recordingTimerRef = useRef(null);
+  const audioChunksRef = useRef([]);
+
+  // Voice input state
+  const [voiceStatus, setVoiceStatus] = useState('idle'); // idle | dictating | voice-to-text
+  const [voiceMode, setVoiceMode] = useState(null); // 'send' | 'text' | null
+  const recognitionRef = useRef(null);
+  const [isSpeechSupported, setIsSpeechSupported] = useState(false);
+
+  // Check for Speech Recognition support
   useEffect(() => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    setIsSpeechSupported(!!SpeechRecognition);
+    
+    if (SpeechRecognition) {
+      const recognition = new SpeechRecognition();
+      
+      // Configure recognition settings
+      recognition.lang = navigator.language || 'en-US';
+      recognition.interimResults = true; // Enable interim results for real-time feedback
+      recognition.maxAlternatives = 1;
+      recognition.continuous = false; // Set to false for better control
+
+      recognition.onstart = () => {
+        console.log('🎙️ Speech recognition started');
+        antMessage.success('🎙️ Listening... Speak now!', 1);
+      };
+
+      recognition.onresult = (event) => {
+        console.log('🎤 Speech result received:', event);
+        
+        let interimTranscript = '';
+        let finalTranscript = '';
+
+        // Process all results
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          const transcript = event.results[i][0].transcript;
+          console.log(`Result ${i}: ${transcript} (isFinal: ${event.results[i].isFinal})`);
+          
+          if (event.results[i].isFinal) {
+            finalTranscript += transcript + ' ';
+          } else {
+            interimTranscript += transcript;
+          }
+        }
+
+        const currentStatus = voiceStatus;
+        const currentMode = voiceMode;
+        const transcript = (finalTranscript || interimTranscript).trim();
+
+        if (currentStatus === 'dictating' || currentStatus === 'voice-to-text') {
+          // Show interim results in real-time
+          if (interimTranscript) {
+            console.log('📝 Interim transcript:', interimTranscript);
+            setText(interimTranscript);
+          }
+          
+          // When we get final result
+          if (finalTranscript) {
+            const finalText = finalTranscript.trim();
+            console.log('✅ Final transcript:', finalText);
+            
+            // Stop recognition
+            try {
+              recognition.stop();
+            } catch (e) {
+              console.log('Error stopping recognition:', e);
+            }
+            
+            if (currentMode === 'send') {
+              // Voice to Send: Send immediately
+              console.log('📤 Sending message immediately:', finalText);
+              onSend({
+                type: 'text',
+                text: finalText
+              });
+              setText('');
+              setVoiceStatus('idle');
+              setVoiceMode(null);
+              antMessage.success('Message sent!', 1);
+            } else if (currentMode === 'text') {
+              // Voice to Text: Put in input box for editing
+              console.log('📝 Converting to text:', finalText);
+              setText(finalText);
+              setVoiceStatus('idle');
+              setVoiceMode(null);
+              antMessage.success('Voice converted to text. Edit and send when ready.', 2);
+              // Focus the text input
+              setTimeout(() => {
+                textAreaRef.current?.focus();
+              }, 100);
+            }
+          }
+        }
+      };
+
+      recognition.onerror = (e) => {
+        console.error('❌ Speech error:', e.error, e);
+        
+        if (e.error === 'no-speech') {
+          console.log('⚠️ No speech detected, restarting...');
+          // No speech detected - restart if still in dictating mode
+          if (voiceStatus === 'dictating' || voiceStatus === 'voice-to-text') {
+            setTimeout(() => {
+              if (recognitionRef.current && (voiceStatus === 'dictating' || voiceStatus === 'voice-to-text')) {
+                try {
+                  recognitionRef.current.start();
+                  console.log('🔄 Restarted after no-speech');
+                } catch (err) {
+                  console.log('Error restarting:', err);
+                }
+              }
+            }, 1500);
+          }
+          return;
+        }
+        
+        if (e.error === 'audio-capture') {
+          antMessage.error('Microphone not found. Please check your microphone and try again.');
+          setVoiceStatus('idle');
+          return;
+        }
+        
+        if (e.error === 'not-allowed') {
+          antMessage.error('Microphone permission denied. Please allow microphone access in your browser settings.');
+          setVoiceStatus('idle');
+          return;
+        }
+        
+        if (e.error === 'network') {
+          antMessage.error('Network error. Please check your internet connection.');
+          setVoiceStatus('idle');
+          return;
+        }
+        
+        if (e.error === 'aborted') {
+          // User stopped it, that's fine
+          console.log('Recognition aborted by user');
+          return;
+        }
+        
+        console.error('Speech recognition error:', e.error);
+        antMessage.error(`Speech recognition error: ${e.error}. Please try again.`);
+        
+        // Only reset if it's a critical error
+        if (e.error !== 'no-speech' && e.error !== 'aborted') {
+          setVoiceStatus('idle');
+        }
+      };
+
+      recognition.onend = () => {
+        console.log('🔚 Recognition ended, current status:', voiceStatus);
+        // Auto-restart if we're still in dictating mode
+        if (voiceStatus === 'dictating' || voiceStatus === 'voice-to-text') {
+          setTimeout(() => {
+            if (recognitionRef.current && (voiceStatus === 'dictating' || voiceStatus === 'voice-to-text')) {
+              try {
+                recognitionRef.current.start();
+                console.log('🔄 Auto-restarted recognition');
+              } catch (e) {
+                console.log('Auto-restart error (might already be starting):', e);
+              }
+            }
+          }, 500);
+        }
+      };
+
+      recognitionRef.current = recognition;
+    }
+
     return () => {
       if (audioURL) {
         URL.revokeObjectURL(audioURL);
@@ -70,8 +247,15 @@ export default function ChatInputWithMedia({
       if (audioContextRef.current) {
         audioContextRef.current.close();
       }
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.stop();
+        } catch (e) {
+          // Ignore errors on cleanup
+        }
+      }
     };
-  }, [audioURL]);
+  }, [voiceStatus, voiceMode, audioURL, onSend]);
 
   // ---------- Image compression to <= 1MB ----------
   async function compressImageToLimit(file, maxSizeBytes = 1_000_000) {
@@ -400,6 +584,257 @@ export default function ChatInputWithMedia({
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
+  // Voice recording handlers (MediaRecorder API)
+  const startVoiceRecording = async () => {
+    if (isRecording) {
+      stopVoiceRecording();
+      return;
+    }
+
+    if (disabled || processing) return;
+
+    try {
+      // Request microphone permission
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      
+      // Initialize MediaRecorder
+      const mimeType = MediaRecorder.isTypeSupported('audio/webm') 
+        ? 'audio/webm' 
+        : MediaRecorder.isTypeSupported('audio/mp4')
+        ? 'audio/mp4'
+        : 'audio/webm'; // fallback
+      
+      const mediaRecorder = new MediaRecorder(stream, {
+        mimeType: mimeType
+      });
+      
+      mediaRecorderRef.current = mediaRecorder;
+      audioChunksRef.current = [];
+      
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
+      };
+      
+      mediaRecorder.onstop = async () => {
+        // Stop all tracks
+        stream.getTracks().forEach(track => track.stop());
+        
+        // Create blob from recorded chunks
+        const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
+        
+        // Create file from blob
+        const audioFile = new File([audioBlob], `voice-${Date.now()}.${mimeType.includes('webm') ? 'webm' : 'mp4'}`, {
+          type: mimeType
+        });
+        
+        // Create preview URL
+        const audioURL = URL.createObjectURL(audioBlob);
+        setRecordedAudioURL(audioURL);
+        setRecordedAudioBlob(audioFile);
+        
+        // Auto-send the recorded audio
+        setProcessing(true);
+        try {
+          onSend({
+            type: 'audio',
+            file: audioFile,
+            title: `Voice message (${formatTime(recordingTime)})`,
+            duration: recordingTime
+          });
+          
+          // Reset state
+          setRecordingTime(0);
+          setRecordedAudioBlob(null);
+          if (recordedAudioURL) {
+            URL.revokeObjectURL(recordedAudioURL);
+          }
+          setRecordedAudioURL(null);
+          antMessage.success('Voice message sent!', 1);
+        } catch (error) {
+          console.error('Error sending voice message:', error);
+          antMessage.error('Failed to send voice message');
+        } finally {
+          setProcessing(false);
+        }
+      };
+      
+      mediaRecorder.onerror = (event) => {
+        console.error('MediaRecorder error:', event);
+        antMessage.error('Recording error occurred');
+        setIsRecording(false);
+        setRecordingTime(0);
+        stream.getTracks().forEach(track => track.stop());
+      };
+      
+      // Start recording
+      mediaRecorder.start();
+      setIsRecording(true);
+      setRecordingTime(0);
+      
+      // Start timer
+      recordingTimerRef.current = setInterval(() => {
+        setRecordingTime(prev => prev + 1);
+      }, 1000);
+      
+      antMessage.info('🎤 Recording... Tap again to stop and send', 2);
+    } catch (error) {
+      console.error('Error starting recording:', error);
+      if (error.name === 'NotAllowedError') {
+        antMessage.error('Microphone permission denied. Please allow microphone access.');
+      } else if (error.name === 'NotFoundError') {
+        antMessage.error('No microphone found. Please connect a microphone.');
+      } else {
+        antMessage.error('Failed to start recording.');
+      }
+    }
+  };
+
+  const stopVoiceRecording = () => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      mediaRecorderRef.current.stop();
+    }
+    
+    if (recordingTimerRef.current) {
+      clearInterval(recordingTimerRef.current);
+      recordingTimerRef.current = null;
+    }
+    
+    setIsRecording(false);
+  };
+
+  // Voice input handlers
+  const startVoiceToSend = async () => {
+    if (!recognitionRef.current) {
+      antMessage.warning('Speech recognition not supported in this browser');
+      return;
+    }
+    
+    if (voiceStatus !== 'idle') {
+      // Stop current recognition
+      console.log('🛑 Stopping current recognition');
+      try {
+        recognitionRef.current.stop();
+      } catch (e) {
+        console.log('Error stopping recognition:', e);
+      }
+      setVoiceStatus('idle');
+      setVoiceMode(null);
+      setText('');
+      return;
+    }
+
+    // Request microphone permission first
+    console.log('🎤 Requesting microphone permission...');
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      console.log('✅ Microphone permission granted');
+      stream.getTracks().forEach(track => track.stop());
+    } catch (error) {
+      console.error('❌ Microphone permission error:', error);
+      if (error.name === 'NotAllowedError') {
+        antMessage.error('Microphone permission denied. Please allow microphone access.');
+      } else if (error.name === 'NotFoundError') {
+        antMessage.error('No microphone found. Please connect a microphone.');
+      } else {
+        antMessage.error('Failed to access microphone.');
+      }
+      return;
+    }
+
+    console.log('🎙️ Starting voice-to-send...');
+    setVoiceStatus('dictating');
+    setVoiceMode('send');
+    setText('');
+    
+    try {
+      await new Promise(resolve => setTimeout(resolve, 100));
+      recognitionRef.current.start();
+      console.log('✅ Recognition started (voice-to-send)');
+      antMessage.info('🎙️ Speak now - message will send automatically', 2);
+    } catch (e) {
+      console.error('❌ Error starting recognition:', e);
+      if (e.message && (e.message.includes('already started') || e.message.includes('started'))) {
+        return;
+      }
+      antMessage.error('Failed to start voice recognition.');
+      setVoiceStatus('idle');
+      setVoiceMode(null);
+    }
+  };
+
+  const startVoiceToText = async () => {
+    if (!recognitionRef.current) {
+      antMessage.warning('Speech recognition not supported in this browser');
+      return;
+    }
+    
+    if (voiceStatus !== 'idle') {
+      // Stop current recognition
+      console.log('🛑 Stopping current recognition');
+      try {
+        recognitionRef.current.stop();
+      } catch (e) {
+        console.log('Error stopping recognition:', e);
+      }
+      setVoiceStatus('idle');
+      setVoiceMode(null);
+      setText('');
+      return;
+    }
+
+    // Request microphone permission first
+    console.log('🎤 Requesting microphone permission...');
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      console.log('✅ Microphone permission granted');
+      stream.getTracks().forEach(track => track.stop());
+    } catch (error) {
+      console.error('❌ Microphone permission error:', error);
+      if (error.name === 'NotAllowedError') {
+        antMessage.error('Microphone permission denied. Please allow microphone access.');
+      } else if (error.name === 'NotFoundError') {
+        antMessage.error('No microphone found. Please connect a microphone.');
+      } else {
+        antMessage.error('Failed to access microphone.');
+      }
+      return;
+    }
+
+    console.log('🎙️ Starting voice-to-text...');
+    setVoiceStatus('voice-to-text');
+    setVoiceMode('text');
+    setText('');
+    
+    try {
+      await new Promise(resolve => setTimeout(resolve, 100));
+      recognitionRef.current.start();
+      console.log('✅ Recognition started (voice-to-text)');
+      antMessage.info('🎙️ Speak now - text will appear for editing', 2);
+    } catch (e) {
+      console.error('❌ Error starting recognition:', e);
+      if (e.message && (e.message.includes('already started') || e.message.includes('started'))) {
+        return;
+      }
+      antMessage.error('Failed to start voice recognition.');
+      setVoiceStatus('idle');
+      setVoiceMode(null);
+    }
+  };
+
+  const stopDictation = () => {
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.stop();
+      } catch (e) {
+        // Ignore
+      }
+    }
+    setVoiceStatus('idle');
+    setVoiceMode(null);
+  };
+
   return (
     <div style={{ 
       borderTop: '1px solid #f0f0f0', 
@@ -462,6 +897,190 @@ export default function ChatInputWithMedia({
       }}>
         {/* iOS Style Media Buttons */}
         <Space size="small" style={{ flexShrink: 0 }}>
+          {/* Voice Input Buttons with Wave Effect */}
+          {isSpeechSupported && (
+            <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: '4px' }}>
+              {/* Voice to Send Button */}
+              <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Button
+                  type="text"
+                  icon={<SendOutlined />}
+                  onClick={startVoiceToSend}
+                  disabled={disabled || processing}
+                  title="Voice to Send (speak and send immediately)"
+                  style={{ 
+                    color: voiceStatus === 'dictating' && voiceMode === 'send'
+                      ? (theme.accentColor || '#0A84FF') 
+                      : '#8E8E93',
+                    width: '32px',
+                    height: '32px',
+                    padding: 0,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    animation: voiceStatus === 'dictating' && voiceMode === 'send' ? 'pulse 1.5s ease-in-out infinite' : 'none',
+                    transition: 'color 0.2s ease-out',
+                    position: 'relative',
+                    zIndex: 2
+                  }}
+                />
+                {/* Wave Effect for Voice to Send */}
+                {voiceStatus === 'dictating' && voiceMode === 'send' && (
+                  <>
+                    <div className="voice-wave-container" style={{
+                      position: 'absolute',
+                      width: '32px',
+                      height: '32px',
+                      borderRadius: '50%',
+                      border: `2px solid ${theme.accentColor || '#0A84FF'}`,
+                      animation: 'voiceWave 1.5s ease-out infinite',
+                      opacity: 0.6,
+                      zIndex: 1
+                    }} />
+                    <div className="voice-wave-container" style={{
+                      position: 'absolute',
+                      width: '32px',
+                      height: '32px',
+                      borderRadius: '50%',
+                      border: `2px solid ${theme.accentColor || '#0A84FF'}`,
+                      animation: 'voiceWave 1.5s ease-out infinite 0.5s',
+                      opacity: 0.4,
+                      zIndex: 1
+                    }} />
+                  </>
+                )}
+              </div>
+
+              {/* Voice to Text Button */}
+              <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Button
+                  type="text"
+                  icon={<AudioOutlined />}
+                  onClick={startVoiceToText}
+                  disabled={disabled || processing}
+                  title="Voice to Text (speak and convert to text)"
+                  style={{ 
+                    color: voiceStatus === 'voice-to-text' && voiceMode === 'text'
+                      ? (theme.accentColor || '#0A84FF') 
+                      : '#8E8E93',
+                    width: '32px',
+                    height: '32px',
+                    padding: 0,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    animation: voiceStatus === 'voice-to-text' && voiceMode === 'text' ? 'pulse 1.5s ease-in-out infinite' : 'none',
+                    transition: 'color 0.2s ease-out',
+                    position: 'relative',
+                    zIndex: 2
+                  }}
+                />
+                {/* Wave Effect for Voice to Text */}
+                {voiceStatus === 'voice-to-text' && voiceMode === 'text' && (
+                  <>
+                    <div className="voice-wave-container" style={{
+                      position: 'absolute',
+                      width: '32px',
+                      height: '32px',
+                      borderRadius: '50%',
+                      border: `2px solid ${theme.accentColor || '#0A84FF'}`,
+                      animation: 'voiceWave 1.5s ease-out infinite',
+                      opacity: 0.6,
+                      zIndex: 1
+                    }} />
+                    <div className="voice-wave-container" style={{
+                      position: 'absolute',
+                      width: '32px',
+                      height: '32px',
+                      borderRadius: '50%',
+                      border: `2px solid ${theme.accentColor || '#0A84FF'}`,
+                      animation: 'voiceWave 1.5s ease-out infinite 0.5s',
+                      opacity: 0.4,
+                      zIndex: 1
+                    }} />
+                  </>
+                )}
+              </div>
+
+              {/* Voice Recording Button (MediaRecorder) */}
+              <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Button
+                  type="text"
+                  icon={isRecording ? <StopOutlined /> : <SoundOutlined />}
+                  onClick={startVoiceRecording}
+                  disabled={disabled || processing || (voiceStatus !== 'idle')}
+                  title={isRecording ? `Recording... ${formatTime(recordingTime)} - Tap to stop and send` : "Voice Record (record and send audio)"}
+                  style={{ 
+                    color: isRecording
+                      ? '#ff4d4f' 
+                      : '#8E8E93',
+                    width: '32px',
+                    height: '32px',
+                    padding: 0,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    animation: isRecording ? 'pulse 1.5s ease-in-out infinite' : 'none',
+                    transition: 'color 0.2s ease-out',
+                    position: 'relative',
+                    zIndex: 2
+                  }}
+                />
+                {/* Wave Effect for Voice Recording */}
+                {isRecording && (
+                  <>
+                    <div className="voice-wave-container" style={{
+                      position: 'absolute',
+                      width: '32px',
+                      height: '32px',
+                      borderRadius: '50%',
+                      border: '2px solid #ff4d4f',
+                      animation: 'voiceWave 1.5s ease-out infinite',
+                      opacity: 0.6,
+                      zIndex: 1
+                    }} />
+                    <div className="voice-wave-container" style={{
+                      position: 'absolute',
+                      width: '32px',
+                      height: '32px',
+                      borderRadius: '50%',
+                      border: '2px solid #ff4d4f',
+                      animation: 'voiceWave 1.5s ease-out infinite 0.5s',
+                      opacity: 0.4,
+                      zIndex: 1
+                    }} />
+                  </>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Recording Timer Display */}
+          {isRecording && (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '4px 12px',
+              background: 'rgba(255, 77, 79, 0.1)',
+              borderRadius: '16px',
+              border: '1px solid rgba(255, 77, 79, 0.3)',
+              fontSize: '13px',
+              color: '#ff4d4f',
+              fontWeight: 500,
+              flexShrink: 0
+            }}>
+              <div style={{
+                width: '8px',
+                height: '8px',
+                borderRadius: '50%',
+                background: '#ff4d4f',
+                animation: 'pulse 1s ease-in-out infinite'
+              }} />
+              <span>{formatTime(recordingTime)}</span>
+            </div>
+          )}
+
           <input
             ref={imageFileRef}
             type="file"
@@ -473,7 +1092,7 @@ export default function ChatInputWithMedia({
             type="text"
             icon={<PictureOutlined />}
             onClick={() => imageFileRef.current?.click()}
-            disabled={disabled || processing}
+            disabled={disabled || processing || voiceStatus !== 'idle'}
             style={{ 
               color: '#8E8E93',
               width: '32px',
@@ -489,7 +1108,7 @@ export default function ChatInputWithMedia({
             type="text"
             icon={<SmileOutlined />}
             onClick={() => setShowStickerPicker(!showStickerPicker)}
-            disabled={disabled}
+            disabled={disabled || voiceStatus !== 'idle'}
             style={{ 
               color: showStickerPicker ? (theme.accentColor || '#0A84FF') : '#8E8E93',
               width: '32px',
@@ -513,7 +1132,7 @@ export default function ChatInputWithMedia({
             type="text"
             icon={<SoundOutlined />}
             onClick={() => audioFileRef.current?.click()}
-            disabled={disabled || processing}
+            disabled={disabled || processing || voiceStatus !== 'idle'}
             style={{ 
               color: '#8E8E93',
               width: '32px',
@@ -530,8 +1149,15 @@ export default function ChatInputWithMedia({
         <TextArea
           ref={textAreaRef}
           value={text}
-          onChange={(e) => setText(e.target.value)}
-          placeholder={placeholder}
+          onChange={(e) => {
+            setText(e.target.value);
+            // If user manually edits during voice input, cancel voice mode
+            if (voiceStatus !== 'idle') {
+              setVoiceStatus('idle');
+              setVoiceMode(null);
+            }
+          }}
+          placeholder={voiceStatus === 'dictating' || voiceStatus === 'voice-to-text' ? 'Listening...' : placeholder}
           autoSize={{ minRows: 1, maxRows: 4 }}
           onPressEnter={(e) => {
             if (!e.shiftKey) {
@@ -539,7 +1165,7 @@ export default function ChatInputWithMedia({
               handleSend();
             }
           }}
-          disabled={disabled || processing}
+          disabled={disabled || processing || voiceStatus === 'dictating'}
           style={{
             border: 'none',
             background: 'transparent',
@@ -592,6 +1218,66 @@ export default function ChatInputWithMedia({
           />
         )}
       </div>
+
+      {/* Voice Input Status Message with Wave Visualization */}
+      {voiceStatus !== 'idle' && (
+        <div style={{
+          marginTop: '8px',
+          padding: '12px',
+          background: 'rgba(10, 132, 255, 0.1)',
+          borderRadius: '12px',
+          border: '1px solid rgba(10, 132, 255, 0.3)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '12px'
+        }}>
+          <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '12px' }}>
+            {/* Audio Wave Visualization */}
+            <div className="audio-wave" style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '3px',
+              height: '24px'
+            }}>
+              {[1, 2, 3, 4, 5].map((i) => (
+                <div
+                  key={i}
+                  style={{
+                    width: '3px',
+                    height: '100%',
+                    background: theme.accentColor || '#0A84FF',
+                    borderRadius: '2px',
+                    animation: `waveBar ${0.6 + i * 0.1}s ease-in-out infinite`,
+                    animationDelay: `${i * 0.1}s`
+                  }}
+                />
+              ))}
+            </div>
+            <Text style={{ 
+              fontSize: '13px', 
+              color: '#0A84FF',
+              flex: 1
+            }}>
+              {voiceMode === 'send' && '🎙️ Listening... Speak and message will send automatically.'}
+              {voiceMode === 'text' && '🎙️ Listening... Speak and text will appear for editing.'}
+            </Text>
+          </div>
+          <Button
+            type="text"
+            size="small"
+            onClick={stopDictation}
+            style={{ 
+              color: '#0A84FF',
+              padding: '4px 8px',
+              height: 'auto',
+              flexShrink: 0
+            }}
+          >
+            Cancel
+          </Button>
+        </div>
+      )}
 
       {/* iOS Style Sticker Picker */}
       {showStickerPicker && (

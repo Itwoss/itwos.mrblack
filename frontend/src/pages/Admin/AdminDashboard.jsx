@@ -52,8 +52,8 @@ const AdminDashboard = () => {
       
       if (response.data?.success && response.data?.data) {
         const { users, products, orders, prebooks, recent, chat } = response.data.data
-        
-        setStats({
+          
+      setStats({
           users: users || {},
           products: products || {},
           orders: orders || {},
@@ -139,8 +139,8 @@ const AdminDashboard = () => {
       render: (isOnline) => (
         <Tag color={isOnline ? AdminDesignSystem.colors.success : AdminDesignSystem.colors.text.secondary}>
           {isOnline ? 'Online' : 'Offline'}
-        </Tag>
-      )
+          </Tag>
+        )
     },
     {
       title: 'Joined',
@@ -219,10 +219,10 @@ const AdminDashboard = () => {
 
   if (loading) {
     return (
-      <div style={{
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'center', 
+        alignItems: 'center', 
         minHeight: '400px',
         flexDirection: 'column',
         gap: AdminDesignSystem.spacing.md
@@ -272,10 +272,10 @@ const AdminDashboard = () => {
         `}
       </style>
       {/* Header */}
-      <div style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
+          <div style={{ 
+            display: 'flex', 
+            justifyContent: 'space-between', 
+            alignItems: 'center',
         marginBottom: AdminDesignSystem.spacing.xl,
       }}>
         <Title 
@@ -287,15 +287,15 @@ const AdminDashboard = () => {
           }}
         >
           Dashboard Overview
-        </Title>
-        <Button
-          icon={<ReloadOutlined />}
+          </Title>
+              <Button 
+                icon={<ReloadOutlined />} 
           onClick={handleRefresh}
-          loading={loading}
-        >
+                loading={loading}
+              >
           Refresh
-        </Button>
-      </div>
+              </Button>
+        </div>
 
       {/* Statistics Cards */}
       <Row gutter={[AdminDesignSystem.spacing.md, AdminDesignSystem.spacing.md]}>
@@ -328,7 +328,7 @@ const AdminDashboard = () => {
                 <RiseOutlined style={{ color: AdminDesignSystem.colors.success, marginRight: 4 }} />
                 {formatNumber(stats.users.newUsersToday)} new today
               </Text>
-            </div>
+          </div>
           </Card>
         </Col>
 
@@ -342,7 +342,7 @@ const AdminDashboard = () => {
               background: '#FFFFFF', // Explicit white background
             }}
           >
-            <Statistic
+              <Statistic
               title={
                 <Text style={{ color: AdminDesignSystem.colors.text.secondary }}>
                   Total Products
@@ -362,7 +362,7 @@ const AdminDashboard = () => {
               </Text>
             </div>
           </Card>
-        </Col>
+          </Col>
 
         {/* Orders Stats */}
         <Col xs={24} sm={12} lg={6}>
@@ -374,7 +374,7 @@ const AdminDashboard = () => {
               background: '#FFFFFF', // Explicit white background
             }}
           >
-            <Statistic
+              <Statistic
               title={
                 <Text style={{ color: AdminDesignSystem.colors.text.secondary }}>
                   Total Orders
@@ -394,7 +394,7 @@ const AdminDashboard = () => {
               </Text>
             </div>
           </Card>
-        </Col>
+          </Col>
 
         {/* Revenue Stats */}
         <Col xs={24} sm={12} lg={6}>
@@ -406,7 +406,7 @@ const AdminDashboard = () => {
               background: '#FFFFFF', // Explicit white background
             }}
           >
-            <Statistic
+              <Statistic
               title={
                 <Text style={{ color: AdminDesignSystem.colors.text.secondary }}>
                   Total Revenue
@@ -426,8 +426,8 @@ const AdminDashboard = () => {
               </Text>
             </div>
           </Card>
-        </Col>
-      </Row>
+          </Col>
+        </Row>
 
       {/* Additional Stats Row */}
       <Row gutter={[AdminDesignSystem.spacing.md, AdminDesignSystem.spacing.md]} style={{ marginTop: AdminDesignSystem.spacing.md }}>
@@ -440,7 +440,7 @@ const AdminDashboard = () => {
               background: '#FFFFFF', // Explicit white background
             }}
           >
-            <Statistic
+              <Statistic
               title={
                 <Text style={{ color: AdminDesignSystem.colors.text.secondary }}>
                   Active Users
@@ -455,7 +455,7 @@ const AdminDashboard = () => {
               }}
             />
           </Card>
-        </Col>
+          </Col>
 
         <Col xs={24} sm={12} lg={6}>
           <Card
@@ -466,7 +466,7 @@ const AdminDashboard = () => {
               background: '#FFFFFF', // Explicit white background
             }}
           >
-            <Statistic
+              <Statistic
               title={
                 <Text style={{ color: AdminDesignSystem.colors.text.secondary }}>
                   Low Stock Products
@@ -481,7 +481,7 @@ const AdminDashboard = () => {
               }}
             />
           </Card>
-        </Col>
+          </Col>
 
         <Col xs={24} sm={12} lg={6}>
           <Card
@@ -507,7 +507,7 @@ const AdminDashboard = () => {
               }}
             />
           </Card>
-        </Col>
+          </Col>
 
         <Col xs={24} sm={12} lg={6}>
           <Card
@@ -533,13 +533,13 @@ const AdminDashboard = () => {
               }}
             />
           </Card>
-        </Col>
-      </Row>
+          </Col>
+        </Row>
 
       {/* Recent Data Tables */}
       <Row gutter={[AdminDesignSystem.spacing.md, AdminDesignSystem.spacing.md]} style={{ marginTop: AdminDesignSystem.spacing.lg }}>
-        {/* Recent Users */}
-        <Col xs={24} lg={12}>
+          {/* Recent Users */}
+          <Col xs={24} lg={12}>
           <Card
             title={
               <Space>
@@ -550,9 +550,9 @@ const AdminDashboard = () => {
               </Space>
             }
             extra={
-              <Button type="link" onClick={() => handleViewAll('/admin/users')}>
-                View All
-              </Button>
+                <Button type="link" onClick={() => handleViewAll('/admin/users')}>
+                  View All
+                </Button>
             }
             style={{
               borderRadius: AdminDesignSystem.borderRadius.md,
@@ -561,11 +561,11 @@ const AdminDashboard = () => {
             }}
           >
             {recentData.users.length > 0 ? (
-              <Table
+                <Table 
                 dataSource={recentData.users}
-                columns={userColumns}
-                pagination={false}
-                size="small"
+                  columns={userColumns}
+                  pagination={false}
+                  size="small"
                 rowKey="_id"
               />
             ) : (
@@ -575,10 +575,10 @@ const AdminDashboard = () => {
               />
             )}
           </Card>
-        </Col>
+          </Col>
 
-        {/* Recent Orders */}
-        <Col xs={24} lg={12}>
+          {/* Recent Orders */}
+          <Col xs={24} lg={12}>
           <Card
             title={
               <Space>
@@ -589,9 +589,9 @@ const AdminDashboard = () => {
               </Space>
             }
             extra={
-              <Button type="link" onClick={() => handleViewAll('/admin/orders')}>
-                View All
-              </Button>
+                <Button type="link" onClick={() => handleViewAll('/admin/orders')}>
+                  View All
+                </Button>
             }
             style={{
               borderRadius: AdminDesignSystem.borderRadius.md,
@@ -600,7 +600,7 @@ const AdminDashboard = () => {
             }}
           >
             {recentData.orders.length > 0 ? (
-              <Table
+              <Table 
                 dataSource={recentData.orders}
                 columns={orderColumns}
                 pagination={false}
@@ -614,8 +614,8 @@ const AdminDashboard = () => {
               />
             )}
           </Card>
-        </Col>
-      </Row>
+          </Col>
+        </Row>
 
       {/* Quick Actions */}
       <Row gutter={[AdminDesignSystem.spacing.md, AdminDesignSystem.spacing.md]} style={{ marginTop: AdminDesignSystem.spacing.lg }}>
@@ -633,40 +633,40 @@ const AdminDashboard = () => {
             }}
           >
             <Space wrap>
-              <Button
-                type="primary"
-                icon={<PlusOutlined />}
-                onClick={() => navigate('/admin/products/new')}
+                  <Button 
+                    type="primary" 
+                    icon={<PlusOutlined />}
+                    onClick={() => navigate('/admin/products/new')}
                 style={{
                   backgroundColor: AdminDesignSystem.colors.primary,
                   borderColor: AdminDesignSystem.colors.primary,
                 }}
-              >
-                Add Product
-              </Button>
-              <Button
+                  >
+                    Add Product
+                  </Button>
+                  <Button 
                 icon={<TeamOutlined />}
                 onClick={() => navigate('/admin/users')}
-              >
+                  >
                 Manage Users
-              </Button>
+                  </Button>
               <Button
                 icon={<ShoppingCartOutlined />}
                 onClick={() => navigate('/admin/orders')}
               >
                 View Orders
-              </Button>
-              <Button
+                  </Button>
+                  <Button 
                 icon={<EyeOutlined />}
                 onClick={() => navigate('/admin/analytics')}
-              >
+                  >
                 View Analytics
-              </Button>
+                  </Button>
             </Space>
           </Card>
-        </Col>
-      </Row>
-    </div>
+          </Col>
+        </Row>
+      </div>
   )
 }
 

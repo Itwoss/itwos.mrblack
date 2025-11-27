@@ -28,6 +28,7 @@ import Profile from './pages/User/Profile'
 import UserProfile from './pages/User/UserProfile'
 import Following from './pages/User/Following'
 import HelpCenter from './pages/User/HelpCenter'
+import AudioDownloader from './pages/User/AudioDownloader'
 import UserPurchases from './pages/User/UserPurchases'
 import UserFavorites from './pages/User/UserFavorites'
 import UserChat from './pages/User/UserChat'
@@ -61,6 +62,9 @@ import BannerManagement from './pages/Admin/BannerManagement'
 import PaymentTracking from './pages/Admin/PaymentTracking'
 import UserActivities from './pages/Admin/UserActivities'
 import PostManagement from './pages/Admin/PostManagement'
+import TrendingAnalytics from './pages/Admin/TrendingAnalytics'
+import TrendingSettings from './pages/Admin/TrendingSettings'
+import Management from './pages/Admin/Management'
 import ProductsPage from './pages/Products/ProductsPage'
 import ProductDetail from './pages/Products/ProductDetail'
 import PrebookPreview from './pages/Products/PrebookPreview'
@@ -147,6 +151,11 @@ function App() {
                   <Route path="/feed" element={
                     <ProtectedRoute requiredRole="user">
                       <UserLayout><Feed /></UserLayout>
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/audio-downloader" element={
+                    <ProtectedRoute requiredRole="user">
+                      <UserLayout><AudioDownloader /></UserLayout>
                     </ProtectedRoute>
                   } />
                   <Route path="/post/create" element={
@@ -236,6 +245,14 @@ function App() {
                     </ProtectedRoute>
                   } />
                   <Route path="/admin/api-test" element={<AdminAPITest />} />
+                  {/* Management Routes with Nested Layout */}
+                  <Route path="/admin/management/*" element={
+                    <ProtectedRoute requiredRole="admin">
+                      <AdminLayout><Management /></AdminLayout>
+                    </ProtectedRoute>
+                  } />
+                  
+                  {/* Legacy routes - redirect to management */}
                   <Route path="/admin/users" element={
                     <ProtectedRoute requiredRole="admin">
                       <AdminLayout><UserManagement /></AdminLayout>
@@ -291,14 +308,14 @@ function App() {
                       <AdminLayout><AddProduct /></AdminLayout>
                     </ProtectedRoute>
                   } />
-                  <Route path="/admin/banners" element={
+                  <Route path="/admin/trending" element={
                     <ProtectedRoute requiredRole="admin">
-                      <AdminLayout><BannerManagement /></AdminLayout>
+                      <AdminLayout><TrendingAnalytics /></AdminLayout>
                     </ProtectedRoute>
                   } />
-                  <Route path="/admin/posts" element={
+                  <Route path="/admin/trending/settings" element={
                     <ProtectedRoute requiredRole="admin">
-                      <AdminLayout><PostManagement /></AdminLayout>
+                      <AdminLayout><TrendingSettings /></AdminLayout>
                     </ProtectedRoute>
                   } />
                   

@@ -23,7 +23,11 @@ const postSchema = new mongoose.Schema({
   },
   imageUrl: {
     type: String,
-    required: true
+    required: false // Made optional to support audio-only posts
+  },
+  audioUrl: {
+    type: String,
+    required: false // Audio file URL
   },
   instagramRedirectUrl: {
     type: String,
@@ -61,7 +65,7 @@ const postSchema = new mongoose.Schema({
     detail: String,
     original: String
   },
-  // Engagement metrics
+  // Engagement metrics (total)
   likes: {
     type: Number,
     default: 0
@@ -84,6 +88,11 @@ const postSchema = new mongoose.Schema({
     type: Number,
     default: 0
   },
+  commentsArray: [{ // Embedded comments
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    text: { type: String, required: true, maxlength: 500 },
+    createdAt: { type: Date, default: Date.now }
+  }],
   saves: {
     type: Number,
     default: 0
@@ -97,6 +106,38 @@ const postSchema = new mongoose.Schema({
     type: Number,
     default: 0
   },
+  // 24-hour engagement stats for trending calculation
+  stats: {
+    views_24h: {
+      type: Number,
+      default: 0
+    },
+    likes_24h: {
+      type: Number,
+      default: 0
+    },
+    comments_24h: {
+      type: Number,
+      default: 0
+    },
+    saves_24h: {
+      type: Number,
+      default: 0
+    },
+    shares_24h: {
+      type: Number,
+      default: 0
+    },
+    lastUpdated: {
+      type: Date,
+      default: Date.now
+    }
+  },
+  // Follower count at time of post (for normalization)
+  followerCountAtPost: {
+    type: Number,
+    default: 0
+  },
   // Engagement and trending scores
   engagementScore: {
     type: Number,
@@ -106,6 +147,26 @@ const postSchema = new mongoose.Schema({
   trendingScore: {
     type: Number,
     default: 0,
+    index: true
+  },
+  // Trending status
+  trendingStatus: {
+    type: Boolean,
+    default: false,
+    index: true
+  },
+  trendingSince: {
+    type: Date,
+    default: null
+  },
+  trendingRank: {
+    type: Number,
+    default: null
+  },
+  // Trending eligibility (1-3 hours after creation)
+  trendingEligibleAt: {
+    type: Date,
+    default: null,
     index: true
   },
   // Moderation fields
@@ -165,6 +226,7 @@ postSchema.methods.getPublicData = function(userId = null) {
     bio: this.bio,
     tags: this.tags,
     imageUrl: this.imageUrl,
+    audioUrl: this.audioUrl, // Include audioUrl
     instagramRedirectUrl: this.instagramRedirectUrl,
     // New fields
     privacy: this.privacy,
@@ -175,10 +237,18 @@ postSchema.methods.getPublicData = function(userId = null) {
     likes: this.likes,
     views: this.views,
     comments: this.comments,
+    commentsArray: this.commentsArray, // Include commentsArray
     saves: this.saves,
     shares: this.shares,
+    // 24h stats
+    stats: this.stats || {},
+    followerCountAtPost: this.followerCountAtPost,
+    // Scores
     engagementScore: this.engagementScore,
     trendingScore: this.trendingScore,
+    trendingStatus: this.trendingStatus || false,
+    trendingSince: this.trendingSince,
+    trendingRank: this.trendingRank,
     featured: this.featured,
     createdAt: this.createdAt,
     updatedAt: this.updatedAt,
@@ -195,4 +265,3 @@ postSchema.methods.getPublicData = function(userId = null) {
 };
 
 module.exports = mongoose.model('Post', postSchema);
-

@@ -188,12 +188,6 @@ const ProductsEnhanced = () => {
   }
 
   const fetchProducts = async () => {
-    // Prevent multiple simultaneous requests
-    if (loading) {
-      console.log('Products fetch already in progress, skipping...')
-      return
-    }
-    
     setLoading(true)
     setError(null) // Clear previous errors
     try {
@@ -260,7 +254,9 @@ const ProductsEnhanced = () => {
       console.log('Admin products params:', params)
 
       const response = await productAPI.getAdminProducts(params)
-      console.log('Admin products response:', response.data)
+      console.log('🔍 Full API response:', response)
+      console.log('🔍 Response data:', response.data)
+      console.log('🔍 Response data.data:', response.data?.data)
       
       if (response.data.success) {
         console.log('✅ Admin products API call successful!')
@@ -268,8 +264,19 @@ const ProductsEnhanced = () => {
         const productsList = response.data.data?.products || []
         const paginationData = response.data.data?.pagination || {}
         
+        console.log('🔍 Products list from API:', productsList)
+        console.log('🔍 Products list length:', productsList.length)
+        console.log('🔍 Pagination data:', paginationData)
+        
         if (!productsList || productsList.length === 0) {
-          console.warn('No products returned from API')
+          console.warn('⚠️ No products returned from API - checking backend logs')
+          console.warn('⚠️ Response structure:', {
+            success: response.data.success,
+            hasData: !!response.data.data,
+            hasProducts: !!response.data.data?.products,
+            productsType: Array.isArray(response.data.data?.products) ? 'array' : typeof response.data.data?.products,
+            productsLength: response.data.data?.products?.length
+          })
         }
         
         setProducts(productsList)
@@ -279,7 +286,8 @@ const ProductsEnhanced = () => {
         }))
         
         // Stats are fetched separately via fetchStats()
-        console.log('Products fetched successfully:', productsList.length, 'items')
+        console.log('✅ Products fetched successfully:', productsList.length, 'items')
+        console.log('✅ Products state updated with:', productsList)
       } else {
         console.error('Admin products API returned unsuccessful response:', response.data)
         const errorMsg = response.data.message || 'Failed to fetch products. Please try again.'

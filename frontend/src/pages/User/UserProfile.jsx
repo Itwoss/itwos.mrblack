@@ -33,6 +33,9 @@ import {
   HeartOutlined,
   BookOutlined,
   ShoppingCartOutlined,
+  DeleteOutlined,
+  SoundOutlined,
+  PlayCircleOutlined,
 } from '@ant-design/icons'
 import { useAuth } from '../../contexts/AuthContextOptimized'
 import api, { usersListAPI, threadsAPI, followAPI } from '../../services/api'
@@ -48,26 +51,55 @@ const UserProfile = () => {
   const [profileUser, setProfileUser] = useState(null)
   const [loading, setLoading] = useState(true)
   const [following, setFollowing] = useState(false)
+  const [followRequestSent, setFollowRequestSent] = useState(false)
   const [followersCount, setFollowersCount] = useState(0)
   const [followingCount, setFollowingCount] = useState(0)
   const [postsCount, setPostsCount] = useState(0)
   const [activeTab, setActiveTab] = useState('posts')
   const [bioExpanded, setBioExpanded] = useState(false)
+  const [userPosts, setUserPosts] = useState([])
+  const [loadingPosts, setLoadingPosts] = useState(false)
+  const [savedPosts, setSavedPosts] = useState([])
+  const [loadingSaved, setLoadingSaved] = useState(false)
+  const [postsLoaded, setPostsLoaded] = useState(false)
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768)
   const BIO_MAX_LENGTH = 150 // Characters to show before "View More"
+
+  // Handle window resize for responsive design
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768)
+    }
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
 
   useEffect(() => {
     console.log('UserProfile useEffect - userId:', userId)
+    console.log('UserProfile useEffect - currentUser:', currentUser)
+    
+    // If no userId in params, try to use current user's ID
+    if (!userId) {
+      const currentUserId = currentUser?._id || currentUser?.id
+      if (currentUserId) {
+        console.log('No userId in params, using current user ID:', currentUserId)
+        navigate(`/profile/${currentUserId}`, { replace: true })
+        return
+      } else {
+        console.error('No userId in params and no current user')
+        message.error('Invalid user ID')
+        navigate('/discover')
+        return
+      }
+    }
+    
     if (userId) {
       setBioExpanded(false) // Reset bio expansion when user changes
       loadUserProfile()
       checkFollowStatus()
       loadStats()
-    } else {
-      console.error('No userId in params')
-      message.error('Invalid user ID')
-      navigate('/discover')
     }
-  }, [userId])
+  }, [userId, currentUser])
 
   // Refresh profile when viewing own profile and currentUser verification status changes
   useEffect(() => {
@@ -148,6 +180,10 @@ const UserProfile = () => {
           verifiedTillValue: userData?.verifiedTill ? new Date(userData.verifiedTill) : null
         })
         console.log('📋 All user fields:', Object.keys(userData || {}))
+        console.log('📊 Follow counts:', {
+          followersCount: userData?.followersCount,
+          followingCount: userData?.followingCount
+        })
         
         if (!userData || (!userData._id && !userData.id)) {
           console.error('Invalid user data received:', userData)
@@ -165,15 +201,23 @@ const UserProfile = () => {
           company: userData.company || null,
           jobTitle: userData.jobTitle || null,
           isVerified: userData.isVerified !== undefined ? userData.isVerified : false, // Include verification status
-          verifiedTill: userData.verifiedTill || null // Include verification expiry
+          verifiedTill: userData.verifiedTill || null, // Include verification expiry
+          followersCount: userData.followersCount || 0, // Include followers count
+          followingCount: userData.followingCount || 0 // Include following count
         }
         console.log('✅ Profile data with verification:', {
           isVerified: profileData.isVerified,
           verifiedTill: profileData.verifiedTill,
           verifiedTillDate: profileData.verifiedTill ? new Date(profileData.verifiedTill) : null,
-          isCurrentlyVerified: profileData.isVerified && profileData.verifiedTill && new Date(profileData.verifiedTill) > new Date()
+          isCurrentlyVerified: profileData.isVerified && profileData.verifiedTill && new Date(profileData.verifiedTill) > new Date(),
+          followersCount: profileData.followersCount,
+          followingCount: profileData.followingCount
         })
         setProfileUser(profileData)
+        
+        // Update counts immediately from profile data
+        setFollowersCount(profileData.followersCount || 0)
+        setFollowingCount(profileData.followingCount || 0)
       } else {
         console.error('API returned success=false:', response.data)
         message.error(response.data.message || 'User not found')
@@ -199,12 +243,24 @@ const UserProfile = () => {
       // Use dedicated check endpoint for accurate follow status
       const response = await followAPI.checkFollowStatus(userId)
       if (response.data.success) {
+        const status = response.data.status || response.data.followStatus
         const isFollowing = response.data.isFollowing || false
-        setFollowing(isFollowing)
-        console.log('✅ Follow status checked:', { userId, isFollowing, followStatus: response.data.followStatus })
+        
+        if (status === 'accepted' || isFollowing) {
+          setFollowing(true)
+          setFollowRequestSent(false)
+        } else if (status === 'pending') {
+          setFollowing(false)
+          setFollowRequestSent(true)
+        } else {
+          setFollowing(false)
+          setFollowRequestSent(false)
+        }
+        console.log('✅ Follow status checked:', { userId, status, isFollowing, followRequestSent: status === 'pending' })
       } else {
         console.warn('Follow status check returned success=false:', response.data)
         setFollowing(false)
+        setFollowRequestSent(false)
       }
     } catch (error) {
       console.error('❌ Error checking follow status:', error)
@@ -226,36 +282,194 @@ const UserProfile = () => {
               })
             : false
           setFollowing(isFollowing)
+          setFollowRequestSent(false)
           console.log('✅ Fallback follow status checked:', { userId, isFollowing })
         }
       } catch (fallbackError) {
         console.error('Fallback check also failed:', fallbackError)
         setFollowing(false) // Default to not following on error
+        setFollowRequestSent(false)
       }
     }
   }
 
   const loadStats = async () => {
     try {
-      // Load followers count
-      const followersRes = await api.get(`/follow/followers/${userId}`)
-      if (followersRes.data.success) {
-        setFollowersCount(followersRes.data.followers?.length || 0)
+      // First try to get counts from user profile data
+      if (profileUser) {
+        if (profileUser.followersCount !== undefined) {
+          setFollowersCount(profileUser.followersCount || 0)
+        }
+        if (profileUser.followingCount !== undefined) {
+          setFollowingCount(profileUser.followingCount || 0)
+        }
       }
 
-      // Load following count
-      const followingRes = await api.get(`/follow/following/${userId}`)
-      if (followingRes.data.success) {
-        setFollowingCount(followingRes.data.following?.length || 0)
+      // Also try to get from follow endpoints
+      try {
+        // Load followers count
+        const followersRes = await api.get(`/follow/followers/${userId}`)
+        if (followersRes.data.success) {
+          const count = followersRes.data.followers?.length || followersRes.data.count || 0
+          setFollowersCount(count)
+        }
+      } catch (err) {
+        console.error('Error loading followers:', err)
+        // Fallback: use profileUser data if available
+        if (profileUser?.followersCount !== undefined) {
+          setFollowersCount(profileUser.followersCount || 0)
+        }
       }
 
-      // Load posts count (if you have posts/content)
-      // const postsRes = await api.get(`/users/${userId}/posts`)
-      // setPostsCount(postsRes.data.posts?.length || 0)
+      try {
+        // Load following count
+        const followingRes = await api.get(`/follow/following/${userId}`)
+        if (followingRes.data.success) {
+          const count = followingRes.data.following?.length || followingRes.data.count || 0
+          setFollowingCount(count)
+        }
+      } catch (err) {
+        console.error('Error loading following:', err)
+        // Fallback: use profileUser data if available
+        if (profileUser?.followingCount !== undefined) {
+          setFollowingCount(profileUser.followingCount || 0)
+        }
+      }
+
+      // Load posts count
+      const isOwnProfile = currentUser?._id?.toString() === userId?.toString() || 
+                           currentUser?.id?.toString() === userId?.toString();
+      
+      if (isOwnProfile) {
+        // For own profile, use my-posts endpoint
+        const postsRes = await api.get('/posts/my-posts?limit=1')
+        if (postsRes.data.success) {
+          setPostsCount(postsRes.data.pagination?.total || 0)
+        }
+      } else {
+        // For other users, try to get public posts count
+        try {
+          const postsRes = await api.get(`/posts/user/${userId}?limit=1`)
+          if (postsRes.data.success) {
+            setPostsCount(postsRes.data.pagination?.total || 0)
+          }
+        } catch (err) {
+          // Endpoint might not exist, that's okay
+        }
+      }
     } catch (error) {
       console.error('Error loading stats:', error)
     }
   }
+
+  const loadUserPosts = async () => {
+    if (!userId) return;
+    
+    setLoadingPosts(true);
+    try {
+      const isOwnProfile = currentUser?._id?.toString() === userId?.toString() || 
+                           currentUser?.id?.toString() === userId?.toString();
+      
+      let response;
+      if (isOwnProfile) {
+        // Load own posts
+        response = await api.get('/posts/my-posts?limit=100')
+      } else {
+        // Load other user's public posts
+        response = await api.get(`/posts/user/${userId}?limit=100`)
+      }
+      
+      if (response.data?.success) {
+        const posts = response.data.data || response.data.posts || [];
+        setUserPosts(posts);
+        setPostsCount(posts.length);
+        setPostsLoaded(true);
+        if (posts.length > 0) {
+          setPostsCount(response.data.pagination?.total || posts.length);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading user posts:', error);
+      setUserPosts([]);
+    } finally {
+      setLoadingPosts(false);
+    }
+  }
+
+  const handleDeletePost = async (postId) => {
+    if (!window.confirm('Are you sure you want to delete this post? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      const response = await api.delete(`/posts/${postId}`);
+      
+      if (response.data?.success) {
+        message.success('Post deleted successfully');
+        // Remove post from local state
+        setUserPosts(prev => prev.filter(post => post._id !== postId));
+        setPostsCount(prev => Math.max(0, prev - 1));
+      } else {
+        message.error(response.data?.message || 'Failed to delete post');
+      }
+    } catch (error) {
+      console.error('Error deleting post:', error);
+      if (error.response?.status === 403) {
+        message.error('You can only delete your own posts');
+      } else if (error.response?.status === 404) {
+        message.error('Post not found');
+      } else {
+        message.error(error.response?.data?.message || 'Failed to delete post');
+      }
+    }
+  }
+
+  const loadSavedPosts = async () => {
+    if (!userId) return;
+    
+    setLoadingSaved(true);
+    try {
+      // Only load saved posts for own profile
+      const isOwnProfile = currentUser?._id?.toString() === userId?.toString() || 
+                           currentUser?.id?.toString() === userId?.toString();
+      
+      if (!isOwnProfile) {
+        setSavedPosts([]);
+        return;
+      }
+      
+      // Get saved posts
+      const response = await api.get('/posts/saved?limit=100');
+      
+      if (response.data?.success) {
+        const posts = response.data.data || response.data.posts || [];
+        setSavedPosts(posts);
+      }
+    } catch (error) {
+      console.error('Error loading saved posts:', error);
+      setSavedPosts([]);
+    } finally {
+      setLoadingSaved(false);
+    }
+  }
+
+  // Load posts when posts tab is active or when profile loads
+  useEffect(() => {
+    if (userId && profileUser) {
+      if (activeTab === 'posts' && !postsLoaded) {
+        loadUserPosts();
+      } else if (activeTab === 'saved') {
+        loadSavedPosts();
+      }
+    }
+  }, [activeTab, userId, profileUser, postsLoaded])
+
+  // Auto-load posts when profile first loads
+  useEffect(() => {
+    if (userId && profileUser && activeTab === 'posts' && !postsLoaded && !loadingPosts) {
+      loadUserPosts();
+    }
+  }, [userId, profileUser, postsLoaded, loadingPosts, activeTab])
 
   const handleFollow = async () => {
     try {
@@ -287,13 +501,16 @@ const UserProfile = () => {
           // Check if follow was accepted immediately (public account) or pending (private account)
           const followStatus = response.data.follow?.status
           const isAccepted = followStatus === 'accepted'
+          const isPending = followStatus === 'pending'
           
           if (isAccepted) {
             setFollowing(true)
+            setFollowRequestSent(false)
             setFollowersCount(prev => prev + 1)
             message.success('Following successfully')
-          } else {
-            // Follow request sent but pending approval
+          } else if (isPending) {
+            setFollowing(false)
+            setFollowRequestSent(true)
             message.success('Follow request sent! Waiting for approval.')
           }
           // Refresh follow status to ensure consistency across all pages
@@ -346,6 +563,35 @@ const UserProfile = () => {
     }
   }
 
+  const loadPosts = async () => {
+    if (!userId) return
+    
+    setPostsLoading(true)
+    try {
+      const response = await api.get(`/posts/user/${userId}?limit=100`)
+      console.log('📸 Posts response:', response.data)
+      
+      if (response.data.success) {
+        const postsData = response.data.data || response.data.posts || []
+        setPosts(postsData)
+        setPostsCount(postsData.length)
+        console.log('✅ Loaded posts:', postsData.length)
+      } else {
+        console.error('Failed to load posts:', response.data.message)
+        setPosts([])
+      }
+    } catch (error) {
+      console.error('❌ Error loading posts:', error)
+      setPosts([])
+      // Don't show error message if it's a privacy issue (expected behavior)
+      if (error.response?.status !== 403 && error.response?.status !== 404) {
+        message.error('Failed to load posts')
+      }
+    } finally {
+      setPostsLoading(false)
+    }
+  }
+
   const isOwnProfile = currentUser?._id === userId || currentUser?.id === userId || currentUser?._id?.toString() === userId?.toString()
 
   if (loading) {
@@ -386,15 +632,21 @@ const UserProfile = () => {
 
   return (
     <UserLayout>
-      <div style={{ maxWidth: '935px', margin: '0 auto', padding: '20px' }}>
+      <div style={{ 
+        maxWidth: '935px', 
+        margin: '0 auto', 
+        padding: isMobile ? '10px' : '20px',
+        width: '100%',
+        boxSizing: 'border-box'
+      }}>
         {/* Profile Header - Instagram Style */}
-        <div style={{ marginBottom: '44px' }}>
-          <Row gutter={[30, 20]}>
+        <div style={{ marginBottom: isMobile ? '20px' : '44px' }}>
+          <Row gutter={[isMobile ? 16 : 30, isMobile ? 16 : 20]}>
             {/* Profile Picture */}
-            <Col xs={24} sm={8} style={{ textAlign: 'center' }}>
+            <Col xs={24} sm={8} style={{ textAlign: 'center', marginBottom: isMobile ? '20px' : 0 }}>
               <div style={{ position: 'relative', display: 'inline-block' }}>
                 <Avatar
-                  size={150}
+                  size={isMobile ? 100 : 150}
                   src={getUserAvatarUrl(profileUser)}
                   icon={<UserOutlined />}
                   style={{ border: '3px solid #fff', boxShadow: '0 0 0 1px rgba(0,0,0,.0975)' }}
@@ -433,7 +685,11 @@ const UserProfile = () => {
                 }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <Space align="center" style={{ flexWrap: 'wrap', marginBottom: '12px' }}>
-                      <Title level={2} style={{ margin: 0, fontSize: '28px', fontWeight: 300 }}>
+                      <Title level={2} style={{ 
+                        margin: 0, 
+                        fontSize: isMobile ? '20px' : '28px', 
+                        fontWeight: 300 
+                      }}>
                         {profileUser.name}
                       </Title>
                       {(() => {
@@ -592,16 +848,45 @@ const UserProfile = () => {
                   </Dropdown>
                 </div>
                 {/* Action buttons row */}
-                <Space align="center" style={{ flexWrap: 'wrap' }}>
+                <Space 
+                  align="center" 
+                  direction={isMobile ? 'vertical' : 'horizontal'}
+                  style={{ 
+                    flexWrap: 'wrap', 
+                    width: isMobile ? '100%' : 'auto' 
+                  }}
+                  size={isMobile ? 'small' : 'middle'}
+                >
                   {!isOwnProfile && (
-                    <Button
-                      type={following ? 'default' : 'primary'}
-                      icon={following ? <UserDeleteOutlined /> : <UserAddOutlined />}
-                      onClick={handleFollow}
-                      style={{ borderRadius: '4px', fontWeight: 600 }}
-                    >
-                      {following ? 'Following' : 'Follow'}
-                    </Button>
+                    <>
+                      {following ? (
+                        <Button
+                          type="default"
+                          icon={<UserDeleteOutlined />}
+                          onClick={handleFollow}
+                          style={{ borderRadius: '4px', fontWeight: 600 }}
+                        >
+                          Following
+                        </Button>
+                      ) : followRequestSent ? (
+                        <Button
+                          disabled
+                          icon={<UserAddOutlined />}
+                          style={{ borderRadius: '4px', fontWeight: 600 }}
+                        >
+                          Request Sent
+                        </Button>
+                      ) : (
+                        <Button
+                          type="primary"
+                          icon={<UserAddOutlined />}
+                          onClick={handleFollow}
+                          style={{ borderRadius: '4px', fontWeight: 600 }}
+                        >
+                          Follow
+                        </Button>
+                      )}
+                    </>
                   )}
                   {isOwnProfile && (
                     <Button
@@ -616,7 +901,15 @@ const UserProfile = () => {
               </div>
 
               {/* Stats */}
-              <Space size="large" style={{ marginBottom: '20px', fontSize: '16px' }}>
+              <Space 
+                size={isMobile ? 'middle' : 'large'} 
+                style={{ 
+                  marginBottom: isMobile ? '16px' : '20px', 
+                  fontSize: isMobile ? '14px' : '16px',
+                  width: '100%',
+                  justifyContent: isMobile ? 'space-around' : 'flex-start'
+                }}
+              >
                 <div>
                   <Text strong style={{ fontSize: '16px' }}>{postsCount}</Text>
                   <Text style={{ marginLeft: '4px' }}>posts</Text>
@@ -728,7 +1021,10 @@ const UserProfile = () => {
         <Tabs
           activeKey={activeTab}
           onChange={setActiveTab}
-          style={{ borderBottom: '1px solid #dbdbdb' }}
+          style={{ 
+            borderBottom: '1px solid #dbdbdb',
+            fontSize: isMobile ? '12px' : '14px'
+          }}
           items={[
             {
               key: 'posts',
@@ -740,10 +1036,184 @@ const UserProfile = () => {
               ),
               children: (
                 <div style={{ marginTop: '40px', minHeight: '400px' }}>
-                  <Empty
-                    description="No posts yet"
-                    image={Empty.PRESENTED_IMAGE_SIMPLE}
-                  />
+                  {loadingPosts ? (
+                    <div style={{ textAlign: 'center', padding: '40px' }}>
+                      <Spin size="large" />
+                    </div>
+                  ) : userPosts.length > 0 ? (
+                    <div style={{ 
+                      display: 'grid', 
+                      gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(3, 1fr)', 
+                      gap: isMobile ? '4px' : '8px', 
+                      marginTop: isMobile ? '10px' : '20px' 
+                    }}>
+                      {userPosts.map((post) => {
+                        const isOwnPost = isOwnProfile || (post.userId?.toString() === currentUser?._id?.toString() || post.userId?.toString() === currentUser?.id?.toString());
+                        
+                        return (
+                        <div
+                          key={post._id}
+                          style={{
+                            position: 'relative',
+                            width: '100%',
+                            paddingBottom: '100%',
+                            backgroundColor: '#000',
+                            cursor: 'pointer',
+                            borderRadius: '4px',
+                            overflow: 'hidden'
+                          }}
+                          onClick={() => {
+                            console.log('Post clicked:', post._id)
+                          }}
+                        >
+                          {/* Delete button - only show for own posts */}
+                          {isOwnPost && (
+                            <Button
+                              type="text"
+                              danger
+                              icon={<DeleteOutlined />}
+                              size="small"
+                              style={{
+                                position: 'absolute',
+                                top: '8px',
+                                right: '8px',
+                                zIndex: 10,
+                                backgroundColor: 'rgba(0, 0, 0, 0.6)',
+                                color: '#fff',
+                                border: 'none',
+                                borderRadius: '4px',
+                                padding: '4px 8px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center'
+                              }}
+                              onClick={(e) => {
+                                e.stopPropagation(); // Prevent post click
+                                handleDeletePost(post._id);
+                              }}
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.backgroundColor = 'rgba(255, 0, 0, 0.8)';
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.backgroundColor = 'rgba(0, 0, 0, 0.6)';
+                              }}
+                            />
+                          )}
+                          {/* Image Post */}
+                          {post.imageUrl && (
+                            <img
+                              src={
+                                post.imageUrl.startsWith('http')
+                                  ? post.imageUrl
+                                  : `${(import.meta.env.VITE_API_URL || 'http://localhost:7000').replace('/api', '')}${post.imageUrl}`
+                              }
+                              alt={post.title || 'Post'}
+                              style={{
+                                position: 'absolute',
+                                top: 0,
+                                left: 0,
+                                width: '100%',
+                                height: '100%',
+                                objectFit: 'cover'
+                              }}
+                              onError={(e) => {
+                                e.target.style.display = 'none'
+                              }}
+                            />
+                          )}
+                          
+                          {/* Audio Post Indicator - Audio Only */}
+                          {post.audioUrl && !post.imageUrl && (
+                            <div style={{
+                              position: 'absolute',
+                              top: 0,
+                              left: 0,
+                              width: '100%',
+                              height: '100%',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              backgroundColor: '#1a1a1a',
+                              padding: '20px',
+                              color: '#fff'
+                            }}>
+                              <SoundOutlined style={{ fontSize: '48px', marginBottom: '12px', color: '#fff' }} />
+                              {post.title && (
+                                <Text style={{ color: '#fff', fontSize: '14px', textAlign: 'center', marginBottom: '8px', maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                  {post.title}
+                                </Text>
+                              )}
+                              <PlayCircleOutlined style={{ fontSize: '32px', color: '#fff', opacity: 0.8 }} />
+                            </div>
+                          )}
+                          
+                          {/* Audio + Image Overlay */}
+                          {post.audioUrl && post.imageUrl && (
+                            <div style={{
+                              position: 'absolute',
+                              bottom: '8px',
+                              right: '8px',
+                              backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                              borderRadius: '50%',
+                              width: '40px',
+                              height: '40px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              zIndex: 5
+                            }}>
+                              <SoundOutlined style={{ fontSize: '20px', color: '#fff' }} />
+                            </div>
+                          )}
+                          
+                          {/* Hover overlay for engagement stats */}
+                          <div
+                            style={{
+                              position: 'absolute',
+                              top: 0,
+                              left: 0,
+                              width: '100%',
+                              height: '100%',
+                              backgroundColor: 'rgba(0, 0, 0, 0.4)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              opacity: 0,
+                              transition: 'opacity 0.2s',
+                              color: '#fff',
+                              fontSize: '16px',
+                              fontWeight: 600,
+                              zIndex: 3
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.opacity = '1'
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.opacity = '0'
+                            }}
+                          >
+                            <Space size="large">
+                              <span>
+                                <HeartOutlined style={{ marginRight: '4px' }} />
+                                {post.likesCount || post.likes || 0}
+                              </span>
+                              <span>
+                                <MessageOutlined style={{ marginRight: '4px' }} />
+                                {post.commentsCount || post.comments || 0}
+                              </span>
+                            </Space>
+                          </div>
+                        </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <Empty
+                      description="No posts yet"
+                      image={Empty.PRESENTED_IMAGE_SIMPLE}
+                    />
+                  )}
                 </div>
               )
             },
@@ -774,10 +1244,114 @@ const UserProfile = () => {
               ),
               children: (
                 <div style={{ marginTop: '40px', minHeight: '400px' }}>
-                  <Empty
-                    description="No saved items"
-                    image={Empty.PRESENTED_IMAGE_SIMPLE}
-                  />
+                  {(() => {
+                    const isOwnProfile = currentUser?._id?.toString() === userId?.toString() || 
+                                         currentUser?.id?.toString() === userId?.toString();
+                    
+                    if (!isOwnProfile) {
+                      return (
+                        <Empty
+                          description="Only you can see your saved posts"
+                          image={Empty.PRESENTED_IMAGE_SIMPLE}
+                        />
+                      );
+                    }
+                    
+                    if (loadingSaved) {
+                      return (
+                        <div style={{ textAlign: 'center', padding: '40px' }}>
+                          <Spin size="large" />
+                        </div>
+                      );
+                    }
+                    
+                    if (savedPosts.length === 0) {
+                      return (
+                        <Empty
+                          description="No saved posts yet"
+                          image={Empty.PRESENTED_IMAGE_SIMPLE}
+                        />
+                      );
+                    }
+                    
+                    return (
+                      <div style={{ 
+                        display: 'grid', 
+                        gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(3, 1fr)', 
+                        gap: isMobile ? '4px' : '8px', 
+                        marginTop: isMobile ? '10px' : '20px' 
+                      }}>
+                        {savedPosts.map((post) => (
+                          <div
+                            key={post._id}
+                            style={{
+                              position: 'relative',
+                              width: '100%',
+                              paddingBottom: '100%',
+                              backgroundColor: '#000',
+                              cursor: 'pointer',
+                              borderRadius: '4px',
+                              overflow: 'hidden'
+                            }}
+                            onClick={() => {
+                              console.log('Saved post clicked:', post._id)
+                            }}
+                          >
+                            {post.imageUrl && (
+                              <img
+                                src={
+                                  post.imageUrl.startsWith('http')
+                                    ? post.imageUrl
+                                    : `${(import.meta.env.VITE_API_URL || 'http://localhost:7000').replace('/api', '')}${post.imageUrl}`
+                                }
+                                alt={post.title || 'Post'}
+                                style={{
+                                  position: 'absolute',
+                                  top: 0,
+                                  left: 0,
+                                  width: '100%',
+                                  height: '100%',
+                                  objectFit: 'cover'
+                                }}
+                                onError={(e) => {
+                                  e.target.style.display = 'none'
+                                }}
+                              />
+                            )}
+                            <div
+                              style={{
+                                position: 'absolute',
+                                top: 0,
+                                left: 0,
+                                width: '100%',
+                                height: '100%',
+                                backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                opacity: 0,
+                                transition: 'opacity 0.2s',
+                                color: '#fff',
+                                fontSize: '16px',
+                                fontWeight: 600
+                              }}
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.opacity = '1'
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.opacity = '0'
+                              }}
+                            >
+                              <Space size="large">
+                                <span>❤️ {post.likesCount || post.likes || 0}</span>
+                                <span>💬 {post.commentsCount || post.comments || 0}</span>
+                              </Space>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })()}
                 </div>
               )
             }

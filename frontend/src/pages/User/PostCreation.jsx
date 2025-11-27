@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
-import { Card, Button, Input, Upload, message, Spin, Alert, Typography, Space, Tag } from 'antd'
-import { UploadOutlined, InstagramOutlined, CheckCircleOutlined, CloseCircleOutlined, PlusOutlined } from '@ant-design/icons'
+import { Card, Button, Input, Upload, message, Spin, Alert, Typography, Space, Tag, Radio, Divider } from 'antd'
+import { UploadOutlined, InstagramOutlined, CheckCircleOutlined, CloseCircleOutlined, PlusOutlined, PictureOutlined, LinkOutlined, SoundOutlined } from '@ant-design/icons'
 import { useAuth } from '../../contexts/AuthContextOptimized'
 import { useNavigate } from 'react-router-dom'
 import api from '../../services/api'
@@ -13,8 +13,13 @@ const PostCreation = () => {
   const { user } = useAuth()
   const navigate = useNavigate()
   
+  // Post mode: 'instagram' or 'direct'
+  const [postMode, setPostMode] = useState('direct')
+  
   const [imageFile, setImageFile] = useState(null)
   const [imagePreview, setImagePreview] = useState(null)
+  const [audioFile, setAudioFile] = useState(null)
+  const [audioPreview, setAudioPreview] = useState(null)
   const [instagramUrl, setInstagramUrl] = useState('')
   const [title, setTitle] = useState('')
   const [bio, setBio] = useState('')
@@ -81,6 +86,39 @@ const PostCreation = () => {
     }
   }
 
+  const handleAudioUpload = async (file) => {
+    try {
+      // Validate file size (max 10MB for audio)
+      if (file.size > 10 * 1024 * 1024) {
+        message.error('Audio file size must be less than 10MB')
+        return false
+      }
+
+      // Validate audio file type
+      const validAudioTypes = ['audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/ogg', 'audio/m4a', 'audio/aac', 'audio/flac']
+      const validExtensions = /\.(mp3|wav|ogg|m4a|aac|flac)$/i
+      
+      if (!validAudioTypes.includes(file.type) && !validExtensions.test(file.name)) {
+        message.error('Please upload a valid audio file (MP3, WAV, OGG, M4A, AAC, or FLAC)')
+        return false
+      }
+
+      setAudioFile(file)
+      
+      // Create preview URL for audio
+      const audioUrl = URL.createObjectURL(file)
+      setAudioPreview(audioUrl)
+      
+      message.success(`Audio file selected: ${file.name}`)
+      
+      return false // Prevent default upload
+    } catch (error) {
+      message.error('Failed to process audio file')
+      console.error('Audio upload error:', error)
+      return false
+    }
+  }
+
   const handleVerifyImages = async () => {
     if (!imageFile || !instagramUrl) {
       message.warning('Please upload an image and provide Instagram URL')
@@ -141,21 +179,18 @@ const PostCreation = () => {
       let errorMessage = 'Failed to verify images'
       
       if (error.response) {
-        // Server responded with error
         errorMessage = error.response.data?.message || `Server error: ${error.response.status}`
         
         if (error.response.status === 404) {
-          errorMessage = 'Route not found. Please make sure the backend server is running and the route is registered.'
+          errorMessage = 'Route not found. Please make sure the backend server is running.'
         } else if (error.response.status === 401) {
           errorMessage = 'Authentication required. Please log in again.'
         } else if (error.response.status === 400) {
           errorMessage = error.response.data?.message || 'Invalid request. Please check your inputs.'
         }
       } else if (error.request) {
-        // Request made but no response
         errorMessage = 'No response from server. Please check if the backend is running.'
       } else {
-        // Error setting up request
         errorMessage = error.message || 'Failed to verify images'
       }
       
@@ -188,25 +223,48 @@ const PostCreation = () => {
   }
 
   const handlePost = async () => {
-    if (!imageFile || !instagramUrl || !verificationResult?.match) {
-      message.warning('Please verify images match before posting')
-      return
-    }
+    // Validation based on mode
+    if (postMode === 'instagram') {
+      if (!imageFile || !instagramUrl || !verificationResult?.match) {
+        message.warning('Please verify images match before posting')
+        return
+      }
 
-    if (!phashUploaded || !phashInstagram) {
-      message.warning('Hash values missing. Please verify images again.')
-      return
+      if (!phashUploaded || !phashInstagram) {
+        message.warning('Hash values missing. Please verify images again.')
+        return
+      }
+    } else {
+      // Direct mode: need at least image OR audio
+      if (!imageFile && !audioFile) {
+        message.warning('Please upload an image or audio file')
+        return
+      }
     }
 
     try {
       setPosting(true)
 
-      // Create post with stored hash values
       const postFormData = new FormData()
-      postFormData.append('image', imageFile)
-      postFormData.append('instagramUrl', instagramUrl)
-      postFormData.append('phashUploaded', phashUploaded)
-      postFormData.append('phashInstagram', phashInstagram)
+      
+      // Add image if available
+      if (imageFile) {
+        postFormData.append('image', imageFile)
+      }
+      
+      // Add audio if available (available for both modes)
+      if (audioFile) {
+        postFormData.append('audio', audioFile)
+      }
+      
+      // Instagram mode specific fields
+      if (postMode === 'instagram') {
+        postFormData.append('instagramUrl', instagramUrl)
+        postFormData.append('phashUploaded', phashUploaded)
+        postFormData.append('phashInstagram', phashInstagram)
+      }
+      
+      // Common fields
       if (title.trim()) {
         postFormData.append('title', title.trim())
       }
@@ -214,7 +272,6 @@ const PostCreation = () => {
         postFormData.append('bio', bio.trim())
       }
       if (tags.length > 0) {
-        // Send tags as JSON string
         postFormData.append('tags', JSON.stringify(tags))
       }
 
@@ -226,6 +283,19 @@ const PostCreation = () => {
 
       if (response.data?.success) {
         message.success('Post created successfully!')
+        // Reset form
+        setImageFile(null)
+        setImagePreview(null)
+        setAudioFile(null)
+        if (audioPreview) {
+          URL.revokeObjectURL(audioPreview)
+        }
+        setAudioPreview(null)
+        setInstagramUrl('')
+        setTitle('')
+        setBio('')
+        setTags([])
+        setVerificationResult(null)
         navigate('/feed')
       }
     } catch (error) {
@@ -236,7 +306,9 @@ const PostCreation = () => {
     }
   }
 
-  const canPost = imageFile && instagramUrl && verificationResult?.match
+  const canPost = postMode === 'instagram' 
+    ? (imageFile && instagramUrl && verificationResult?.match)
+    : (imageFile || audioFile) // Direct mode: need at least image or audio
 
   return (
     <div style={{ maxWidth: '800px', margin: '0 auto', padding: '1rem' }}>
@@ -246,9 +318,41 @@ const PostCreation = () => {
 
       <Card>
         <Space direction="vertical" size="large" style={{ width: '100%' }}>
+          {/* Post Mode Selection */}
+          <div>
+            <Text strong style={{ display: 'block', marginBottom: '12px' }}>Post Type</Text>
+            <Radio.Group 
+              value={postMode} 
+              onChange={(e) => {
+                setPostMode(e.target.value)
+                // Reset verification when switching modes
+                setVerificationResult(null)
+                setInstagramUrl('')
+                // Audio is available for both modes, no need to clear
+              }}
+              buttonStyle="solid"
+              style={{ width: '100%', display: 'flex' }}
+            >
+              <Radio.Button value="direct" style={{ flex: 1, textAlign: 'center' }}>
+                <PictureOutlined /> Direct Upload
+              </Radio.Button>
+              <Radio.Button value="instagram" style={{ flex: 1, textAlign: 'center' }}>
+                <LinkOutlined /> URL & Image Match
+              </Radio.Button>
+            </Radio.Group>
+            <Text type="secondary" style={{ fontSize: '12px', display: 'block', marginTop: '8px' }}>
+              {postMode === 'instagram' 
+                ? 'Upload image (required) and audio (optional), then verify image matches an Instagram post'
+                : 'Upload image, audio, or both directly without verification'
+              }
+            </Text>
+          </div>
+
+          <Divider />
+
           {/* Image Upload */}
           <div>
-            <Text strong>Upload Image (Max 2MB)</Text>
+            <Text strong>Upload Image {postMode === 'instagram' ? '(Required)' : '(Optional)'} (Max 2MB)</Text>
             <br />
             <Upload
               accept="image/*"
@@ -274,12 +378,67 @@ const PostCreation = () => {
                   }} 
                 />
                 <br />
-                <Text type="secondary" style={{ fontSize: '12px' }}>
+                <Button 
+                  type="link" 
+                  danger 
+                  onClick={() => {
+                    setImageFile(null)
+                    setImagePreview(null)
+                    setCompressedImage(null)
+                  }}
+                  style={{ padding: 0, marginTop: '8px' }}
+                >
+                  Remove Image
+                </Button>
+                <Text type="secondary" style={{ fontSize: '12px', display: 'block', marginTop: '4px' }}>
                   Compressed size: {imageFile ? `${(imageFile.size / 1024).toFixed(0)}KB` : 'N/A'}
                 </Text>
               </div>
             )}
           </div>
+
+          {/* Audio Upload - Available for both modes */}
+          <div>
+            <Text strong>Upload Audio Song (Optional) (Max 10MB)</Text>
+              <br />
+              <Upload
+                accept="audio/*"
+                beforeUpload={handleAudioUpload}
+                showUploadList={false}
+                maxCount={1}
+              >
+                <Button icon={<SoundOutlined />} style={{ marginTop: '8px' }}>
+                  Select Audio
+                </Button>
+              </Upload>
+              
+              {audioPreview && audioFile && (
+                <div style={{ marginTop: '16px' }}>
+                  <audio controls style={{ width: '100%', marginTop: '8px' }}>
+                    <source src={audioPreview} type={audioFile.type} />
+                    Your browser does not support the audio element.
+                  </audio>
+                  <br />
+                  <Button 
+                    type="link" 
+                    danger 
+                    onClick={() => {
+                      setAudioFile(null)
+                      if (audioPreview) {
+                        URL.revokeObjectURL(audioPreview)
+                      }
+                      setAudioPreview(null)
+                    }}
+                    style={{ padding: 0, marginTop: '8px' }}
+                  >
+                    Remove Audio
+                  </Button>
+                  <Text type="secondary" style={{ fontSize: '12px', display: 'block', marginTop: '4px' }}>
+                    File: {audioFile.name} ({(audioFile.size / 1024 / 1024).toFixed(2)}MB)
+                  </Text>
+                </div>
+              )}
+            </div>
 
           {/* Title Input */}
           <div>
@@ -297,7 +456,7 @@ const PostCreation = () => {
 
           {/* Bio/Description Input */}
           <div>
-            <Text strong>Bio/Description (Optional)</Text>
+            <Text strong>Description (Optional)</Text>
             <br />
             <TextArea
               placeholder="Write a caption or description..."
@@ -346,47 +505,53 @@ const PostCreation = () => {
             )}
           </div>
 
-          {/* Instagram URL Input */}
-          <div>
-            <Text strong>Instagram Post URL</Text>
-            <br />
-            <Input
-              placeholder="https://www.instagram.com/p/..."
-              prefix={<InstagramOutlined />}
-              value={instagramUrl}
-              onChange={(e) => {
-                setInstagramUrl(e.target.value)
-                setVerificationResult(null)
-              }}
-              style={{ marginTop: '8px' }}
-            />
-            <Text type="secondary" style={{ fontSize: '12px', display: 'block', marginTop: '4px' }}>
-              Paste the Instagram post URL containing the same image
-            </Text>
-          </div>
+          {/* Instagram URL Input - Only for Instagram mode */}
+          {postMode === 'instagram' && (
+            <>
+              <div>
+                <Text strong>Instagram Post URL (Required)</Text>
+                <br />
+                <Input
+                  placeholder="https://www.instagram.com/p/..."
+                  prefix={<InstagramOutlined />}
+                  value={instagramUrl}
+                  onChange={(e) => {
+                    setInstagramUrl(e.target.value)
+                    setVerificationResult(null)
+                  }}
+                  style={{ marginTop: '8px' }}
+                />
+                <Text type="secondary" style={{ fontSize: '12px', display: 'block', marginTop: '4px' }}>
+                  Paste the Instagram post URL containing the same image
+                </Text>
+              </div>
 
-          {/* Verify Button */}
-          {imageFile && instagramUrl && (
-            <Button
-              type="primary"
-              onClick={handleVerifyImages}
-              loading={verifying}
-              block
-            >
-              {verifying ? 'Verifying Images...' : 'Verify Images Match'}
-            </Button>
+              {/* Verify Button */}
+              {imageFile && instagramUrl && (
+                <Button
+                  type="primary"
+                  onClick={handleVerifyImages}
+                  loading={verifying}
+                  block
+                >
+                  {verifying ? 'Verifying Images...' : 'Verify Images Match'}
+                </Button>
+              )}
+
+              {/* Verification Result */}
+              {verificationResult && (
+                <Alert
+                  message={verificationResult.match ? 'Images Match!' : 'Images Don\'t Match'}
+                  description={verificationResult.message}
+                  type={verificationResult.match ? 'success' : 'error'}
+                  icon={verificationResult.match ? <CheckCircleOutlined /> : <CloseCircleOutlined />}
+                  showIcon
+                />
+              )}
+            </>
           )}
 
-          {/* Verification Result */}
-          {verificationResult && (
-            <Alert
-              message={verificationResult.match ? 'Images Match!' : 'Images Don\'t Match'}
-              description={verificationResult.message}
-              type={verificationResult.match ? 'success' : 'error'}
-              icon={verificationResult.match ? <CheckCircleOutlined /> : <CloseCircleOutlined />}
-              showIcon
-            />
-          )}
+          <Divider />
 
           {/* Post Button */}
           {canPost && (
@@ -402,9 +567,15 @@ const PostCreation = () => {
             </Button>
           )}
 
-          {!canPost && imageFile && instagramUrl && !verificationResult && (
+          {!canPost && postMode === 'instagram' && imageFile && instagramUrl && !verificationResult && (
             <Text type="secondary" style={{ textAlign: 'center', display: 'block' }}>
               Click "Verify Images Match" to enable posting
+            </Text>
+          )}
+
+          {!canPost && postMode === 'direct' && (
+            <Text type="secondary" style={{ textAlign: 'center', display: 'block' }}>
+              Please upload an image or audio file to post
             </Text>
           )}
         </Space>
@@ -414,4 +585,3 @@ const PostCreation = () => {
 }
 
 export default PostCreation
-

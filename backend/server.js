@@ -407,6 +407,34 @@ app.use('/uploads/images', (req, res, next) => {
 })
 
 // Custom middleware to handle audio files with fallback
+// Serve audio downloads (converted MP3 files)
+app.use('/uploads/audio-downloads', (req, res, next) => {
+  // Set CORS headers
+  res.header('Access-Control-Allow-Origin', '*')
+  res.header('Access-Control-Allow-Methods', 'GET, OPTIONS, HEAD')
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization')
+  
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(200)
+  }
+  
+  const filePath = path.join(__dirname, 'uploads', 'audio-downloads', req.path)
+  
+  if (fs.existsSync(filePath)) {
+    // Set proper content type for MP3 files
+    if (filePath.endsWith('.mp3')) {
+      res.setHeader('Content-Type', 'audio/mpeg')
+      res.setHeader('Content-Disposition', `attachment; filename="${path.basename(filePath)}"`)
+    }
+    return express.static(path.join(__dirname, 'uploads', 'audio-downloads'))(req, res, next)
+  } else {
+    res.status(404).json({
+      success: false,
+      error: 'Audio file not found'
+    })
+  }
+})
+
 app.use('/uploads/audio', (req, res, next) => {
   // Set CORS headers
   res.header('Access-Control-Allow-Origin', '*')
@@ -498,6 +526,7 @@ app.use('/api/posts', require('./src/routes/posts')) // Post endpoints
 app.use('/api/feed', require('./src/routes/feed')) // Feed endpoints (fan-out)
 app.use('/api/explore', require('./src/routes/explore')) // Explore/trending endpoints
 app.use('/api/banners', require('./src/routes/banners')) // Banner system endpoints
+app.use('/api/audio', require('./src/routes/audioDownloader')) // Audio downloader endpoints
 
 // Admin routes - More specific routes first
 app.use('/api/admin/posts', require('./src/routes/adminPosts'))
@@ -505,8 +534,9 @@ app.use('/api/admin/auth', require('./src/routes/adminAuth'))
 app.use('/api/admin/users', require('./src/routes/adminUsers'))
 app.use('/api/admin/orders', require('./src/routes/adminOrders'))
 app.use('/api/admin/products', require('./src/routes/adminProducts'))
+app.use('/api/admin/trending', require('./src/routes/trending'))
 app.use('/api/admin', require('./src/routes/admin'))
-app.use('/api/admin', require('./src/routes/testUsers'))
+// app.use('/api/admin', require('./src/routes/testUsers')) // Commented out - test route
 
 // Initialize subscription cron job
 const { startSubscriptionCron } = require('./src/services/subscriptionCron');
@@ -514,6 +544,14 @@ startSubscriptionCron();
 
 // Initialize trending score update cron job
 const { startTrendingCron } = require('./src/services/trendingCron');
+const { initializeCache } = require('./src/services/trendingCache');
+
+// Initialize trending cache service
+initializeCache().catch(err => {
+  console.error('Error initializing trending cache:', err);
+});
+
+// Start trending cron job
 startTrendingCron();
 
 // Health check endpoint

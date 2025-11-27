@@ -264,8 +264,11 @@ export const notificationsAPI = {
   getNotifications: (params) => api.get('/notifications', { params }),
   getAdminNotifications: (params) => api.get('/notifications/admin', { params }),
   getUnreadCount: () => api.get('/notifications/unread-count'),
-  markAsRead: (notificationId) => api.put(`/notifications/${notificationId}/read`),
-  markAllAsRead: () => api.put('/notifications/read-all'),
+  getAdminUnreadCount: () => api.get('/notifications/admin/unread-count'),
+  markAsRead: (notificationId) => api.patch(`/notifications/${notificationId}/read`),
+  markAllAsRead: () => api.patch('/notifications/mark-all-read'),
+  markAdminAsRead: (notificationId) => api.patch(`/notifications/admin/${notificationId}/read`),
+  markAllAdminAsRead: () => api.patch('/notifications/admin/mark-all-read'),
   deleteNotification: (notificationId) => api.delete(`/notifications/${notificationId}`),
   clearAll: () => api.delete('/notifications/clear-all'),
   createTest: (data) => api.post('/notifications/test', data), // Create test notification
@@ -456,6 +459,17 @@ export const productAPI = {
 
 // Duplicate prebookAPI removed - functionality merged above
 
+// Trending Analytics API
+export const trendingAnalyticsAPI = {
+  getAnalytics: (params) => api.get('/admin/trending/analytics', { params }),
+}
+
+// Trending Settings API
+export const trendingSettingsAPI = {
+  getSettings: () => api.get('/admin/trending/settings'),
+  updateSettings: (settingsData) => api.put('/admin/trending/settings', settingsData),
+  resetSettings: () => api.post('/admin/trending/settings/reset'),
+}
 
 // Export api as both default and named export
 export { api }

@@ -202,17 +202,89 @@ router.get('/stats', authenticateToken, requireUser, async (req, res) => {
   }
 })
 
-// Mark notification as read
-router.put('/:id/read', authenticateToken, requireUser, async (req, res) => {
+// Get unread count
+router.get('/unread-count', authenticateToken, requireUser, async (req, res) => {
   try {
-    const { id } = req.params
+    const userId = req.user._id
     
-    const notification = await NotificationService.markAsRead(id, req.user._id)
+    // Count from Notification collection
+    const Notification = require('../models/Notification')
+    const notificationCollectionUnread = await Notification.countDocuments({ 
+      userId, 
+      read: false 
+    })
+    
+    // Count from User model notifications array
+    const User = require('../models/User')
+    const user = await User.findById(userId).select('notifications')
+    const userModelUnread = user?.notifications?.filter(n => !n.isRead && !n.read).length || 0
+    
+    const totalUnread = notificationCollectionUnread + userModelUnread
     
     res.json({
       success: true,
-      message: 'Notification marked as read',
-      data: notification
+      data: {
+        unreadCount: totalUnread
+      }
+    })
+  } catch (error) {
+    console.error('Get unread count error:', error)
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get unread count',
+      error: error.message
+    })
+  }
+})
+
+// Mark notification as read
+router.patch('/:id/read', authenticateToken, requireUser, async (req, res) => {
+  try {
+    const { id } = req.params
+    const userId = req.user._id
+    
+    // Try Notification collection first
+    const Notification = require('../models/Notification')
+    let notification = await Notification.findOne({ _id: id, userId })
+    
+    if (notification) {
+      notification.read = true
+      notification.readAt = new Date()
+      await notification.save()
+      
+      return res.json({
+        success: true,
+        message: 'Notification marked as read',
+        data: notification
+      })
+    }
+    
+    // Try User model notifications array
+    const User = require('../models/User')
+    const user = await User.findById(userId)
+    if (user && user.notifications) {
+      const userNotification = user.notifications.id(id)
+      if (userNotification) {
+        userNotification.isRead = true
+        userNotification.read = true
+        userNotification.readAt = new Date()
+        await user.save()
+        
+        return res.json({
+          success: true,
+          message: 'Notification marked as read',
+          data: {
+            _id: userNotification._id,
+            read: true,
+            readAt: userNotification.readAt
+          }
+        })
+      }
+    }
+    
+    res.status(404).json({
+      success: false,
+      message: 'Notification not found'
     })
   } catch (error) {
     console.error('Mark notification as read error:', error)
@@ -225,9 +297,33 @@ router.put('/:id/read', authenticateToken, requireUser, async (req, res) => {
 })
 
 // Mark all notifications as read
-router.put('/read-all', authenticateToken, requireUser, async (req, res) => {
+router.patch('/mark-all-read', authenticateToken, requireUser, async (req, res) => {
   try {
-    await NotificationService.markAllAsRead(req.user._id)
+    const userId = req.user._id
+    
+    // Mark all in Notification collection
+    const Notification = require('../models/Notification')
+    await Notification.updateMany(
+      { userId, read: false },
+      { 
+        read: true, 
+        readAt: new Date() 
+      }
+    )
+    
+    // Mark all in User model notifications array
+    const User = require('../models/User')
+    const user = await User.findById(userId)
+    if (user && user.notifications) {
+      user.notifications.forEach(notif => {
+        if (!notif.isRead && !notif.read) {
+          notif.isRead = true
+          notif.read = true
+          notif.readAt = new Date()
+        }
+      })
+      await user.save()
+    }
     
     res.json({
       success: true,

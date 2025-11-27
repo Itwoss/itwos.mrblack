@@ -194,49 +194,118 @@ const useNotifications = (userId, userRole = 'user') => {
 
   // Mark notification as read
   const markAsRead = useCallback(async (notificationId) => {
-    try {
-      await notificationsAPI.markAsRead(notificationId)
-
-      setNotifications(prev => 
-        prev.map(notif => 
-          (notif._id === notificationId || notif.id === notificationId)
-            ? { ...notif, read: true, readAt: new Date() }
-            : notif
-        )
+    console.log('🔔 markAsRead called:', {
+      notificationId,
+      userRole,
+      currentNotifications: notifications.length,
+      notificationToUpdate: notifications.find(n => 
+        (n._id === notificationId || n.id === notificationId)
       )
-      setUnreadCount(prev => Math.max(0, prev - 1))
-    } catch (err) {
-      console.error('Error marking notification as read:', err)
-      // Still update UI optimistically
-      setNotifications(prev => 
-        prev.map(notif => 
-          (notif._id === notificationId || notif.id === notificationId)
-            ? { ...notif, read: true, readAt: new Date() }
-            : notif
-        )
-      )
-      setUnreadCount(prev => Math.max(0, prev - 1))
+    })
+    
+    if (!notificationId) {
+      console.error('❌ No notification ID provided to markAsRead')
+      return
     }
-  }, [])
+    
+    // Optimistically update UI immediately
+    const wasUnread = notifications.find(n => 
+      (n._id === notificationId || n.id === notificationId) && !n.read
+    )
+    
+    console.log('🔔 Notification found:', {
+      wasUnread: !!wasUnread,
+      notification: wasUnread
+    })
+    
+    if (wasUnread) {
+      console.log('✅ Optimistically updating UI...')
+      setNotifications(prev => {
+        const updated = prev.map(notif => {
+          if (notif._id === notificationId || notif.id === notificationId) {
+            console.log('🔄 Updating notification:', notif._id || notif.id, 'to read: true')
+            return { ...notif, read: true, readAt: new Date() }
+          }
+          return notif
+        })
+        console.log('📝 Updated notifications:', updated.length)
+        return updated
+      })
+      setUnreadCount(prev => {
+        const newCount = Math.max(0, prev - 1)
+        console.log('📊 Unread count:', prev, '->', newCount)
+        return newCount
+      })
+    }
+    
+    try {
+      console.log('📡 Calling API to mark as read...')
+      // Use admin endpoint if user is admin, otherwise use regular endpoint
+      if (userRole === 'admin') {
+        await notificationsAPI.markAdminAsRead(notificationId)
+      } else {
+        await notificationsAPI.markAsRead(notificationId)
+      }
+      console.log('✅ API call successful')
+      
+      // Refresh to ensure consistency
+      setTimeout(() => {
+        console.log('🔄 Refreshing notifications...')
+        fetchNotifications()
+      }, 500)
+    } catch (err) {
+      console.error('❌ Error marking notification as read:', err)
+      console.error('Error details:', {
+        message: err.message,
+        response: err.response?.data,
+        status: err.response?.status,
+        statusText: err.response?.statusText
+      })
+      // Revert optimistic update on error
+      if (wasUnread) {
+        console.log('🔄 Reverting optimistic update due to error')
+        setNotifications(prev => 
+          prev.map(notif => 
+            (notif._id === notificationId || notif.id === notificationId)
+              ? { ...notif, read: false, readAt: null }
+              : notif
+          )
+        )
+        setUnreadCount(prev => prev + 1)
+      }
+    }
+  }, [notifications, userRole, fetchNotifications])
 
   // Mark all notifications as read
   const markAllAsRead = useCallback(async () => {
+    // Optimistically update UI immediately
+    const previousUnreadCount = unreadCount
+    setNotifications(prev => 
+      prev.map(notif => ({ ...notif, read: true, readAt: new Date() }))
+    )
+    setUnreadCount(0)
+    
     try {
-      await notificationsAPI.markAllAsRead()
-
-      setNotifications(prev => 
-        prev.map(notif => ({ ...notif, read: true, readAt: new Date() }))
-      )
-      setUnreadCount(0)
+      // Use admin endpoint if user is admin, otherwise use regular endpoint
+      if (userRole === 'admin') {
+        await notificationsAPI.markAllAdminAsRead()
+      } else {
+        await notificationsAPI.markAllAsRead()
+      }
+      
+      // Refresh to ensure consistency
+      setTimeout(() => {
+        fetchNotifications()
+      }, 500)
     } catch (err) {
       console.error('Error marking all notifications as read:', err)
-      // Still update UI optimistically
+      // Revert optimistic update on error
       setNotifications(prev => 
-        prev.map(notif => ({ ...notif, read: true, readAt: new Date() }))
+        prev.map(notif => ({ ...notif, read: false, readAt: null }))
       )
-      setUnreadCount(0)
+      setUnreadCount(previousUnreadCount)
     }
-  }, [])
+  }, [unreadCount, userRole, fetchNotifications])
 
   // Add new notification (for real-time updates)
   const addNotification = useCallback((newNotification) => {
@@ -344,9 +413,13 @@ const useNotifications = (userId, userRole = 'user') => {
         title = 'New Follower'
       } else if (data.type === 'follow_accepted') {
         title = 'Follow Request Accepted'
+      } else if (data.type === 'comment') {
+        title = 'New Comment'
       } else {
         title = data.title || 'Notification'
       }
+      
+      console.log('🔔 Processing notification:', { type: data.type, title, message: data.message })
       
       addNotification({
         _id: data._id || `notif_${Date.now()}`,

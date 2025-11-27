@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react'
-import { Layout, Menu, Drawer, Button, Space, Typography } from 'antd'
+import { Layout, Menu, Drawer, Button, Space, Typography, message } from 'antd'
 import { 
   UserOutlined, 
   ShoppingCartOutlined, 
@@ -8,14 +8,14 @@ import {
   LogoutOutlined,
   MenuOutlined,
   BookOutlined,
-  VideoCameraOutlined,
   MessageOutlined,
   SearchOutlined,
   TeamOutlined,
   HeartOutlined,
   UsergroupAddOutlined,
   AppstoreOutlined,
-  PictureOutlined
+  PictureOutlined,
+  SoundOutlined
 } from '@ant-design/icons'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from "../contexts/AuthContextOptimized"
@@ -44,6 +44,7 @@ const UserLayout = ({ children }) => {
   const getCurrentMenuKey = () => {
     const path = location.pathname
     if (path === '/dashboard' || path === '/user/dashboard') return 'dashboard'
+    if (path.includes('/profile')) return 'profile'
     if (path.includes('/feed')) return 'feed'
     if (path.includes('/products')) return 'products'
     if (path.includes('/purchases')) return 'purchases'
@@ -52,8 +53,6 @@ const UserLayout = ({ children }) => {
     if (path.includes('/store')) return 'store'
     if (path.includes('/banner-store')) return 'banner-store'
     if (path.includes('/banner-inventory')) return 'banner-inventory'
-    if (path.includes('/courses')) return 'courses'
-    if (path.includes('/sessions')) return 'sessions'
     if (path.includes('/chat')) return 'chat'
     if (path.includes('/discover')) return 'discover'
     if (path.includes('/new-users')) return 'new-users'
@@ -86,6 +85,11 @@ const UserLayout = ({ children }) => {
       label: 'Dashboard',
     },
     {
+      key: 'profile',
+      icon: <UserOutlined />,
+      label: 'Profile',
+    },
+    {
       key: 'feed',
       icon: <AppstoreOutlined />,
       label: 'Feed',
@@ -111,6 +115,11 @@ const UserLayout = ({ children }) => {
       label: 'Store',
     },
     {
+      key: 'audio-downloader',
+      icon: <SoundOutlined />,
+      label: 'Audio Downloader',
+    },
+    {
       key: 'banner-inventory',
       icon: <PictureOutlined />,
       label: 'My Banners',
@@ -119,16 +128,6 @@ const UserLayout = ({ children }) => {
       key: 'favorites',
       icon: <HeartOutlined />,
       label: 'Favorites',
-    },
-    {
-      key: 'courses',
-      icon: <BookOutlined />,
-      label: 'My Courses',
-    },
-    {
-      key: 'sessions',
-      icon: <VideoCameraOutlined />,
-      label: 'Live Sessions',
     },
     {
       key: 'chat',
@@ -168,6 +167,17 @@ const UserLayout = ({ children }) => {
       case 'dashboard':
         navigate('/dashboard')
         break
+      case 'profile':
+        // Navigate to user's own profile
+        if (user?._id || user?.id) {
+          const userId = user._id || user.id
+          console.log('Navigating to profile:', userId)
+          navigate(`/profile/${userId}`)
+        } else {
+          console.error('No user ID available for profile navigation')
+          message.error('Unable to load profile. Please try again.')
+        }
+        break
       case 'feed':
         navigate('/feed')
         break
@@ -186,17 +196,14 @@ const UserLayout = ({ children }) => {
       case 'store':
         navigate('/dashboard/store')
         break
+      case 'audio-downloader':
+        navigate('/audio-downloader')
+        break
       case 'banner-store':
         navigate('/dashboard/banner-store')
         break
       case 'banner-inventory':
         navigate('/dashboard/banner-inventory')
-        break
-      case 'courses':
-        navigate('/user/courses')
-        break
-      case 'sessions':
-        navigate('/user/sessions')
         break
       case 'chat':
         navigate('/chat')

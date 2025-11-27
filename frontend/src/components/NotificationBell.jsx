@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Badge, Button } from 'antd'
 import { BellOutlined } from '@ant-design/icons'
 import { useAuth } from '../contexts/AuthContextOptimized'
@@ -42,13 +42,26 @@ const NotificationBell = () => {
 
   const handleBellClick = () => {
     setNotificationVisible(true)
+    // Refresh notifications when opening
+    fetchNotifications()
   }
 
   const handleNotificationClose = () => {
     setNotificationVisible(false)
-    // Refresh notifications when closing
+    // Refresh notifications when closing to ensure count is updated
     fetchNotifications()
   }
+  
+  // Refresh unread count periodically
+  useEffect(() => {
+    if (userId && userId !== 'mock-user-id') {
+      const interval = setInterval(() => {
+        fetchNotifications()
+      }, 30000) // Refresh every 30 seconds
+      
+      return () => clearInterval(interval)
+    }
+  }, [userId, fetchNotifications])
 
   return (
     <>
@@ -98,3 +111,4 @@ const NotificationBell = () => {
 }
 
 export default NotificationBell
+

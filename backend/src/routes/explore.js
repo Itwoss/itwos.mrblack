@@ -1,6 +1,10 @@
 const express = require('express');
 const { authenticateToken, requireUser } = require('../middleware/auth');
-const { getTrendingPosts, getTrendingCandidates } = require('../services/trendingAlgorithm');
+const { 
+  getTrendingPosts, 
+  getTrendingCandidates,
+  getTrendingByHashtag 
+} = require('../services/trendingAlgorithm');
 const { deliverPostToUsers } = require('../services/feedDelivery');
 const Post = require('../models/Post');
 const Follow = require('../models/Follow');
@@ -135,22 +139,34 @@ router.get('/', authenticateToken, requireUser, async (req, res) => {
 /**
  * GET /api/explore/trending
  * Get trending posts specifically
+ * Query params: limit, region, hashtag, category
  */
 router.get('/trending', authenticateToken, requireUser, async (req, res) => {
   try {
-    const { limit = 50, minScore = 10 } = req.query;
+    const { 
+      limit = 50, 
+      region = null,
+      hashtag = null,
+      category = null
+    } = req.query;
 
     const posts = await getTrendingPosts({
       limit: parseInt(limit),
-      minTrendingScore: parseFloat(minScore),
-      hoursWindow: 48
+      region: region || null,
+      hashtag: hashtag || null,
+      category: category || null
     });
 
     res.json({
       success: true,
       data: {
         posts: posts,
-        count: posts.length
+        count: posts.length,
+        filters: {
+          region,
+          hashtag,
+          category
+        }
       }
     });
   } catch (error) {
@@ -158,6 +174,35 @@ router.get('/trending', authenticateToken, requireUser, async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to fetch trending posts',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+    });
+  }
+});
+
+/**
+ * GET /api/explore/trending/hashtag/:tag
+ * Get trending posts by hashtag
+ */
+router.get('/trending/hashtag/:tag', authenticateToken, requireUser, async (req, res) => {
+  try {
+    const { tag } = req.params;
+    const { limit = 20 } = req.query;
+
+    const posts = await getTrendingByHashtag(tag, parseInt(limit));
+
+    res.json({
+      success: true,
+      data: {
+        posts: posts,
+        hashtag: tag,
+        count: posts.length
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching trending posts by hashtag:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch trending posts by hashtag',
       error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
     });
   }

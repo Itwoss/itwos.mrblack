@@ -1,5 +1,6 @@
 const cron = require('node-cron');
 const { runTrendingUpdateJob } = require('./trendingAlgorithm');
+const { clearTrendingCache } = require('./trendingCache');
 
 /**
  * Trending Score Update Cron Job
@@ -9,11 +10,15 @@ const { runTrendingUpdateJob } = require('./trendingAlgorithm');
 let trendingCronJob = null;
 
 function startTrendingCron() {
-  // Run every 15 minutes
+  // Run every 5 minutes (as per specification: 1-5 minutes)
   // Format: minute hour day month dayOfWeek
-  trendingCronJob = cron.schedule('*/15 * * * *', async () => {
+  trendingCronJob = cron.schedule('*/5 * * * *', async () => {
     try {
       console.log('⏰ Running scheduled trending score update...');
+      
+      // Clear cache before updating (will be repopulated with fresh data)
+      await clearTrendingCache();
+      
       await runTrendingUpdateJob();
     } catch (error) {
       console.error('❌ Scheduled trending update failed:', error);
@@ -23,7 +28,7 @@ function startTrendingCron() {
     timezone: 'UTC'
   });
 
-  console.log('✅ Trending score update cron job started (runs every 15 minutes)');
+  console.log('✅ Trending score update cron job started (runs every 5 minutes)');
 }
 
 function stopTrendingCron() {

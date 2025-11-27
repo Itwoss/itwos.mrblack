@@ -14,6 +14,7 @@ import {
   ShoppingOutlined,
   MonitorOutlined,
   PictureOutlined,
+  FireOutlined,
 } from '@ant-design/icons'
 import { useNavigate, useLocation } from 'react-router-dom'
 import AdminHeader from './Admin/AdminHeader'
@@ -31,18 +32,16 @@ const AdminLayout = ({ children }) => {
   const getCurrentMenuKey = () => {
     const path = location.pathname
     if (path === '/admin/dashboard' || path === '/admin') return 'dashboard'
-    if (path.includes('/admin/users')) return 'users'
+    if (path.includes('/admin/management')) return 'management'
     if (path.includes('/admin/orders')) return 'orders'
     if (path.includes('/admin/analytics')) return 'analytics'
-    if (path.includes('/admin/content')) return 'content'
+    if (path.includes('/admin/trending/settings')) return 'trending-settings'
+    if (path.includes('/admin/trending')) return 'trending'
     if (path.includes('/admin/notifications')) return 'notifications'
     if (path.includes('/admin/settings')) return 'settings'
     if (path.includes('/admin/products')) return 'products'
-    if (path.includes('/admin/prebooks')) return 'prebooks'
     if (path.includes('/admin/payments')) return 'payments'
     if (path.includes('/admin/user-activities')) return 'activities'
-    if (path.includes('/admin/banners')) return 'banners'
-    if (path.includes('/admin/posts')) return 'posts'
     return 'dashboard'
   }
 
@@ -69,24 +68,14 @@ const AdminLayout = ({ children }) => {
       label: 'Dashboard',
     },
     {
-      key: 'users',
-      icon: <TeamOutlined />,
-      label: 'User Management',
+      key: 'management',
+      icon: <SettingOutlined />,
+      label: 'Management',
     },
     {
       key: 'products',
       icon: <ShoppingOutlined />,
       label: 'Products',
-    },
-    {
-      key: 'banners',
-      icon: <PictureOutlined />,
-      label: 'Banner Management',
-    },
-    {
-      key: 'posts',
-      icon: <FileTextOutlined />,
-      label: 'Post Management',
     },
     {
       key: 'orders',
@@ -99,19 +88,19 @@ const AdminLayout = ({ children }) => {
       label: 'Analytics',
     },
     {
-      key: 'content',
-      icon: <FileTextOutlined />,
-      label: 'Content Management',
+      key: 'trending',
+      icon: <FireOutlined />,
+      label: 'Trending Analytics',
+    },
+    {
+      key: 'trending-settings',
+      icon: <SettingOutlined />,
+      label: 'Trending Settings',
     },
     {
       key: 'notifications',
       icon: <BellOutlined />,
       label: 'Notifications',
-    },
-    {
-      key: 'prebooks',
-      icon: <DollarOutlined />,
-      label: 'Prebook Management',
     },
     {
       key: 'payments',
@@ -136,17 +125,11 @@ const AdminLayout = ({ children }) => {
       case 'dashboard':
         navigate('/admin/dashboard')
         break
-      case 'users':
-        navigate('/admin/users')
+      case 'management':
+        navigate('/admin/management/users')
         break
       case 'products':
         navigate('/admin/products')
-        break
-      case 'banners':
-        navigate('/admin/banners')
-        break
-      case 'posts':
-        navigate('/admin/posts')
         break
       case 'orders':
         navigate('/admin/orders')
@@ -154,14 +137,14 @@ const AdminLayout = ({ children }) => {
       case 'analytics':
         navigate('/admin/analytics')
         break
-      case 'content':
-        navigate('/admin/content')
+      case 'trending':
+        navigate('/admin/trending')
+        break
+      case 'trending-settings':
+        navigate('/admin/trending/settings')
         break
       case 'notifications':
         navigate('/admin/notifications')
-        break
-      case 'prebooks':
-        navigate('/admin/prebooks')
         break
       case 'payments':
         navigate('/admin/payments')
