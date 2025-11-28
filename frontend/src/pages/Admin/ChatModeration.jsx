@@ -24,7 +24,6 @@ const { Title, Paragraph, Text } = Typography
 const { Search } = Input
 const { Option } = Select
 const { TextArea } = Input
-// const { TabPane } = Tabs // Deprecated, using items prop instead
 
 const ChatModeration = () => {
   const [messages, setMessages] = useState([])

@@ -375,7 +375,7 @@ const VerifiedBadge = () => {
           background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
           color: '#fff'
         }}
-        bodyStyle={{ padding: '32px' }}
+        styles={{ body: { padding: '32px' } }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '16px' }}>
           <div style={{
@@ -548,7 +548,7 @@ const VerifiedBadge = () => {
                   transform: isSelected ? 'scale(1.02)' : 'scale(1)',
                   boxShadow: isBestValue ? '0 4px 12px rgba(10, 132, 255, 0.2)' : '0 2px 4px rgba(0,0,0,0.05)'
                 }}
-                bodyStyle={{ padding: '20px' }}
+                styles={{ body: { padding: '20px' } }}
               >
                 {isBestValue && (
                   <Badge.Ribbon text="Best Value" color="#0A84FF" style={{ fontSize: '12px' }}>

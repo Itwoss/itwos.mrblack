@@ -433,8 +433,10 @@ const ProductsPage = () => {
                     </Button>
                   </Link>
         ]}
-        bodyStyle={{
-          padding: 'var(--space-md)'
+        styles={{
+          body: {
+            padding: 'var(--space-md)'
+          }
         }}
       >
         <Card.Meta

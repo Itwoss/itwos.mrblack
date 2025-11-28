@@ -381,7 +381,7 @@ const NewUsers = () => {
                   textAlign: 'center',
                   cursor: 'pointer'
                 }}
-                bodyStyle={{ padding: '20px' }}
+                styles={{ body: { padding: '20px' } }}
                 onClick={(e) => {
                   e.preventDefault()
                   e.stopPropagation()

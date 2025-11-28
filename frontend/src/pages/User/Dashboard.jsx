@@ -523,7 +523,7 @@ const Dashboard = () => {
             cursor: 'pointer',
             color: '#fff'
           }}
-          bodyStyle={{ padding: '24px' }}
+          styles={{ body: { padding: '24px' } }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
             <div style={{

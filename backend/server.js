@@ -294,31 +294,21 @@ app.use(cors({
       'http://127.0.0.1:5173',
       'http://127.0.0.1:5175',
       'http://127.0.0.1:5174',
+      // Allow network access from mobile devices
+      /^http:\/\/192\.168\.\d+\.\d+:5173$/,
+      /^http:\/\/192\.168\.\d+\.\d+:5174$/,
+      /^http:\/\/192\.168\.\d+\.\d+:5175$/,
+      /^http:\/\/10\.\d+\.\d+\.\d+:5173$/,
+      /^http:\/\/172\.\d+\.\d+\.\d+:5173$/,
       'http://127.0.0.1:3000',
-      process.env.FRONTEND_URL,
-      // Vercel URLs (production and preview)
-      process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null
+      process.env.FRONTEND_URL
     ].filter(Boolean)
-    
-    // In production, also allow Vercel domains
-    if (process.env.NODE_ENV === 'production') {
-      if (origin && /\.vercel\.app$/.test(origin)) {
-        console.log('CORS: Allowing Vercel origin:', origin)
-        return callback(null, true)
-      }
-    }
     
     if (allowedOrigins.indexOf(origin) !== -1) {
       callback(null, true)
     } else {
-      // In development, allow all origins
-      if (process.env.NODE_ENV !== 'production') {
-        console.log('CORS: Allowing origin (dev mode):', origin)
-        callback(null, true)
-      } else {
-        console.log('CORS: Blocking origin:', origin)
-        callback(new Error('Not allowed by CORS'))
-      }
+      console.log('CORS: Allowing origin:', origin)
+      callback(null, true) // Allow all origins in development
     }
   },
   credentials: true,
@@ -622,10 +612,26 @@ app.use('*', (req, res) => {
 const PORT = process.env.PORT || 7000
 
 server.listen(PORT, '0.0.0.0', () => {
+  const os = require('os')
+  const networkInterfaces = os.networkInterfaces()
+  let localIP = 'localhost'
+  
+  // Find local IP address
+  for (const interfaceName in networkInterfaces) {
+    const addresses = networkInterfaces[interfaceName]
+    for (const addr of addresses) {
+      if (addr.family === 'IPv4' && !addr.internal) {
+        localIP = addr.address
+        break
+      }
+    }
+    if (localIP !== 'localhost') break
+  }
+  
   console.log(`🚀 Server running on port ${PORT}`)
   console.log(`📊 Health check: http://localhost:${PORT}/api/health`)
-  console.log(`🔗 API Base URL: http://localhost:${PORT}/api`)
+  console.log(`🔗 API Base URL (Local): http://localhost:${PORT}/api`)
+  console.log(`🔗 API Base URL (Network): http://${localIP}:${PORT}/api`)
   console.log(`🔌 Socket.IO: ws://localhost:${PORT}/socket.io/`)
-  console.log(`📱 Network access: http://192.168.31.132:${PORT}/api`)
-  console.log(`📱 Frontend access: http://192.168.31.132:5173`)
+  console.log(`📱 Mobile Access: http://${localIP}:${PORT}/api`)
 })

@@ -11,11 +11,6 @@ export default defineConfig({
     // Memory optimization
     hmr: {
       overlay: false
-    },
-    // Reduce memory usage
-    watch: {
-      usePolling: false,
-      ignored: ['**/node_modules/**', '**/.git/**', '**/dist/**']
     }
   },
   build: {

@@ -171,4 +171,3 @@ export const getRotatedImage = async (imageSrc, rotation = 0) => {
     }, 'image/jpeg', 0.9)
   })
 }
-

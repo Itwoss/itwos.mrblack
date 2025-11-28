@@ -1,11 +1,10 @@
 import React, { useState, useEffect } from 'react'
-import { Card, Button, Space, Tag, Typography, Row, Col, Input, Select, message, Empty, Badge } from 'antd'
+import { Card, Button, Space, Tag, Typography, Row, Col, Input, Select, message, Empty, Statistic } from 'antd'
 import { 
   HeartOutlined, 
   ShoppingCartOutlined, 
   DeleteOutlined, 
   EyeOutlined,
-  SearchOutlined,
   FilterOutlined,
   StarOutlined,
   DollarOutlined,
@@ -23,7 +22,7 @@ const { Option } = Select
 const Wishlist = () => {
   const [wishlist, setWishlist] = useState([])
   const [loading, setLoading] = useState(false)
-  const { user, isAuthenticated } = useAuth()
+  const { user } = useAuth()
   const navigate = useNavigate()
 
   const [stats, setStats] = useState({
@@ -300,7 +299,3 @@ const Wishlist = () => {
 }
 
 export default Wishlist
-
-
-
-

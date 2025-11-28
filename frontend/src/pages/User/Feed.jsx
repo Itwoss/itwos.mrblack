@@ -821,19 +821,11 @@ const Feed = () => {
                     overflow: 'hidden'
                   }}>
                     <img 
-                      src={(() => {
-                        // Construct full image URL
-                        if (post.imageUrl?.startsWith('http')) {
-                          return post.imageUrl
-                        }
-                        // Get base URL without /api
-                        const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:7000/api'
-                        const baseUrl = apiUrl.replace('/api', '')
-                        // Ensure imageUrl starts with /
-                        const imagePath = post.imageUrl?.startsWith('/') ? post.imageUrl : `/${post.imageUrl}`
-                        const fullUrl = `${baseUrl}${imagePath}`
-                        return fullUrl
-                      })()}
+                      src={
+                        post.imageUrl.startsWith('http') 
+                          ? post.imageUrl 
+                          : `${(import.meta.env.VITE_API_URL || 'http://localhost:7000/api').replace('/api', '')}${post.imageUrl.startsWith('/') ? post.imageUrl : '/' + post.imageUrl}`
+                      }
                       alt="Post" 
                       style={{ 
                         width: '100%',
@@ -844,7 +836,10 @@ const Feed = () => {
                         objectFit: 'contain' // Show full image without cropping
                       }}
                       onError={(e) => {
-                        e.target.style.display = 'none'
+                        console.error('Failed to load post image:', post.imageUrl)
+                        // Show placeholder instead of hiding
+                        e.target.src = '/placeholder-image.svg'
+                        e.target.style.opacity = '0.5'
                       }}
                       onClick={() => {
                         if (post.instagramRedirectUrl) {
