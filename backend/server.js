@@ -295,14 +295,30 @@ app.use(cors({
       'http://127.0.0.1:5175',
       'http://127.0.0.1:5174',
       'http://127.0.0.1:3000',
-      process.env.FRONTEND_URL
+      process.env.FRONTEND_URL,
+      // Vercel URLs (production and preview)
+      process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null
     ].filter(Boolean)
+    
+    // In production, also allow Vercel domains
+    if (process.env.NODE_ENV === 'production') {
+      if (origin && /\.vercel\.app$/.test(origin)) {
+        console.log('CORS: Allowing Vercel origin:', origin)
+        return callback(null, true)
+      }
+    }
     
     if (allowedOrigins.indexOf(origin) !== -1) {
       callback(null, true)
     } else {
-      console.log('CORS: Allowing origin:', origin)
-      callback(null, true) // Allow all origins in development
+      // In development, allow all origins
+      if (process.env.NODE_ENV !== 'production') {
+        console.log('CORS: Allowing origin (dev mode):', origin)
+        callback(null, true)
+      } else {
+        console.log('CORS: Blocking origin:', origin)
+        callback(new Error('Not allowed by CORS'))
+      }
     }
   },
   credentials: true,
@@ -605,9 +621,11 @@ app.use('*', (req, res) => {
 
 const PORT = process.env.PORT || 7000
 
-server.listen(PORT, () => {
+server.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Server running on port ${PORT}`)
   console.log(`📊 Health check: http://localhost:${PORT}/api/health`)
   console.log(`🔗 API Base URL: http://localhost:${PORT}/api`)
   console.log(`🔌 Socket.IO: ws://localhost:${PORT}/socket.io/`)
+  console.log(`📱 Network access: http://192.168.31.132:${PORT}/api`)
+  console.log(`📱 Frontend access: http://192.168.31.132:5173`)
 })
