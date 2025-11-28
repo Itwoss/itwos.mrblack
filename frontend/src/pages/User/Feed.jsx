@@ -816,11 +816,9 @@ const Feed = () => {
                     width: '100%', 
                     display: 'flex', 
                     justifyContent: 'center',
-                    backgroundColor: '#f5f5f5',
+                    backgroundColor: '#000',
                     borderRadius: '8px',
-                    overflow: 'hidden',
-                    minHeight: '200px',
-                    alignItems: 'center'
+                    overflow: 'hidden'
                   }}>
                     <img 
                       src={(() => {
@@ -846,40 +844,7 @@ const Feed = () => {
                         objectFit: 'contain' // Show full image without cropping
                       }}
                       onError={(e) => {
-                        // Hide the broken image and show a placeholder
                         e.target.style.display = 'none'
-                        const container = e.target.parentElement
-                        if (container && !container.querySelector('.image-placeholder')) {
-                          const placeholder = document.createElement('div')
-                          placeholder.className = 'image-placeholder'
-                          placeholder.style.cssText = `
-                            width: 100%;
-                            height: 300px;
-                            display: flex;
-                            align-items: center;
-                            justify-content: center;
-                            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                            color: white;
-                            font-size: 16px;
-                            text-align: center;
-                            padding: 20px;
-                          `
-                          placeholder.innerHTML = `
-                            <div>
-                              <div style="font-size: 48px; margin-bottom: 10px;">📷</div>
-                              <div>Image not available</div>
-                              <div style="font-size: 12px; margin-top: 5px; opacity: 0.8;">The image file may have been deleted</div>
-                            </div>
-                          `
-                          container.appendChild(placeholder)
-                        }
-                        // Only log in development
-                        if (import.meta.env.DEV) {
-                          console.warn('⚠️ Image not found:', {
-                            original: post.imageUrl,
-                            constructed: e.target.src
-                          })
-                        }
                       }}
                       onClick={() => {
                         if (post.instagramRedirectUrl) {
