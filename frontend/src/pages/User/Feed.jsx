@@ -821,11 +821,20 @@ const Feed = () => {
                     overflow: 'hidden'
                   }}>
                     <img 
-                      src={
-                        post.imageUrl.startsWith('http') 
-                          ? post.imageUrl 
-                          : `${(import.meta.env.VITE_API_URL || 'http://localhost:7000/api').replace('/api', '')}${post.imageUrl}`
-                      }
+                      src={(() => {
+                        // Construct full image URL
+                        if (post.imageUrl?.startsWith('http')) {
+                          return post.imageUrl
+                        }
+                        // Get base URL without /api
+                        const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:7000/api'
+                        const baseUrl = apiUrl.replace('/api', '')
+                        // Ensure imageUrl starts with /
+                        const imagePath = post.imageUrl?.startsWith('/') ? post.imageUrl : `/${post.imageUrl}`
+                        const fullUrl = `${baseUrl}${imagePath}`
+                        console.log('🖼️ Image URL:', { original: post.imageUrl, full: fullUrl, baseUrl, apiUrl })
+                        return fullUrl
+                      })()}
                       alt="Post" 
                       style={{ 
                         width: '100%',
@@ -836,7 +845,11 @@ const Feed = () => {
                         objectFit: 'contain' // Show full image without cropping
                       }}
                       onError={(e) => {
-                        console.error('Failed to load post image:', post.imageUrl)
+                        console.error('Failed to load post image:', {
+                          original: post.imageUrl,
+                          constructed: e.target.src,
+                          baseUrl: (import.meta.env.VITE_API_URL || 'http://localhost:7000/api').replace('/api', '')
+                        })
                         e.target.style.display = 'none'
                       }}
                       onClick={() => {
