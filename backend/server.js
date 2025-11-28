@@ -602,6 +602,25 @@ app.use((err, req, res, next) => {
   })
 })
 
+// Root route
+app.get('/', (req, res) => {
+  res.json({
+    success: true,
+    message: 'ITWOS AI Backend API',
+    version: '1.0.0',
+    endpoints: {
+      health: '/api/health',
+      auth: '/api/auth',
+      users: '/api/users',
+      posts: '/api/posts',
+      feed: '/api/feed',
+      products: '/api/products',
+      notifications: '/api/notifications'
+    },
+    documentation: 'See README.md for API documentation'
+  })
+})
+
 // 404 handler
 app.use('*', (req, res) => {
   console.log('❌ 404 - Route not found:', {
@@ -615,7 +634,8 @@ app.use('*', (req, res) => {
     success: false,
     message: 'Route not found',
     method: req.method,
-    path: req.path
+    path: req.path,
+    hint: 'API endpoints are available under /api/*. Try /api/health for health check.'
   })
 })
 
