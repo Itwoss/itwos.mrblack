@@ -53,6 +53,12 @@ const NotificationPopup = ({ visible, onClose, userId }) => {
   // Get notification icon based on type
   const getNotificationIcon = (type) => {
     switch (type) {
+      case 'like':
+        return <span style={{ fontSize: 16 }}>❤️</span>
+      case 'comment':
+        return <span style={{ fontSize: 16 }}>💬</span>
+      case 'comment_like':
+        return <span style={{ fontSize: 16 }}>👍</span>
       case 'payment_success':
         return <DollarOutlined style={{ color: '#52c41a' }} />
       case 'prebook_confirmed':
@@ -75,6 +81,12 @@ const NotificationPopup = ({ visible, onClose, userId }) => {
   // Get notification color based on type
   const getNotificationColor = (type) => {
     switch (type) {
+      case 'like':
+        return '#ff4d4f'
+      case 'comment':
+        return '#1890ff'
+      case 'comment_like':
+        return '#52c41a'
       case 'payment_success':
         return '#52c41a'
       case 'prebook_confirmed':

@@ -522,6 +522,93 @@ router.post('/:id/like', authenticateToken, requireUser, async (req, res) => {
       // Like: add user to likedBy and increment likes
       post.likedBy.push(new mongoose.Types.ObjectId(userId));
       post.likes = post.likes + 1;
+      
+      // Create notification for post owner (if liker is not the owner)
+      // Ensure postOwnerId is a string
+      const postOwnerId = post.userId?.toString ? post.userId.toString() : String(post.userId);
+      if (postOwnerId !== userIdStr) {
+        try {
+          const Notification = require('../models/Notification');
+          const User = require('../models/User');
+          const liker = await User.findById(userId).select('name username avatarUrl');
+          
+          const notification = new Notification({
+            userId: post.userId,
+            type: 'like',
+            title: 'New Like',
+            message: `${liker?.name || liker?.username || 'Someone'} liked your post`,
+            data: {
+              postId: post._id.toString(),
+              likerId: userId.toString(),
+              likerName: liker?.name || liker?.username,
+              likerAvatar: liker?.avatarUrl
+            },
+            priority: 'normal'
+          });
+          
+          await notification.save();
+          console.log(`✅ Like notification created for post owner: ${postOwnerId}`, {
+            notificationId: notification._id,
+            postId: post._id.toString(),
+            likerId: userId.toString()
+          });
+
+          // Emit real-time notification via Socket.IO
+          const io = req.app.get('io');
+          if (io) {
+            const socketRoom = `user:${postOwnerId}`;
+            const notificationData = {
+              _id: notification._id,
+              type: 'like',
+              title: notification.title,
+              message: notification.message,
+              from: {
+                _id: liker?._id,
+                name: liker?.name,
+                username: liker?.username,
+                avatarUrl: liker?.avatarUrl
+              },
+              data: {
+                postId: post._id.toString()
+              },
+              read: false,
+              createdAt: new Date()
+            };
+            
+            // Get all sockets in the room to verify
+            const socketsInRoom = io.sockets.adapter.rooms.get(socketRoom);
+            console.log(`📬 Like notification - Room: ${socketRoom}, Sockets in room: ${socketsInRoom ? socketsInRoom.size : 0}`);
+            
+            // Emit to the room
+            io.to(socketRoom).emit('new_notification', notificationData);
+            console.log(`📬 Like notification sent via Socket.IO to room: ${socketRoom}`, {
+              notificationId: notification._id,
+              type: notificationData.type,
+              title: notificationData.title,
+              message: notificationData.message,
+              socketsInRoom: socketsInRoom ? socketsInRoom.size : 0
+            });
+            
+            // Also try emitting to all sockets as fallback (for debugging)
+            if (!socketsInRoom || socketsInRoom.size === 0) {
+              console.warn(`⚠️ No sockets found in room ${socketRoom}, trying broadcast fallback`);
+              io.emit('new_notification', { ...notificationData, _fallback: true });
+            }
+          } else {
+            console.warn('⚠️ Socket.IO not available for real-time notification');
+          }
+        } catch (notifError) {
+          console.error('❌ Failed to create like notification:', notifError);
+          // Don't fail the request if notification fails
+        }
+      } else {
+        console.log(`ℹ️ Like from post owner, skipping notification`, {
+          postOwnerId,
+          likerId: userIdStr,
+          isOwnPost: true,
+          postId: post._id.toString()
+        });
+      }
     }
 
     await post.save();
@@ -850,6 +937,20 @@ router.get('/feed', authenticateToken, requireUser, async (req, res) => {
         }
         if (postData.audioUrl && !fullPost.audioUrl) {
           fullPost.audioUrl = postData.audioUrl;
+        }
+        
+        // Add isLiked field to each comment if userId is provided
+        if (userId && fullPost.commentsArray) {
+          fullPost.commentsArray = fullPost.commentsArray.map(comment => {
+            const isLiked = comment.likedBy && Array.isArray(comment.likedBy) 
+              ? comment.likedBy.some(id => id && id.toString() === userId.toString())
+              : false;
+            return {
+              ...comment,
+              isLiked,
+              likes: comment.likes || 0
+            };
+          });
         }
         
         return fullPost;
@@ -1366,7 +1467,16 @@ router.get('/:id', optionalAuth, async (req, res) => {
     }
 
     const postData = post.getPublicData(userId);
-    postData.commentsArray = post.commentsArray || [];
+    postData.commentsArray = (post.commentsArray || []).map(comment => {
+      const isLiked = comment.likedBy && Array.isArray(comment.likedBy)
+        ? comment.likedBy.some(id => id && id.toString() === userId?.toString())
+        : false;
+      return {
+        ...comment.toObject ? comment.toObject() : comment,
+        isLiked,
+        likes: comment.likes || 0
+      };
+    });
 
     console.log('✅ Post fetched successfully:', postId, 'Comments:', postData.commentsArray.length);
 
@@ -1439,8 +1549,10 @@ router.post('/:id/comments', authenticateToken, requireUser, async (req, res) =>
     await post.populate('commentsArray.userId', 'name username avatarUrl');
 
     // Create notification for post owner (if commenter is not the owner)
-    const postOwnerId = post.userId.toString();
-    if (postOwnerId !== userId.toString()) {
+    // Ensure postOwnerId is a string
+    const postOwnerId = post.userId?.toString ? post.userId.toString() : String(post.userId);
+    const currentUserIdStr = userId?.toString ? userId.toString() : String(userId);
+    if (postOwnerId !== currentUserIdStr) {
       try {
         const Notification = require('../models/Notification');
         const User = require('../models/User');
@@ -1473,7 +1585,9 @@ router.post('/:id/comments', authenticateToken, requireUser, async (req, res) =>
         // Emit real-time notification via Socket.IO
         const io = req.app.get('io');
         if (io) {
-          const socketRoom = `user:${postOwnerId}`;
+          // Ensure postOwnerId is a string for room name
+          const postOwnerIdStr = postOwnerId?.toString ? postOwnerId.toString() : String(postOwnerId);
+          const socketRoom = `user:${postOwnerIdStr}`;
           const notificationData = {
             _id: notification._id,
             type: 'comment',
@@ -1494,8 +1608,25 @@ router.post('/:id/comments', authenticateToken, requireUser, async (req, res) =>
             createdAt: new Date()
           };
           
+          // Get all sockets in the room to verify
+          const socketsInRoom = io.sockets.adapter.rooms.get(socketRoom);
+          console.log(`📬 Comment notification - Room: ${socketRoom}, Sockets in room: ${socketsInRoom ? socketsInRoom.size : 0}`);
+          
+          // Emit to the room
           io.to(socketRoom).emit('new_notification', notificationData);
-          console.log(`📬 Comment notification sent via Socket.IO to room: ${socketRoom}`, notificationData);
+          console.log(`📬 Comment notification sent via Socket.IO to room: ${socketRoom}`, {
+            notificationId: notification._id,
+            type: notificationData.type,
+            title: notificationData.title,
+            message: notificationData.message,
+            socketsInRoom: socketsInRoom ? socketsInRoom.size : 0
+          });
+          
+          // Also try emitting to all sockets as fallback (for debugging)
+          if (!socketsInRoom || socketsInRoom.size === 0) {
+            console.warn(`⚠️ No sockets found in room ${socketRoom}, trying broadcast fallback`);
+            io.emit('new_notification', { ...notificationData, _fallback: true });
+          }
         } else {
           console.warn('⚠️ Socket.IO not available for real-time notification');
         }
@@ -1524,6 +1655,172 @@ router.post('/:id/comments', authenticateToken, requireUser, async (req, res) =>
     res.status(500).json({
       success: false,
       message: 'Failed to add comment',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+    });
+  }
+});
+
+/**
+ * POST /api/posts/:id/comments/:commentId/like
+ * Toggle like on a comment
+ */
+router.post('/:id/comments/:commentId/like', authenticateToken, requireUser, async (req, res) => {
+  try {
+    const postId = req.params.id;
+    const commentId = req.params.commentId;
+    const userId = req.user._id || req.user.id;
+
+    const post = await Post.findById(postId);
+    if (!post) {
+      return res.status(404).json({
+        success: false,
+        message: 'Post not found'
+      });
+    }
+
+    // Find the comment
+    const comment = post.commentsArray.id(commentId);
+    if (!comment) {
+      return res.status(404).json({
+        success: false,
+        message: 'Comment not found'
+      });
+    }
+
+    const userIdStr = userId.toString();
+    
+    // Initialize likedBy and likes if they don't exist
+    if (!Array.isArray(comment.likedBy)) {
+      comment.likedBy = [];
+    }
+    if (typeof comment.likes !== 'number') {
+      comment.likes = 0;
+    }
+    
+    const isLiked = comment.likedBy.some(id => {
+      if (!id) return false;
+      return id.toString() === userIdStr;
+    });
+
+    if (isLiked) {
+      // Unlike: remove user from likedBy and decrement likes
+      comment.likedBy = comment.likedBy.filter(id => {
+        if (!id) return false;
+        return id.toString() !== userIdStr;
+      });
+      comment.likes = Math.max(0, comment.likes - 1);
+    } else {
+      // Like: add user to likedBy and increment likes
+      comment.likedBy.push(new mongoose.Types.ObjectId(userId));
+      comment.likes = (comment.likes || 0) + 1;
+      
+      // Create notification for comment owner (if liker is not the owner)
+      // Ensure commentOwnerId is a string
+      const commentOwnerId = comment.userId?.toString ? comment.userId.toString() : String(comment.userId);
+      if (commentOwnerId !== userIdStr) {
+        try {
+          const Notification = require('../models/Notification');
+          const User = require('../models/User');
+          const liker = await User.findById(userId).select('name username avatarUrl');
+          
+          const notification = new Notification({
+            userId: comment.userId,
+            type: 'comment_like',
+            title: 'New Comment Like',
+            message: `${liker?.name || liker?.username || 'Someone'} liked your comment`,
+            data: {
+              postId: post._id.toString(),
+              commentId: commentId,
+              likerId: userId.toString(),
+              likerName: liker?.name || liker?.username,
+              likerAvatar: liker?.avatarUrl,
+              commentText: comment.text.substring(0, 50)
+            },
+            priority: 'normal'
+          });
+          
+          await notification.save();
+          console.log(`✅ Comment like notification created for comment owner: ${commentOwnerId}`, {
+            notificationId: notification._id,
+            postId: post._id.toString(),
+            commentId: commentId,
+            likerId: userId.toString()
+          });
+
+          // Emit real-time notification via Socket.IO
+          const io = req.app.get('io');
+          if (io) {
+            // Ensure commentOwnerId is a string for room name
+            const commentOwnerIdStr = commentOwnerId?.toString ? commentOwnerId.toString() : String(commentOwnerId);
+            const socketRoom = `user:${commentOwnerIdStr}`;
+            const notificationData = {
+              _id: notification._id,
+              type: 'comment_like',
+              title: notification.title,
+              message: notification.message,
+              from: {
+                _id: liker?._id,
+                name: liker?.name,
+                username: liker?.username,
+                avatarUrl: liker?.avatarUrl
+              },
+              data: {
+                postId: post._id.toString(),
+                commentId: commentId,
+                commentText: comment.text.substring(0, 100)
+              },
+              read: false,
+              createdAt: new Date()
+            };
+            
+            // Get all sockets in the room to verify
+            const socketsInRoom = io.sockets.adapter.rooms.get(socketRoom);
+            console.log(`📬 Comment like notification - Room: ${socketRoom}, Sockets in room: ${socketsInRoom ? socketsInRoom.size : 0}`);
+            
+            // Emit to the room
+            io.to(socketRoom).emit('new_notification', notificationData);
+            console.log(`📬 Comment like notification sent via Socket.IO to room: ${socketRoom}`, {
+              notificationId: notification._id,
+              type: notificationData.type,
+              title: notificationData.title,
+              message: notificationData.message,
+              socketsInRoom: socketsInRoom ? socketsInRoom.size : 0
+            });
+            
+            // Also try emitting to all sockets as fallback (for debugging)
+            if (!socketsInRoom || socketsInRoom.size === 0) {
+              console.warn(`⚠️ No sockets found in room ${socketRoom}, trying broadcast fallback`);
+              io.emit('new_notification', { ...notificationData, _fallback: true });
+            }
+          } else {
+            console.warn('⚠️ Socket.IO not available for real-time notification');
+          }
+        } catch (notifError) {
+          console.error('❌ Failed to create comment like notification:', notifError);
+          // Don't fail the request if notification fails
+        }
+      } else {
+        console.log(`ℹ️ Comment like from comment owner, skipping notification`);
+      }
+    }
+
+    await post.save();
+
+    res.json({
+      success: true,
+      message: isLiked ? 'Comment unliked' : 'Comment liked',
+      data: {
+        commentId: commentId,
+        likes: comment.likes || 0,
+        isLiked: !isLiked
+      }
+    });
+
+  } catch (error) {
+    console.error('Error toggling comment like:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to toggle comment like',
       error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
     });
   }

@@ -24,6 +24,9 @@ const notificationSchema = new mongoose.Schema({
       'prebook_rejected',
       'prebook_status_update',
       'subscription_purchase',
+      'like',
+      'comment',
+      'comment_like',
       'comment',
       'like',
       'follow'

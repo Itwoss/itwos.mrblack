@@ -27,6 +27,7 @@ const Feed = () => {
   const [postComments, setPostComments] = useState({}) // Store comments for each post
   const [postCommentTexts, setPostCommentTexts] = useState({}) // Store comment text for each post
   const [submittingPostComments, setSubmittingPostComments] = useState(new Set()) // Track which posts are submitting comments
+  const [likingComments, setLikingComments] = useState(new Set()) // Track which comments are being liked (format: "postId-commentId")
   const viewedPostsRef = useRef(new Set()) // Track which posts have been viewed
   const [playingAudio, setPlayingAudio] = useState(null) // Track which post's audio is playing
   const [mutedAudios, setMutedAudios] = useState(new Set()) // Track which posts' audio are muted
@@ -1075,6 +1076,24 @@ const Feed = () => {
                                 <Text style={{ fontSize: '14px', lineHeight: '1.5' }}>
                                   {comment.text}
                                 </Text>
+                                <div style={{ marginTop: '4px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                  <Button
+                                    type="text"
+                                    size="small"
+                                    icon={comment.isLiked ? <HeartFilled style={{ color: '#ff4d4f', fontSize: '14px' }} /> : <HeartOutlined style={{ fontSize: '14px' }} />}
+                                    onClick={(e) => handleCommentLike(e, post._id, comment._id || comment._id?.toString(), comment.likes || 0, comment.isLiked || false)}
+                                    style={{ 
+                                      color: comment.isLiked ? '#ff4d4f' : undefined,
+                                      padding: '0 4px',
+                                      height: 'auto',
+                                      fontSize: '12px'
+                                    }}
+                                    disabled={likingComments.has(`${post._id}-${comment._id || comment._id?.toString()}`)}
+                                    loading={likingComments.has(`${post._id}-${comment._id || comment._id?.toString()}`)}
+                                  >
+                                    {comment.likes || 0}
+                                  </Button>
+                                </div>
                               </div>
                             </div>
                           );

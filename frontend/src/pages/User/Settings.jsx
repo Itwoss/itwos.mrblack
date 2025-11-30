@@ -182,6 +182,13 @@ const Settings = () => {
             }
           }
         } catch (error) {
+          // Don't treat aborted requests as errors (they're cancelled intentionally)
+          if (error.code === 'ECONNABORTED' || error.message === 'Request aborted' || error.name === 'CanceledError') {
+            console.log('📝 Settings: Request was cancelled (this is normal):', error.message)
+            // Don't log as error or show error state for cancelled requests
+            return
+          }
+          
           console.error('📝 Settings: Error fetching user profile:', error)
           
           // Fallback to user data from context on error
@@ -622,10 +629,10 @@ const Settings = () => {
                                   disabled
                                   style={{ cursor: 'not-allowed', backgroundColor: '#f5f5f5' }}
                                 />
-                                <Text type="secondary" style={{ fontSize: '12px', display: 'block', marginTop: '4px' }}>
-                                  Email cannot be changed here. Contact support to change your email.
-                                </Text>
                               </Form.Item>
+                              <Text type="secondary" style={{ fontSize: '12px', display: 'block', marginTop: '-16px', marginBottom: '16px' }}>
+                                Email cannot be changed here. Contact support to change your email.
+                              </Text>
                             </Col>
                           </Row>
 

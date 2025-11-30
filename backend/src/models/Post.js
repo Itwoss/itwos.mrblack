@@ -91,7 +91,9 @@ const postSchema = new mongoose.Schema({
   commentsArray: [{ // Embedded comments
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     text: { type: String, required: true, maxlength: 500 },
-    createdAt: { type: Date, default: Date.now }
+    createdAt: { type: Date, default: Date.now },
+    likes: { type: Number, default: 0 },
+    likedBy: { type: [mongoose.Schema.Types.ObjectId], ref: 'User', default: [] }
   }],
   saves: {
     type: Number,

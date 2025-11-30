@@ -39,6 +39,16 @@ const NotificationBell = () => {
   
   // Use actual unread count (no demo count)
   const displayCount = unreadCount > 0 ? unreadCount : 0
+  
+  // Debug: Log when unreadCount changes
+  useEffect(() => {
+    console.log('🔔 NotificationBell - Unread count updated:', {
+      unreadCount,
+      displayCount,
+      notificationsCount: notifications?.length || 0,
+      userId
+    })
+  }, [unreadCount, displayCount, notifications?.length, userId])
 
   const handleBellClick = () => {
     setNotificationVisible(true)
@@ -62,6 +72,21 @@ const NotificationBell = () => {
       return () => clearInterval(interval)
     }
   }, [userId, fetchNotifications])
+  
+  // Listen for real-time notification updates
+  useEffect(() => {
+    if (!userId || userId === 'mock-user-id') {
+      return
+    }
+    
+    // The useNotifications hook already handles Socket.IO connections
+    // This effect just ensures we're aware of changes
+    console.log('🔔 NotificationBell - Monitoring notifications:', {
+      unreadCount,
+      notificationsCount: notifications?.length || 0,
+      userId
+    })
+  }, [notifications, unreadCount, userId])
 
   return (
     <>

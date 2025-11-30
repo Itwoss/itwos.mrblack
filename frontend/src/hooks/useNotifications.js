@@ -167,6 +167,16 @@ const useNotifications = (userId, userRole = 'user') => {
       // Clear any previous errors on success
       setError(null)
     } catch (err) {
+      // Don't treat aborted requests as errors (they're cancelled intentionally)
+      if (err.code === 'ECONNABORTED' || err.message === 'Request aborted' || err.name === 'CanceledError') {
+        console.log('🔔 Request was cancelled (this is normal):', err.message)
+        // Don't set error state for cancelled requests
+        setError(null)
+        setNotifications([])
+        setUnreadCount(0)
+        return
+      }
+      
       console.error('🔔 Error fetching notifications:', err)
       console.error('🔔 Error details:', {
         message: err.message,
@@ -309,9 +319,40 @@ const useNotifications = (userId, userRole = 'user') => {
 
   // Add new notification (for real-time updates)
   const addNotification = useCallback((newNotification) => {
-    setNotifications(prev => [newNotification, ...prev])
+    console.log('🔔 addNotification called:', {
+      notificationId: newNotification._id,
+      type: newNotification.type,
+      title: newNotification.title,
+      message: newNotification.message,
+      read: newNotification.read
+    })
+    
+    setNotifications(prev => {
+      // Check if notification already exists (avoid duplicates)
+      const exists = prev.some(n => 
+        (n._id === newNotification._id) || 
+        (n._id && newNotification._id && n._id.toString() === newNotification._id.toString())
+      )
+      
+      if (exists) {
+        console.log('🔔 Notification already exists, skipping duplicate:', newNotification._id)
+        return prev
+      }
+      
+      console.log('🔔 Adding new notification to state. Previous count:', prev.length)
+      const updated = [newNotification, ...prev]
+      console.log('🔔 Updated notifications count:', updated.length)
+      return updated
+    })
+    
     if (!newNotification.read) {
-      setUnreadCount(prev => prev + 1)
+      setUnreadCount(prev => {
+        const newCount = prev + 1
+        console.log('🔔 Incrementing unread count:', prev, '->', newCount)
+        return newCount
+      })
+    } else {
+      console.log('🔔 Notification is already read, not incrementing count')
     }
   }, [])
 
@@ -405,6 +446,9 @@ const useNotifications = (userId, userRole = 'user') => {
     // Listen for new_notification events (follow requests, follow accepted, etc.)
     const handleNewNotification = (data) => {
       console.log('🔔 New notification event received:', data)
+      console.log('🔔 Notification type:', data.type)
+      console.log('🔔 Notification title:', data.title)
+      console.log('🔔 Notification message:', data.message)
       // Format notification based on type
       let title = 'Notification'
       if (data.type === 'follow_request') {
@@ -415,6 +459,10 @@ const useNotifications = (userId, userRole = 'user') => {
         title = 'Follow Request Accepted'
       } else if (data.type === 'comment') {
         title = 'New Comment'
+      } else if (data.type === 'like') {
+        title = 'New Like'
+      } else if (data.type === 'comment_like') {
+        title = 'New Comment Like'
       } else {
         title = data.title || 'Notification'
       }

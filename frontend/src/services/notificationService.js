@@ -64,11 +64,13 @@ class NotificationService {
         if (userId && userId !== 'mock-user-id') {
           this.socket.emit('join-user-room', userId)
           console.log('🔌 Joining user room via join-user-room:', userId)
+          
+          // Wait a bit then verify
+          setTimeout(() => {
+            this.socket.emit('join-room', `user:${userId}`)
+            console.log('🔌 Also joining room via join-room: user:' + userId)
+          }, 100)
         }
-        
-        // Also join via join-room for compatibility
-        this.socket.emit('join-room', `user:${userId}`)
-        console.log('🔌 Joining room: user:' + userId)
         
         // Join admin room if user is admin
         if (userRole === 'admin' || userRole === 'superadmin') {
@@ -153,7 +155,11 @@ class NotificationService {
 
       // Listen for new_notification events (follow requests, etc.)
       this.socket.on('new_notification', (data) => {
-        console.log('🔔 New notification received:', data)
+        console.log('🔔 New notification received in notificationService:', data)
+        console.log('🔔 Notification type:', data.type)
+        console.log('🔔 Notification title:', data.title)
+        console.log('🔔 Notification message:', data.message)
+        console.log('🔔 Notification _id:', data._id)
         this.emit('new_notification', data)
       })
 
