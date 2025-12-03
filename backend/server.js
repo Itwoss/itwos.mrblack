@@ -39,13 +39,30 @@ io.on('connection', async (socket) => {
 
   let currentUserId = null
 
+  // Track active calls per user (userId -> call data)
+  // In production, use Redis or database for persistence
+  const activeCalls = new Map()
+
+  // Track global chat presence (userId -> socketId)
+  // In production, use Redis for better scalability
+  const globalChatPresence = new Map()
+
   // Handle user room joining (for notifications)
   socket.on('join-user-room', async (userId) => {
     if (userId) {
       currentUserId = userId
-      socket.join(`user:${userId}`)
-      console.log(`🔌 Client ${socket.id} joined user room: user:${userId}`)
-      socket.emit('user-room-joined', { userId, success: true })
+      const roomName = `user:${userId}`
+      socket.join(roomName)
+      
+      // Verify room membership
+      const rooms = Array.from(socket.rooms)
+      const isInRoom = rooms.includes(roomName)
+      
+      console.log(`🔌 Client ${socket.id} joined user room: ${roomName}`)
+      console.log(`🔌 Client ${socket.id} rooms:`, rooms)
+      console.log(`🔌 Client ${socket.id} is in room ${roomName}:`, isInRoom)
+      
+      socket.emit('user-room-joined', { userId, success: true, room: roomName, isInRoom })
       
       // Update user online status
       const User = require('./src/models/User')
@@ -94,6 +111,249 @@ io.on('connection', async (socket) => {
   // Handle ping/pong for connection testing
   socket.on('ping', () => {
     socket.emit('pong', { timestamp: Date.now() })
+  })
+
+  // ========== GLOBAL CHAT HANDLERS ==========
+
+  // Handle joining global chat
+  socket.on('join-global-chat', async (data) => {
+    const userId = data.userId || currentUserId
+    if (!userId) return
+
+    // Join global chat room
+    socket.join('global-chat')
+    
+    // Track presence
+    globalChatPresence.set(userId, {
+      socketId: socket.id,
+      joinedAt: new Date(),
+      lastSeen: new Date()
+    })
+
+    // Get user info
+    const User = require('./src/models/User')
+    const user = await User.findById(userId).select('name username avatarUrl')
+    
+    // Broadcast user joined
+    const userCount = globalChatPresence.size
+    io.to('global-chat').emit('user-joined', {
+      userId,
+      username: user?.name || user?.username || 'User',
+      userCount
+    })
+
+    // Send current user count to the new user
+    socket.emit('user-count-update', {
+      userCount,
+      activeUsers: Array.from(globalChatPresence.keys()).slice(0, 20) // First 20 for preview
+    })
+
+    console.log(`💬 User ${userId} joined global chat. Total: ${userCount}`)
+  })
+
+  // Handle leaving global chat
+  socket.on('leave-global-chat', (data) => {
+    const userId = data.userId || currentUserId
+    if (!userId) return
+
+    socket.leave('global-chat')
+    globalChatPresence.delete(userId)
+
+    const userCount = globalChatPresence.size
+    io.to('global-chat').emit('user-left', {
+      userId,
+      userCount
+    })
+
+    console.log(`💬 User ${userId} left global chat. Total: ${userCount}`)
+  })
+
+  // Handle typing indicator
+  socket.on('global-chat-typing', (data) => {
+    const userId = data.userId || currentUserId
+    if (!userId) return
+
+    socket.to('global-chat').emit('user-typing', {
+      userId,
+      username: data.username || 'User'
+    })
+  })
+
+  // Handle stop typing
+  socket.on('global-chat-stop-typing', (data) => {
+    const userId = data.userId || currentUserId
+    if (!userId) return
+
+    socket.to('global-chat').emit('user-stopped-typing', {
+      userId
+    })
+  })
+
+  // Broadcast user count periodically (every 10 seconds)
+  setInterval(() => {
+    const userCount = globalChatPresence.size
+    io.to('global-chat').emit('user-count-update', {
+      userCount,
+      timestamp: new Date()
+    })
+  }, 10000)
+
+  // ========== CALL SIGNALING HANDLERS ==========
+  
+  // Handle call initiation
+  socket.on('call-initiate', async (data) => {
+    const { to, callType, callerId, callerName, callerAvatar } = data
+    console.log(`📞 Call initiated: ${callerId} -> ${to} (${callType})`)
+    
+    // Check if receiver is already in a call
+    if (activeCalls.has(to)) {
+      const activeCall = activeCalls.get(to)
+      console.log(`📞 User ${to} is busy (already in call with ${activeCall.callerId})`)
+      
+      // Notify caller that receiver is busy
+      io.to(`user:${callerId}`).emit('call-busy', {
+        receiverId: to,
+        message: 'User is on another call',
+        timestamp: new Date()
+      })
+      
+      return // Don't send incoming-call event
+    }
+    
+    // Mark receiver as in call (tentative - will be confirmed on accept)
+    const callId = `${callerId}-${Date.now()}`
+    activeCalls.set(to, {
+      callId,
+      callerId,
+      receiverId: to,
+      callType,
+      status: 'ringing',
+      startedAt: new Date()
+    })
+    
+    // Store call ID in socket for later reference
+    socket.currentCallId = callId
+    socket.currentCallReceiverId = to
+    
+    // Emit to receiver's user room
+    io.to(`user:${to}`).emit('incoming-call', {
+      callerId,
+      callerName,
+      callerAvatar,
+      callType,
+      callId,
+      timestamp: new Date()
+    })
+  })
+
+  // Handle call offer (WebRTC)
+  socket.on('call-offer', (data) => {
+    const { to, offer, callType } = data
+    console.log(`📞 Call offer sent to: ${to}`)
+    io.to(`user:${to}`).emit('call-offer', {
+      from: currentUserId || socket.id,
+      offer,
+      callType
+    })
+  })
+
+  // Handle call answer (WebRTC)
+  socket.on('call-answer', (data) => {
+    const { to, answer } = data
+    console.log(`📞 Call answer sent to: ${to}`)
+    io.to(`user:${to}`).emit('call-answer', {
+      from: currentUserId || socket.id,
+      answer
+    })
+  })
+
+  // Handle ICE candidates (WebRTC)
+  socket.on('ice-candidate', (data) => {
+    const { to, candidate } = data
+    io.to(`user:${to}`).emit('ice-candidate', {
+      from: currentUserId || socket.id,
+      candidate
+    })
+  })
+
+  // Handle call acceptance
+  socket.on('call-accept', (data) => {
+    const { to, callId } = data
+    const receiverId = currentUserId || socket.id
+    console.log(`📞 Call accepted: ${callId} by ${receiverId}, notifying caller ${to}`)
+    
+    // Update call status to active
+    if (activeCalls.has(receiverId)) {
+      const call = activeCalls.get(receiverId)
+      call.status = 'active'
+      call.acceptedAt = new Date()
+      activeCalls.set(receiverId, call)
+      
+      // Also track caller's side
+      activeCalls.set(to, {
+        ...call,
+        receiverId: to,
+        callerId: receiverId
+      })
+    }
+    
+    // IMPORTANT: Only notify the caller (to), NOT the receiver
+    // The receiver already knows they accepted the call
+    // This prevents any potential incoming-call events from being sent
+    io.to(`user:${to}`).emit('call-accepted', {
+      from: receiverId,
+      callId,
+      receiverId: receiverId,
+      timestamp: new Date()
+    })
+    
+    // Also notify the receiver (accepter) that call is active
+    // But this is just for state synchronization, not for showing popup
+    socket.emit('call-accepted', {
+      from: receiverId,
+      callId,
+      receiverId: receiverId,
+      timestamp: new Date()
+    })
+  })
+
+  // Handle call rejection
+  socket.on('call-reject', (data) => {
+    const { to, callId } = data
+    const receiverId = currentUserId || socket.id
+    console.log(`📞 Call rejected: ${callId} by ${receiverId}`)
+    
+    // Remove from active calls
+    activeCalls.delete(receiverId)
+    
+    io.to(`user:${to}`).emit('call-rejected', {
+      from: receiverId,
+      callId
+    })
+  })
+
+  // Handle call end
+  socket.on('call-end', (data) => {
+    const { to } = data
+    const userId = currentUserId || socket.id
+    console.log(`📞 Call ended by ${userId}`)
+    
+    // Remove from active calls for both users
+    activeCalls.delete(userId)
+    activeCalls.delete(to)
+    
+    // Clear socket call references
+    if (socket.currentCallId) {
+      delete socket.currentCallId
+    }
+    if (socket.currentCallReceiverId) {
+      delete socket.currentCallReceiverId
+    }
+    
+    // Notify other party
+    io.to(`user:${to}`).emit('call-ended', {
+      from: userId
+    })
   })
 
   // Real-time messaging handlers
@@ -246,6 +506,42 @@ io.on('connection', async (socket) => {
   // Handle disconnection
   socket.on('disconnect', async (reason) => {
     console.log('🔌 Client disconnected:', socket.id, 'Reason:', reason)
+    
+    // Clean up global chat presence
+    if (currentUserId && globalChatPresence.has(currentUserId)) {
+      globalChatPresence.delete(currentUserId)
+      const userCount = globalChatPresence.size
+      io.to('global-chat').emit('user-left', {
+        userId: currentUserId,
+        userCount
+      })
+      console.log(`💬 User ${currentUserId} disconnected from global chat. Total: ${userCount}`)
+    }
+    
+    // Clean up active calls if user disconnects during a call
+    if (currentUserId && activeCalls.has(currentUserId)) {
+      const call = activeCalls.get(currentUserId)
+      console.log(`📞 Cleaning up active call for disconnected user: ${currentUserId}`)
+      
+      // Notify other party that call ended
+      if (call.callerId === currentUserId) {
+        io.to(`user:${call.receiverId}`).emit('call-ended', {
+          from: currentUserId,
+          reason: 'User disconnected'
+        })
+      } else {
+        io.to(`user:${call.callerId}`).emit('call-ended', {
+          from: currentUserId,
+          reason: 'User disconnected'
+        })
+      }
+      
+      // Remove from active calls
+      activeCalls.delete(currentUserId)
+      if (call.callerId !== currentUserId) {
+        activeCalls.delete(call.callerId)
+      }
+    }
     
     // Update user offline status
     if (currentUserId) {
@@ -515,6 +811,25 @@ app.use('/uploads', (req, res) => {
   })
 })
 
+// Public API routes (must be before maintenance mode check)
+// Settings route must be registered BEFORE maintenance middleware
+const settingsRouter = require('./src/routes/settings')
+app.use('/api/settings', settingsRouter) // Maintenance status endpoint
+console.log('✅ Settings route registered: /api/settings')
+
+// Maintenance mode middleware - must be after settings route but before other routes
+const { checkMaintenanceMode } = require('./src/middleware/maintenance')
+app.use((req, res, next) => {
+  // Allow settings/maintenance-status endpoint to bypass maintenance check
+  // Check both req.path and req.originalUrl to handle different Express path matching
+  const path = req.path || req.originalUrl || req.url || ''
+  if (path.startsWith('/api/settings') || path.includes('/api/settings')) {
+    return next()
+  }
+  // Apply maintenance mode check to all other routes
+  checkMaintenanceMode(req, res, next)
+})
+
 // Routes
 app.use('/api/auth', require('./src/routes/auth'))
 app.use('/api/users', require('./src/routes/users'))
@@ -532,6 +847,10 @@ app.use('/api/posts', require('./src/routes/posts')) // Post endpoints
 app.use('/api/feed', require('./src/routes/feed')) // Feed endpoints (fan-out)
 app.use('/api/explore', require('./src/routes/explore')) // Explore/trending endpoints
 app.use('/api/banners', require('./src/routes/banners')) // Banner system endpoints
+app.use('/api/analytics', require('./src/routes/analytics')) // Analytics tracking endpoints (public)
+app.use('/api/admin/analytics', require('./src/routes/adminAnalytics')) // Admin analytics endpoints
+app.use('/api/global-chat', require('./src/routes/globalChat')) // Global chat endpoints
+app.use('/api/admin/global-chat', require('./src/routes/adminGlobalChat')) // Admin global chat moderation
 app.use('/api/audio', require('./src/routes/audioDownloader')) // Audio downloader endpoints
 
 // Admin routes - More specific routes first

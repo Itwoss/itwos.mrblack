@@ -25,6 +25,7 @@ import {
 } from '@ant-design/icons'
 import { useAuth } from "../../contexts/AuthContextOptimized"
 import AdminDesignSystem from '../../styles/admin-design-system'
+import api from '../../services/api'
 
 const { Title, Paragraph, Text } = Typography
 const { Option } = Select
@@ -58,10 +59,11 @@ const AdminSettings = () => {
   const loadSettings = async () => {
     setLoading(true)
     try {
-      // In a real app, this would fetch from the API
-      // const response = await api.get('/admin/settings')
-      // setSettings(response.data.settings)
-      console.log('Loading settings...')
+      const response = await api.get('/admin/settings')
+      if (response.data.success && response.data.data?.settings) {
+        setSettings(response.data.data.settings)
+        form.setFieldsValue(response.data.data.settings)
+      }
     } catch (error) {
       console.error('Error loading settings:', error)
       message.error('Failed to load settings')
@@ -73,13 +75,34 @@ const AdminSettings = () => {
   const handleSave = async (values) => {
     setLoading(true)
     try {
-      // In a real app, this would save to the API
-      // await api.put('/admin/settings', values)
-      console.log('Saving settings:', values)
-      message.success('Settings saved successfully')
+      const response = await api.put('/admin/settings', values)
+      if (response.data.success) {
+        setSettings(response.data.data.settings)
+        message.success('Settings saved successfully')
+        
+        // If maintenance mode was toggled, trigger immediate check in MaintenanceCheck
+        // by dispatching a custom event that MaintenanceCheck can listen to
+        if (values.maintenanceMode !== undefined) {
+          window.dispatchEvent(new CustomEvent('maintenanceModeChanged', {
+            detail: { 
+              maintenanceMode: values.maintenanceMode,
+              timestamp: Date.now()
+            }
+          }))
+          
+          // If maintenance mode was disabled, reload after a short delay to show normal site
+          if (!values.maintenanceMode) {
+            setTimeout(() => {
+              window.location.reload()
+            }, 2000)
+          }
+        }
+      } else {
+        message.error(response.data.message || 'Failed to save settings')
+      }
     } catch (error) {
       console.error('Error saving settings:', error)
-      message.error('Failed to save settings')
+      message.error(error.response?.data?.message || 'Failed to save settings')
     } finally {
       setLoading(false)
     }

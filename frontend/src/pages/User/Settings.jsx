@@ -130,8 +130,9 @@ const Settings = () => {
             
             // Safely get avatar URL with fallbacks
             const avatarUrl = (userData && (userData.avatarUrl || userData.avatar)) || ''
+            const apiBaseUrl = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:7000'
             const fullAvatarUrl = avatarUrl && !avatarUrl.startsWith('http') 
-              ? `http://localhost:7000${avatarUrl}` 
+              ? `${apiBaseUrl}${avatarUrl}` 
               : avatarUrl
             
             const newProfileData = {
@@ -473,24 +474,39 @@ const Settings = () => {
   }
 
   return (
-    <div>
+    <div style={{ 
+      background: '#f5f7fa', 
+      minHeight: '100vh',
+      padding: '16px'
+    }}>
         {/* Header */}
-        <div style={{ marginBottom: '2rem' }}>
-          <Title level={2} style={{ marginBottom: '0.5rem', color: '#1890ff' }}>
-            <SettingOutlined style={{ marginRight: '8px' }} />
-            Settings
-          </Title>
-          <Paragraph style={{ fontSize: '16px', color: '#666' }}>
+        <div style={{ marginBottom: '16px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+            <SettingOutlined style={{ fontSize: '18px', color: '#3b82f6' }} />
+            <Title level={2} style={{ 
+              margin: 0, 
+              fontSize: '18px', 
+              fontWeight: 600,
+              color: '#1e293b'
+            }}>
+              Settings
+            </Title>
+          </div>
+          <Text style={{ fontSize: '12px', color: '#64748b' }}>
             Manage your account settings, security preferences, and notifications.
-          </Paragraph>
+          </Text>
         </div>
 
         {/* Settings Tabs */}
-        <Card style={{ borderRadius: '8px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
+        <Card style={{ 
+          borderRadius: '8px', 
+          border: '1px solid #e2e8f0',
+          background: '#fff'
+        }}>
           <Tabs 
             defaultActiveKey="profile"
-            size="large"
-            style={{ minHeight: '600px' }}
+            size="small"
+            style={{ minHeight: '500px' }}
             items={[
               {
                 key: 'profile',
@@ -501,9 +517,21 @@ const Settings = () => {
                   </span>
                 ),
                 children: (
-                  <Row gutter={[24, 24]}>
+                  <Row gutter={[12, 12]}>
                     <Col xs={24} lg={8}>
-                      <Card title="Profile Picture" size="small" style={{ borderRadius: '8px' }}>
+                      <Card 
+                        title={
+                          <Text style={{ fontSize: '13px', fontWeight: 600, color: '#1e293b' }}>
+                            Profile Picture
+                          </Text>
+                        }
+                        style={{ 
+                          borderRadius: '8px',
+                          border: '1px solid #e2e8f0',
+                          background: '#fff'
+                        }}
+                        bodyStyle={{ padding: '12px' }}
+                      >
                         <div style={{ textAlign: 'center' }}>
                           {profileData.avatar ? (
                             <div style={{ position: 'relative', display: 'inline-block' }}>
@@ -512,14 +540,14 @@ const Settings = () => {
                                 src={profileData.avatar}
                                 alt="User Avatar"
                                 style={{
-                                  width: 120,
-                                  height: 120,
+                                  width: 96,
+                                  height: 96,
                                   borderRadius: '50%',
                                   objectFit: 'cover',
-                                  marginBottom: 16,
+                                  marginBottom: '12px',
                                   display: 'block',
-                                  border: '2px solid #f0f0f0',
-                                  backgroundColor: '#f5f5f5'
+                                  border: '2px solid #e2e8f0',
+                                  backgroundColor: '#f8fafc'
                                 }}
                                 onError={(e) => {
                                   console.log('🖼️ Image load error:', e)
@@ -535,9 +563,9 @@ const Settings = () => {
                                 <Button 
                                   icon={<EditOutlined />} 
                                   type="primary"
+                                  size="small"
                                   onClick={async () => {
                                     try {
-                                      // Fetch the existing image
                                       const response = await fetch(profileData.avatar, { mode: 'cors' })
                                       if (!response.ok) {
                                         throw new Error('Failed to load image')
@@ -554,6 +582,14 @@ const Settings = () => {
                                     }
                                   }}
                                   loading={uploading}
+                                  style={{
+                                    background: '#3b82f6',
+                                    border: 'none',
+                                    borderRadius: '6px',
+                                    fontSize: '12px',
+                                    height: '28px',
+                                    padding: '0 12px'
+                                  }}
                                 >
                                   Edit
                                 </Button>
@@ -562,11 +598,11 @@ const Settings = () => {
                           ) : (
                             <div style={{ textAlign: 'center' }}>
                               <Avatar 
-                                size={120} 
+                                size={96} 
                                 icon={<UserOutlined />}
-                                style={{ marginBottom: 16 }}
+                                style={{ marginBottom: '12px' }}
                               />
-                              <div style={{ fontSize: '12px', color: '#666', marginBottom: '8px' }}>
+                              <div style={{ fontSize: '11px', color: '#64748b', marginBottom: '8px' }}>
                                 No avatar set
                               </div>
                             </div>
@@ -579,11 +615,23 @@ const Settings = () => {
                               beforeUpload={handleImageSelect}
                               accept="image/*"
                             >
-                              <Button icon={<CameraOutlined />} loading={uploading}>
+                              <Button 
+                                icon={<CameraOutlined />} 
+                                loading={uploading}
+                                size="small"
+                                style={{
+                                  background: '#3b82f6',
+                                  border: 'none',
+                                  borderRadius: '6px',
+                                  fontSize: '12px',
+                                  height: '28px',
+                                  padding: '0 12px'
+                                }}
+                              >
                                 {uploading ? 'Uploading...' : profileData.avatar ? 'Change' : 'Upload Avatar'}
                               </Button>
                             </Upload>
-                            <div style={{ marginTop: '8px', fontSize: '12px', color: '#666' }}>
+                            <div style={{ marginTop: '8px', fontSize: '11px', color: '#64748b' }}>
                               {profileData.avatar ? 'Click to upload a new image' : 'Click to select and edit your profile image'}
                             </div>
                           </div>
@@ -601,90 +649,127 @@ const Settings = () => {
                       </Card>
                     </Col>
                     <Col xs={24} lg={16}>
-                      <Card title="Profile Information" size="small" style={{ borderRadius: '8px' }}>
+                      <Card 
+                        title={
+                          <Text style={{ fontSize: '13px', fontWeight: 600, color: '#1e293b' }}>
+                            Profile Information
+                          </Text>
+                        }
+                        style={{ 
+                          borderRadius: '8px',
+                          border: '1px solid #e2e8f0',
+                          background: '#fff'
+                        }}
+                        bodyStyle={{ padding: '12px' }}
+                      >
                         <Form
                           form={profileForm}
                           layout="vertical"
                           initialValues={profileData}
                           onFinish={handleProfileUpdate}
                         >
-                          <Row gutter={16}>
+                          <Row gutter={12}>
                             <Col span={12}>
                               <Form.Item
                                 name="name"
-                                label="Full Name"
+                                label={<Text style={{ fontSize: '12px', color: '#1e293b' }}>Full Name</Text>}
                                 rules={[{ required: true, message: 'Please enter your name' }]}
                               >
-                                <Input prefix={<UserOutlined />} placeholder="Enter your name" />
+                                <Input 
+                                  prefix={<UserOutlined style={{ color: '#64748b', fontSize: '14px' }} />} 
+                                  placeholder="Enter your name"
+                                  size="small"
+                                />
                               </Form.Item>
                             </Col>
                             <Col span={12}>
                               <Form.Item
                                 name="email"
-                                label="Email"
+                                label={<Text style={{ fontSize: '12px', color: '#1e293b' }}>Email</Text>}
                               >
                                 <Input 
-                                  prefix={<MailOutlined />} 
+                                  prefix={<MailOutlined style={{ color: '#64748b', fontSize: '14px' }} />} 
                                   placeholder="Enter your email" 
                                   disabled
-                                  style={{ cursor: 'not-allowed', backgroundColor: '#f5f5f5' }}
+                                  size="small"
+                                  style={{ cursor: 'not-allowed', backgroundColor: '#f8fafc' }}
                                 />
                               </Form.Item>
-                              <Text type="secondary" style={{ fontSize: '12px', display: 'block', marginTop: '-16px', marginBottom: '16px' }}>
+                              <Text style={{ fontSize: '11px', color: '#94a3b8', display: 'block', marginTop: '-12px', marginBottom: '12px' }}>
                                 Email cannot be changed here. Contact support to change your email.
                               </Text>
                             </Col>
                           </Row>
 
-                          <Row gutter={16}>
+                          <Row gutter={12}>
                             <Col span={12}>
                               <Form.Item
                                 name="phone"
-                                label="Phone"
+                                label={<Text style={{ fontSize: '12px', color: '#1e293b' }}>Phone</Text>}
                               >
-                                <Input prefix={<PhoneOutlined />} placeholder="Enter your phone" />
+                                <Input 
+                                  prefix={<PhoneOutlined style={{ color: '#64748b', fontSize: '14px' }} />} 
+                                  placeholder="Enter your phone"
+                                  size="small"
+                                />
                               </Form.Item>
                             </Col>
                             <Col span={12}>
                               <Form.Item
                                 name="location"
-                                label="Location"
+                                label={<Text style={{ fontSize: '12px', color: '#1e293b' }}>Location</Text>}
                               >
-                                <Input placeholder="Enter your location" />
+                                <Input placeholder="Enter your location" size="small" />
                               </Form.Item>
                             </Col>
                           </Row>
 
                           <Form.Item
                             name="website"
-                            label="Website"
+                            label={<Text style={{ fontSize: '12px', color: '#1e293b' }}>Website</Text>}
                           >
-                            <Input prefix={<GlobalOutlined />} placeholder="Enter your website" />
+                            <Input 
+                              prefix={<GlobalOutlined style={{ color: '#64748b', fontSize: '14px' }} />} 
+                              placeholder="Enter your website"
+                              size="small"
+                            />
                           </Form.Item>
 
                           <Form.Item
                             name="bio"
-                            label="Bio"
+                            label={<Text style={{ fontSize: '12px', color: '#1e293b' }}>Bio</Text>}
                           >
-                            <TextArea rows={3} placeholder="Tell us about yourself" />
+                            <TextArea rows={3} placeholder="Tell us about yourself" size="small" />
                           </Form.Item>
 
-                          <Divider />
+                          <Divider style={{ margin: '12px 0' }} />
 
                           <Form.Item
                             label={
-                              <Space>
-                                <LockOutlined />
-                                <span>Account Privacy</span>
-                              </Space>
-                            }
-                            help={
-                              isPrivate 
-                                ? "Your profile is private. Users need to request to follow you to see your content."
-                                : "Your profile is public. Anyone can see your content."
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <LockOutlined style={{ fontSize: '14px', color: '#64748b' }} />
+                                <Text style={{ fontSize: '12px', color: '#1e293b', fontWeight: 500 }}>
+                                  Account Privacy
+                                </Text>
+                              </div>
                             }
                           >
-                            <Space direction="vertical" style={{ width: '100%' }}>
+                            <div style={{
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              alignItems: 'center',
+                              padding: '8px',
+                              background: '#f8fafc',
+                              borderRadius: '6px',
+                              border: '1px solid #e2e8f0'
+                            }}>
+                              <div style={{ flex: 1 }}>
+                                <Text style={{ fontSize: '12px', color: '#64748b', display: 'block', marginBottom: '4px' }}>
+                                  {isPrivate 
+                                    ? "🔒 Only approved followers can see your posts"
+                                    : "🌐 Everyone can see your profile and posts"}
+                                </Text>
+                              </div>
                               <Switch
                                 checked={isPrivate}
                                 onChange={async (checked) => {
@@ -698,86 +783,78 @@ const Settings = () => {
                                       }
                                     } else {
                                       message.error('Failed to update privacy settings')
-                                      setIsPrivate(!checked) // Revert on error
+                                      setIsPrivate(!checked)
                                     }
                                   } catch (error) {
                                     console.error('Privacy update error:', error)
                                     message.error('Failed to update privacy settings')
-                                    setIsPrivate(!checked) // Revert on error
+                                    setIsPrivate(!checked)
                                   }
                                 }}
+                                size="small"
                                 checkedChildren="Private"
                                 unCheckedChildren="Public"
                               />
-                              <Text type="secondary" style={{ fontSize: '12px' }}>
-                                {isPrivate 
-                                  ? "🔒 Only approved followers can see your posts and profile details"
-                                  : "🌐 Everyone can see your profile and posts"}
-                              </Text>
-                            </Space>
+                            </div>
                           </Form.Item>
 
-                          <Divider />
+                          <Divider style={{ margin: '12px 0' }} />
 
                           <Form.Item
                             label={
-                              <Space>
-                                <CheckCircleOutlined />
-                                <span>Activity Status</span>
-                              </Space>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <CheckCircleOutlined style={{ fontSize: '14px', color: '#64748b' }} />
+                                <Text style={{ fontSize: '12px', color: '#1e293b', fontWeight: 500 }}>
+                                  Activity Status
+                                </Text>
+                              </div>
                             }
-                            help="Control whether others can see when you're online"
                           >
-                            <Space direction="vertical" style={{ width: '100%' }}>
-                              <div style={{
-                                display: 'flex',
-                                justifyContent: 'space-between',
-                                alignItems: 'center',
-                                padding: '12px',
-                                backgroundColor: '#fafafa',
-                                borderRadius: '6px',
-                                border: '1px solid #e8e8e8'
-                              }}>
-                                <div style={{ flex: 1 }}>
-                                  <Text strong style={{ display: 'block', marginBottom: '4px', fontSize: '14px' }}>
+                            <div style={{
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              alignItems: 'center',
+                              padding: '8px',
+                              background: isActiveStatusVisible ? '#f0fdf4' : '#f8fafc',
+                              borderRadius: '6px',
+                              border: `1px solid ${isActiveStatusVisible ? '#22c55e' : '#e2e8f0'}`
+                            }}>
+                              <div style={{ flex: 1 }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
+                                  <Text style={{ fontSize: '13px', fontWeight: 500, color: '#1e293b' }}>
                                     Show Active Status
                                   </Text>
-                                  <Text type="secondary" style={{ fontSize: '12px', color: '#666' }}>
-                                    {isActiveStatusVisible 
-                                      ? 'Others can see when you\'re online' 
-                                      : 'Your activity status is hidden'}
-                                  </Text>
+                                  <Tag 
+                                    color={isActiveStatusVisible ? '#22c55e' : 'default'} 
+                                    style={{ margin: 0, fontSize: '10px', padding: '2px 6px' }}
+                                  >
+                                    {isActiveStatusVisible ? 'ON' : 'OFF'}
+                                  </Tag>
                                 </div>
+                                <Text style={{ fontSize: '11px', color: '#64748b' }}>
+                                  {isActiveStatusVisible 
+                                    ? 'Others can see when you\'re online' 
+                                    : 'Your activity status is hidden'}
+                                </Text>
+                              </div>
                               <Switch
                                 checked={isActiveStatusVisible}
                                 onChange={async (checked) => {
-                                  // Update UI immediately (0 delay)
                                   setIsActiveStatusVisible(checked)
-                                  
-                                  // Update user context immediately
                                   if (updateUser) {
                                     updateUser({ activeStatusVisible: checked })
                                   }
-                                  
-                                  // Save to backend (async, no blocking)
                                   try {
                                     const response = await api.put('/users/me', { 
                                       activeStatusVisible: checked 
                                     })
-                                    console.log('✅ Active status update response:', response.data)
                                     if (response.data.success) {
                                       message.success(`Active status ${checked ? 'enabled' : 'disabled'}`)
                                     } else {
                                       throw new Error(response.data.message || 'Update failed')
                                     }
                                   } catch (error) {
-                                    console.error('❌ Error updating active status:', error)
-                                    console.error('❌ Error details:', {
-                                      message: error.message,
-                                      response: error.response?.data,
-                                      status: error.response?.status
-                                    })
-                                    // Revert on error
+                                    console.error('Error updating active status:', error)
                                     setIsActiveStatusVisible(!checked)
                                     if (updateUser) {
                                       updateUser({ activeStatusVisible: !checked })
@@ -786,16 +863,29 @@ const Settings = () => {
                                     message.error(errorMsg)
                                   }
                                 }}
+                                size="small"
                                 checkedChildren="ON"
                                 unCheckedChildren="OFF"
-                                style={{ minWidth: '50px', marginLeft: '16px' }}
                               />
-                              </div>
-                            </Space>
+                            </div>
                           </Form.Item>
 
                           <Form.Item>
-                            <Button type="primary" htmlType="submit" loading={profileLoading} icon={<SaveOutlined />}>
+                            <Button 
+                              type="primary" 
+                              htmlType="submit" 
+                              loading={profileLoading} 
+                              icon={<SaveOutlined />}
+                              size="small"
+                              style={{
+                                background: '#3b82f6',
+                                border: 'none',
+                                borderRadius: '6px',
+                                fontSize: '12px',
+                                height: '32px',
+                                padding: '0 16px'
+                              }}
+                            >
                               Update Profile
                             </Button>
                           </Form.Item>
@@ -815,9 +905,21 @@ const Settings = () => {
                   </span>
                 ),
                 children: (
-                  <Row gutter={[24, 24]}>
+                  <Row gutter={[12, 12]}>
                     <Col xs={24} lg={12}>
-                      <Card title="Change Password" size="small" style={{ borderRadius: '8px' }}>
+                      <Card 
+                        title={
+                          <Text style={{ fontSize: '13px', fontWeight: 600, color: '#1e293b' }}>
+                            Change Password
+                          </Text>
+                        }
+                        style={{ 
+                          borderRadius: '8px',
+                          border: '1px solid #e2e8f0',
+                          background: '#fff'
+                        }}
+                        bodyStyle={{ padding: '12px' }}
+                      >
                         <Form
                           form={securityForm}
                           layout="vertical"
@@ -825,30 +927,56 @@ const Settings = () => {
                         >
                           <Form.Item
                             name="currentPassword"
-                            label="Current Password"
+                            label={<Text style={{ fontSize: '12px', color: '#1e293b' }}>Current Password</Text>}
                             rules={[{ required: true, message: 'Please enter current password' }]}
                           >
-                            <Input.Password prefix={<LockOutlined />} placeholder="Enter current password" />
+                            <Input.Password 
+                              prefix={<LockOutlined style={{ color: '#64748b', fontSize: '14px' }} />} 
+                              placeholder="Enter current password"
+                              size="small"
+                            />
                           </Form.Item>
 
                           <Form.Item
                             name="newPassword"
-                            label="New Password"
+                            label={<Text style={{ fontSize: '12px', color: '#1e293b' }}>New Password</Text>}
                             rules={[{ required: true, message: 'Please enter new password' }]}
                           >
-                            <Input.Password prefix={<LockOutlined />} placeholder="Enter new password" />
+                            <Input.Password 
+                              prefix={<LockOutlined style={{ color: '#64748b', fontSize: '14px' }} />} 
+                              placeholder="Enter new password"
+                              size="small"
+                            />
                           </Form.Item>
 
                           <Form.Item
                             name="confirmPassword"
-                            label="Confirm New Password"
+                            label={<Text style={{ fontSize: '12px', color: '#1e293b' }}>Confirm New Password</Text>}
                             rules={[{ required: true, message: 'Please confirm new password' }]}
                           >
-                            <Input.Password prefix={<LockOutlined />} placeholder="Confirm new password" />
+                            <Input.Password 
+                              prefix={<LockOutlined style={{ color: '#64748b', fontSize: '14px' }} />} 
+                              placeholder="Confirm new password"
+                              size="small"
+                            />
                           </Form.Item>
 
                           <Form.Item>
-                            <Button type="primary" htmlType="submit" loading={loading} icon={<LockOutlined />}>
+                            <Button 
+                              type="primary" 
+                              htmlType="submit" 
+                              loading={loading} 
+                              icon={<LockOutlined />}
+                              size="small"
+                              style={{
+                                background: '#3b82f6',
+                                border: 'none',
+                                borderRadius: '6px',
+                                fontSize: '12px',
+                                height: '32px',
+                                padding: '0 16px'
+                              }}
+                            >
                               Change Password
                             </Button>
                           </Form.Item>
@@ -856,7 +984,19 @@ const Settings = () => {
                       </Card>
                     </Col>
                     <Col xs={24} lg={12}>
-                      <Card title="Security Settings" size="small" style={{ borderRadius: '8px' }}>
+                      <Card 
+                        title={
+                          <Text style={{ fontSize: '13px', fontWeight: 600, color: '#1e293b' }}>
+                            Security Settings
+                          </Text>
+                        }
+                        style={{ 
+                          borderRadius: '8px',
+                          border: '1px solid #e2e8f0',
+                          background: '#fff'
+                        }}
+                        bodyStyle={{ padding: '12px' }}
+                      >
                         <Form
                           form={securityForm}
                           layout="vertical"
@@ -865,36 +1005,50 @@ const Settings = () => {
                         >
                           <Form.Item
                             name="twoFactorAuth"
-                            label="Two-Factor Authentication"
+                            label={<Text style={{ fontSize: '12px', color: '#1e293b' }}>Two-Factor Authentication</Text>}
                             valuePropName="checked"
                           >
-                            <Switch />
+                            <Switch size="small" />
                           </Form.Item>
 
                           <Form.Item
                             name="loginNotifications"
-                            label="Login Notifications"
+                            label={<Text style={{ fontSize: '12px', color: '#1e293b' }}>Login Notifications</Text>}
                             valuePropName="checked"
                           >
-                            <Switch />
+                            <Switch size="small" />
                           </Form.Item>
 
                           <Form.Item
                             name="sessionTimeout"
-                            label="Session Timeout (minutes)"
+                            label={<Text style={{ fontSize: '12px', color: '#1e293b' }}>Session Timeout (minutes)</Text>}
                           >
-                            <Input type="number" placeholder="30" />
+                            <Input type="number" placeholder="30" size="small" />
                           </Form.Item>
 
                           <Form.Item
                             name="passwordExpiry"
-                            label="Password Expiry (days)"
+                            label={<Text style={{ fontSize: '12px', color: '#1e293b' }}>Password Expiry (days)</Text>}
                           >
-                            <Input type="number" placeholder="90" />
+                            <Input type="number" placeholder="90" size="small" />
                           </Form.Item>
 
                           <Form.Item>
-                            <Button type="primary" htmlType="submit" loading={loading} icon={<SecurityScanOutlined />}>
+                            <Button 
+                              type="primary" 
+                              htmlType="submit" 
+                              loading={loading} 
+                              icon={<SecurityScanOutlined />}
+                              size="small"
+                              style={{
+                                background: '#3b82f6',
+                                border: 'none',
+                                borderRadius: '6px',
+                                fontSize: '12px',
+                                height: '32px',
+                                padding: '0 16px'
+                              }}
+                            >
                               Update Security Settings
                             </Button>
                           </Form.Item>
@@ -914,88 +1068,118 @@ const Settings = () => {
                   </span>
                 ),
                 children: (
-                  <Card title="Notification Preferences" size="small" style={{ borderRadius: '8px' }}>
+                  <Card 
+                    title={
+                      <Text style={{ fontSize: '13px', fontWeight: 600, color: '#1e293b' }}>
+                        Notification Preferences
+                      </Text>
+                    }
+                    style={{ 
+                      borderRadius: '8px',
+                      border: '1px solid #e2e8f0',
+                      background: '#fff'
+                    }}
+                    bodyStyle={{ padding: '12px' }}
+                  >
                     <Form
                       form={notificationForm}
                       layout="vertical"
                       initialValues={notificationSettings}
                       onFinish={handleNotificationUpdate}
                     >
-                      <Row gutter={[24, 24]}>
+                      <Row gutter={[12, 12]}>
                         <Col xs={24} sm={12}>
-                          <h4>Email Notifications</h4>
+                          <Text style={{ fontSize: '13px', fontWeight: 600, color: '#1e293b', display: 'block', marginBottom: '12px' }}>
+                            Email Notifications
+                          </Text>
                           <Form.Item
                             name="emailNotifications"
-                            label="Email Notifications"
+                            label={<Text style={{ fontSize: '12px', color: '#1e293b' }}>Email Notifications</Text>}
                             valuePropName="checked"
                           >
-                            <Switch />
+                            <Switch size="small" />
                           </Form.Item>
 
                           <Form.Item
                             name="marketingEmails"
-                            label="Marketing Emails"
+                            label={<Text style={{ fontSize: '12px', color: '#1e293b' }}>Marketing Emails</Text>}
                             valuePropName="checked"
                           >
-                            <Switch />
+                            <Switch size="small" />
                           </Form.Item>
 
                           <Form.Item
                             name="orderUpdates"
-                            label="Order Updates"
+                            label={<Text style={{ fontSize: '12px', color: '#1e293b' }}>Order Updates</Text>}
                             valuePropName="checked"
                           >
-                            <Switch />
+                            <Switch size="small" />
                           </Form.Item>
 
                           <Form.Item
                             name="priceAlerts"
-                            label="Price Alerts"
+                            label={<Text style={{ fontSize: '12px', color: '#1e293b' }}>Price Alerts</Text>}
                             valuePropName="checked"
                           >
-                            <Switch />
+                            <Switch size="small" />
                           </Form.Item>
                         </Col>
                         <Col xs={24} sm={12}>
-                          <h4>Other Notifications</h4>
+                          <Text style={{ fontSize: '13px', fontWeight: 600, color: '#1e293b', display: 'block', marginBottom: '12px' }}>
+                            Other Notifications
+                          </Text>
                           <Form.Item
                             name="pushNotifications"
-                            label="Push Notifications"
+                            label={<Text style={{ fontSize: '12px', color: '#1e293b' }}>Push Notifications</Text>}
                             valuePropName="checked"
                           >
-                            <Switch />
+                            <Switch size="small" />
                           </Form.Item>
 
                           <Form.Item
                             name="smsNotifications"
-                            label="SMS Notifications"
+                            label={<Text style={{ fontSize: '12px', color: '#1e293b' }}>SMS Notifications</Text>}
                             valuePropName="checked"
                           >
-                            <Switch />
+                            <Switch size="small" />
                           </Form.Item>
 
                           <Form.Item
                             name="newProducts"
-                            label="New Products"
+                            label={<Text style={{ fontSize: '12px', color: '#1e293b' }}>New Products</Text>}
                             valuePropName="checked"
                           >
-                            <Switch />
+                            <Switch size="small" />
                           </Form.Item>
 
                           <Form.Item
                             name="securityAlerts"
-                            label="Security Alerts"
+                            label={<Text style={{ fontSize: '12px', color: '#1e293b' }}>Security Alerts</Text>}
                             valuePropName="checked"
                           >
-                            <Switch />
+                            <Switch size="small" />
                           </Form.Item>
                         </Col>
                       </Row>
 
-                      <Divider />
+                      <Divider style={{ margin: '12px 0' }} />
 
                       <Form.Item>
-                        <Button type="primary" htmlType="submit" loading={loading} icon={<BellOutlined />}>
+                        <Button 
+                          type="primary" 
+                          htmlType="submit" 
+                          loading={loading} 
+                          icon={<BellOutlined />}
+                          size="small"
+                          style={{
+                            background: '#3b82f6',
+                            border: 'none',
+                            borderRadius: '6px',
+                            fontSize: '12px',
+                            height: '32px',
+                            padding: '0 16px'
+                          }}
+                        >
                           Update Notification Settings
                         </Button>
                       </Form.Item>
@@ -1014,137 +1198,75 @@ const Settings = () => {
                 ),
                 children: (
                   <div style={{ width: '100%' }}>
-                    {/* Activity Status Toggle - Prominent at Top */}
-                    <div style={{
-                      backgroundColor: '#e6f7ff',
-                      border: '3px solid #1890ff',
-                      borderRadius: '12px',
-                      padding: '20px',
-                      marginBottom: '24px',
-                      boxShadow: '0 4px 12px rgba(24, 144, 255, 0.15)',
-                      width: '100%',
-                      display: 'block'
-                    }}>
-                      <div style={{ 
-                        display: 'flex', 
-                        justifyContent: 'space-between', 
-                        alignItems: 'center',
-                        width: '100%'
-                      }}>
-                        <div style={{ flex: 1 }}>
-                          <div style={{ 
-                            display: 'flex', 
-                            alignItems: 'center', 
-                            gap: '12px',
-                            marginBottom: '8px'
-                          }}>
-                            <CheckCircleOutlined style={{
-                              color: isActiveStatusVisible ? '#52c41a' : '#999',
-                              fontSize: '24px',
-                              fontWeight: 'bold'
-                            }} />
-                            <Text strong style={{ fontSize: '18px', fontWeight: '700', color: '#1890ff' }}>
-                              Show Active Status
-                            </Text>
-                            <Tag color={isActiveStatusVisible ? 'green' : 'default'} style={{ margin: 0, fontSize: '13px', fontWeight: 'bold', padding: '4px 10px' }}>
-                              {isActiveStatusVisible ? 'ON' : 'OFF'}
-                            </Tag>
-                          </div>
-                          <Text type="secondary" style={{ fontSize: '14px', color: '#666', display: 'block', marginLeft: '36px' }}>
-                            {isActiveStatusVisible 
-                              ? 'Others can see when you\'re online' 
-                              : 'Your activity status is hidden'}
+                    <Card 
+                      title={
+                        <Text style={{ fontSize: '13px', fontWeight: 600, color: '#1e293b' }}>
+                          Account Management
+                        </Text>
+                      }
+                      style={{ 
+                        borderRadius: '8px',
+                        border: '1px solid #e2e8f0',
+                        background: '#fff'
+                      }}
+                      bodyStyle={{ padding: '12px' }}
+                    >
+                      <Row gutter={[12, 12]}>
+                        <Col xs={24} sm={12}>
+                          <Text style={{ fontSize: '13px', fontWeight: 600, color: '#1e293b', display: 'block', marginBottom: '12px' }}>
+                            Account Information
                           </Text>
-                        </div>
-                        <Switch
-                          checked={isActiveStatusVisible}
-                          onChange={async (checked) => {
-                            console.log('🔍 Toggle clicked:', checked)
-                            setIsActiveStatusVisible(checked)
-                            if (updateUser) {
-                              updateUser({ activeStatusVisible: checked })
-                            }
-                            try {
-                              const response = await api.put('/users/me', { activeStatusVisible: checked })
-                              console.log('✅ Active status update response:', response.data)
-                              if (response.data.success) {
-                                message.success(`Active status ${checked ? 'enabled' : 'disabled'}`)
-                              } else {
-                                throw new Error(response.data.message || 'Update failed')
-                              }
-                            } catch (error) {
-                              console.error('❌ Error updating active status:', error)
-                              console.error('❌ Error details:', {
-                                message: error.message,
-                                response: error.response?.data,
-                                status: error.response?.status
-                              })
-                              setIsActiveStatusVisible(!checked)
-                              if (updateUser) {
-                                updateUser({ activeStatusVisible: !checked })
-                              }
-                              const errorMsg = error.response?.data?.message || error.message || 'Failed to update active status'
-                              message.error(errorMsg)
-                            }
-                          }}
-                          style={{ minWidth: '60px', marginLeft: '20px' }}
-                          checkedChildren="ON"
-                          unCheckedChildren="OFF"
-                        />
-                      </div>
-                    </div>
-
-                    <Card title="Account Management" size="small" style={{ borderRadius: '8px' }}>
-                      <Row gutter={[24, 24]}>
-                      <Col xs={24} sm={12}>
-                        <h4 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '16px' }}>Account Information</h4>
-                        <div style={{ marginBottom: '24px' }}>
-                          <p style={{ marginBottom: '8px' }}><strong>Account Type:</strong> Premium User</p>
-                          <p style={{ marginBottom: '8px' }}><strong>Member Since:</strong> January 2024</p>
-                          <p style={{ marginBottom: '8px' }}><strong>Last Login:</strong> Today, 10:30 AM</p>
-                          <p style={{ marginBottom: '8px' }}><strong>Account Status:</strong> <Tag color="green">Active</Tag></p>
-                        </div>
-                        
-                        <Divider style={{ margin: '24px 0' }} />
-                        
-                        <h4 style={{ marginTop: '24px', marginBottom: '16px', fontSize: '16px', fontWeight: '600', color: '#333' }}>Privacy Settings</h4>
-                        
-                        {/* Activity Status Toggle - Always Visible */}
-                        <Card 
-                          size="small"
-                          style={{ 
-                            borderRadius: '8px',
-                            backgroundColor: '#fafafa',
-                            border: '2px solid #e8e8e8',
-                            marginBottom: '16px',
-                            padding: '12px'
-                          }}
-                        >
-                          <div style={{ 
-                            display: 'flex', 
-                            justifyContent: 'space-between', 
+                          <div style={{ marginBottom: '16px' }}>
+                            <div style={{ marginBottom: '8px' }}>
+                              <Text style={{ fontSize: '11px', color: '#64748b', display: 'block' }}>Account Type:</Text>
+                              <Text style={{ fontSize: '12px', color: '#1e293b' }}>Premium User</Text>
+                            </div>
+                            <div style={{ marginBottom: '8px' }}>
+                              <Text style={{ fontSize: '11px', color: '#64748b', display: 'block' }}>Member Since:</Text>
+                              <Text style={{ fontSize: '12px', color: '#1e293b' }}>January 2024</Text>
+                            </div>
+                            <div style={{ marginBottom: '8px' }}>
+                              <Text style={{ fontSize: '11px', color: '#64748b', display: 'block' }}>Last Login:</Text>
+                              <Text style={{ fontSize: '12px', color: '#1e293b' }}>Today, 10:30 AM</Text>
+                            </div>
+                            <div style={{ marginBottom: '8px' }}>
+                              <Text style={{ fontSize: '11px', color: '#64748b', display: 'block' }}>Account Status:</Text>
+                              <Tag color="#22c55e" style={{ margin: 0, fontSize: '10px', padding: '2px 6px' }}>Active</Tag>
+                            </div>
+                          </div>
+                          
+                          <Divider style={{ margin: '12px 0' }} />
+                          
+                          <Text style={{ fontSize: '13px', fontWeight: 600, color: '#1e293b', display: 'block', marginBottom: '12px' }}>
+                            Activity Status
+                          </Text>
+                          
+                          <div style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
                             alignItems: 'center',
-                            width: '100%'
+                            padding: '8px',
+                            background: isActiveStatusVisible ? '#f0fdf4' : '#f8fafc',
+                            borderRadius: '6px',
+                            border: `1px solid ${isActiveStatusVisible ? '#22c55e' : '#e2e8f0'}`
                           }}>
                             <div style={{ flex: 1 }}>
-                              <div style={{ 
-                                display: 'flex', 
-                                alignItems: 'center', 
-                                gap: '8px',
-                                marginBottom: '6px'
-                              }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
                                 <CheckCircleOutlined style={{
-                                  color: isActiveStatusVisible ? '#52c41a' : '#999',
-                                  fontSize: '18px'
+                                  color: isActiveStatusVisible ? '#22c55e' : '#94a3b8',
+                                  fontSize: '14px'
                                 }} />
-                                <Text strong style={{ fontSize: '15px', fontWeight: '600', color: '#333' }}>
+                                <Text style={{ fontSize: '13px', fontWeight: 500, color: '#1e293b' }}>
                                   Show Active Status
                                 </Text>
-                                <Tag color={isActiveStatusVisible ? 'green' : 'default'} style={{ margin: 0, fontSize: '11px', fontWeight: 'bold' }}>
+                                <Tag 
+                                  color={isActiveStatusVisible ? '#22c55e' : 'default'} 
+                                  style={{ margin: 0, fontSize: '10px', padding: '2px 6px' }}
+                                >
                                   {isActiveStatusVisible ? 'ON' : 'OFF'}
                                 </Tag>
                               </div>
-                              <Text type="secondary" style={{ fontSize: '12px', color: '#666', display: 'block', marginLeft: '26px' }}>
+                              <Text style={{ fontSize: '11px', color: '#64748b', display: 'block', marginLeft: '20px' }}>
                                 {isActiveStatusVisible 
                                   ? 'Others can see when you\'re online' 
                                   : 'Your activity status is hidden'}
@@ -1153,33 +1275,21 @@ const Settings = () => {
                             <Switch
                               checked={isActiveStatusVisible}
                               onChange={async (checked) => {
-                                // Update UI immediately (0 delay)
                                 setIsActiveStatusVisible(checked)
-                                
-                                // Update user context immediately
                                 if (updateUser) {
                                   updateUser({ activeStatusVisible: checked })
                                 }
-                                
-                                // Save to backend (async, no blocking)
                                 try {
                                   const response = await api.put('/users/me', { 
                                     activeStatusVisible: checked 
                                   })
-                                  console.log('✅ Active status update response:', response.data)
                                   if (response.data.success) {
                                     message.success(`Active status ${checked ? 'enabled' : 'disabled'}`)
                                   } else {
                                     throw new Error(response.data.message || 'Update failed')
                                   }
                                 } catch (error) {
-                                  console.error('❌ Error updating active status:', error)
-                                  console.error('❌ Error details:', {
-                                    message: error.message,
-                                    response: error.response?.data,
-                                    status: error.response?.status
-                                  })
-                                  // Revert on error
+                                  console.error('Error updating active status:', error)
                                   setIsActiveStatusVisible(!checked)
                                   if (updateUser) {
                                     updateUser({ activeStatusVisible: !checked })
@@ -1188,32 +1298,74 @@ const Settings = () => {
                                   message.error(errorMsg)
                                 }
                               }}
-                              style={{ minWidth: '50px', marginLeft: '16px' }}
+                              size="small"
                               checkedChildren="ON"
                               unCheckedChildren="OFF"
                             />
                           </div>
-                        </Card>
-                      </Col>
-                      <Col xs={24} sm={12}>
-                        <h4>Quick Actions</h4>
-                        <Space direction="vertical" style={{ width: '100%' }}>
-                          <Button icon={<EditOutlined />} block>
-                            Edit Profile
-                          </Button>
-                          <Button icon={<BellOutlined />} block>
-                            Notification Settings
-                          </Button>
-                          <Button icon={<SecurityScanOutlined />} block>
-                            Security Settings
-                          </Button>
-                          <Button danger icon={<LogoutOutlined />} block onClick={handleLogout}>
-                            Logout
-                          </Button>
-                        </Space>
-                      </Col>
-                    </Row>
-                  </Card>
+                        </Col>
+                        <Col xs={24} sm={12}>
+                          <Text style={{ fontSize: '13px', fontWeight: 600, color: '#1e293b', display: 'block', marginBottom: '12px' }}>
+                            Quick Actions
+                          </Text>
+                          <Space direction="vertical" style={{ width: '100%' }} size="small">
+                            <Button 
+                              icon={<EditOutlined />} 
+                              block
+                              size="small"
+                              style={{
+                                border: '1px solid #e2e8f0',
+                                borderRadius: '6px',
+                                fontSize: '12px',
+                                height: '32px'
+                              }}
+                            >
+                              Edit Profile
+                            </Button>
+                            <Button 
+                              icon={<BellOutlined />} 
+                              block
+                              size="small"
+                              style={{
+                                border: '1px solid #e2e8f0',
+                                borderRadius: '6px',
+                                fontSize: '12px',
+                                height: '32px'
+                              }}
+                            >
+                              Notification Settings
+                            </Button>
+                            <Button 
+                              icon={<SecurityScanOutlined />} 
+                              block
+                              size="small"
+                              style={{
+                                border: '1px solid #e2e8f0',
+                                borderRadius: '6px',
+                                fontSize: '12px',
+                                height: '32px'
+                              }}
+                            >
+                              Security Settings
+                            </Button>
+                            <Button 
+                              danger 
+                              icon={<LogoutOutlined />} 
+                              block 
+                              onClick={handleLogout}
+                              size="small"
+                              style={{
+                                borderRadius: '6px',
+                                fontSize: '12px',
+                                height: '32px'
+                              }}
+                            >
+                              Logout
+                            </Button>
+                          </Space>
+                        </Col>
+                      </Row>
+                    </Card>
                   </div>
                 )
               }
