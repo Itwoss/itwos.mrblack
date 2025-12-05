@@ -1,0 +1,149 @@
+/**
+ * Theme Styles - Dark/Light Mode
+ * Professional color scheme with smooth transitions
+ */
+
+/* ============================================
+   BASE THEME COLORS
+   ============================================ */
+
+/* Light Mode (Default) */
+:root {
+  --theme-bg-primary: #FFFFFF;
+  --theme-bg-secondary: #F7F7F8;
+  --theme-text-primary: #111111;
+  --theme-text-secondary: #6B6B6B;
+  --theme-accent: #A1A1A1;
+  --theme-border: #E5E5EA;
+}
+
+/* Dark Mode */
+.dark {
+  --theme-bg-primary: #0F0F0F;
+  --theme-bg-secondary: #1A1A1A;
+  --theme-text-primary: #F1F1F1;
+  --theme-text-secondary: #A1A1A1;
+  --theme-accent: #A1A1A1;
+  --theme-border: #333333;
+}
+
+/* ============================================
+   GLOBAL THEME APPLICATIONS
+   ============================================ */
+
+html {
+  background-color: var(--theme-bg-primary);
+  color: var(--theme-text-primary);
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+body {
+  background-color: var(--theme-bg-primary);
+  color: var(--theme-text-primary);
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* ============================================
+   COMPONENT THEMES
+   ============================================ */
+
+/* Cards */
+.theme-card {
+  background-color: var(--theme-bg-primary);
+  border: 1px solid var(--theme-border);
+  color: var(--theme-text-primary);
+  transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
+}
+
+.dark .theme-card {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+/* Buttons */
+.theme-button {
+  background-color: var(--theme-bg-secondary);
+  color: var(--theme-text-primary);
+  border: 1px solid var(--theme-border);
+  transition: all 0.3s ease;
+}
+
+.theme-button:hover {
+  background-color: var(--theme-accent);
+  color: var(--theme-bg-primary);
+}
+
+/* Sidebar */
+.theme-sidebar {
+  background-color: var(--theme-bg-primary);
+  border-right: 1px solid var(--theme-border);
+  color: var(--theme-text-primary);
+  transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
+}
+
+/* Header */
+.theme-header {
+  background-color: var(--theme-bg-primary);
+  border-bottom: 1px solid var(--theme-border);
+  color: var(--theme-text-primary);
+  transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
+}
+
+/* Inputs */
+.theme-input {
+  background-color: var(--theme-bg-primary);
+  border: 1px solid var(--theme-border);
+  color: var(--theme-text-primary);
+  transition: all 0.3s ease;
+}
+
+.theme-input:focus {
+  border-color: var(--theme-accent);
+  outline: none;
+}
+
+/* Tables */
+.theme-table {
+  background-color: var(--theme-bg-primary);
+  color: var(--theme-text-primary);
+}
+
+.theme-table thead {
+  background-color: var(--theme-bg-secondary);
+}
+
+.theme-table tbody tr {
+  border-bottom: 1px solid var(--theme-border);
+}
+
+.theme-table tbody tr:hover {
+  background-color: var(--theme-bg-secondary);
+}
+
+/* ============================================
+   UTILITY CLASSES
+   ============================================ */
+
+.bg-theme-primary {
+  background-color: var(--theme-bg-primary);
+}
+
+.bg-theme-secondary {
+  background-color: var(--theme-bg-secondary);
+}
+
+.text-theme-primary {
+  color: var(--theme-text-primary);
+}
+
+.text-theme-secondary {
+  color: var(--theme-text-secondary);
+}
+
+.border-theme {
+  border-color: var(--theme-border);
+}
+
+.accent-theme {
+  color: var(--theme-accent);
+}
+

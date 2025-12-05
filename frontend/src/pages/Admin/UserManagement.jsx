@@ -529,57 +529,59 @@ const UserManagement = () => {
   return (
     <DashboardLayout userRole="admin">
       <div style={{
-        padding: AdminDesignSystem.layout.content.padding,
-        background: AdminDesignSystem.colors.background,
+        padding: '16px',
+        background: '#f5f7fa',
         minHeight: '100vh',
-        fontFamily: AdminDesignSystem.typography.fontFamily,
+        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
       }}>
         {/* Header */}
-        <div style={{ marginBottom: AdminDesignSystem.spacing.xl }}>
+        <div style={{ marginBottom: '16px' }}>
           <Title 
             level={2} 
             style={{ 
-              marginBottom: AdminDesignSystem.spacing.sm,
-              color: AdminDesignSystem.colors.text.primary,
-              fontWeight: AdminDesignSystem.typography.fontWeight.semibold,
-              fontSize: AdminDesignSystem.typography.fontSize.h2,
+              marginBottom: '6px',
+              color: '#1e293b',
+              fontWeight: 600,
+              fontSize: '20px',
             }}
           >
-            <TeamOutlined style={{ marginRight: AdminDesignSystem.spacing.sm, color: AdminDesignSystem.colors.primary }} />
+            <TeamOutlined style={{ marginRight: '8px', color: '#3b82f6', fontSize: '20px' }} />
             User Management
           </Title>
-          <Paragraph style={{ 
-            color: AdminDesignSystem.colors.text.secondary,
-            fontSize: AdminDesignSystem.typography.fontSize.body,
+          <Text style={{ 
+            color: '#64748b',
+            fontSize: '13px',
+            display: 'block'
           }}>
             Manage users, roles, and permissions across your platform.
-          </Paragraph>
+          </Text>
         </div>
 
         {/* Enhanced Statistics Dashboard */}
-        <Row gutter={[AdminDesignSystem.spacing.md, AdminDesignSystem.spacing.md]} style={{ marginBottom: AdminDesignSystem.spacing.xl }}>
+        <Row gutter={[12, 12]} style={{ marginBottom: '16px' }}>
           <Col xs={12} sm={6} md={4} lg={3}>
             <Card
               hoverable
               style={{
-                borderRadius: AdminDesignSystem.borderRadius.md,
-                border: `1px solid ${AdminDesignSystem.colors.card.border}`,
-                boxShadow: AdminDesignSystem.shadows.md,
-                background: AdminDesignSystem.colors.card.background,
+                borderRadius: '8px',
+                border: '1px solid #e2e8f0',
+                background: '#fff',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
               }}
+              styles={{ body: { padding: '12px' } }}
             >
               <Statistic
                 title={
-                  <Text style={{ color: AdminDesignSystem.colors.text.secondary, fontSize: AdminDesignSystem.typography.fontSize.small }}>
+                  <Text style={{ color: '#64748b', fontSize: '12px' }}>
                     Total Users
                   </Text>
                 }
                 value={stats.totalUsers}
-                prefix={<TeamOutlined style={{ color: AdminDesignSystem.colors.primary }} />}
+                prefix={<TeamOutlined style={{ color: '#3b82f6', fontSize: '18px' }} />}
                 valueStyle={{ 
-                  color: AdminDesignSystem.colors.primary,
-                  fontSize: AdminDesignSystem.typography.fontSize.h3,
-                  fontWeight: AdminDesignSystem.typography.fontWeight.semibold,
+                  color: '#3b82f6',
+                  fontSize: '18px',
+                  fontWeight: 600,
                 }}
               />
             </Card>
@@ -588,24 +590,25 @@ const UserManagement = () => {
             <Card
               hoverable
               style={{
-                borderRadius: AdminDesignSystem.borderRadius.md,
-                border: `1px solid ${AdminDesignSystem.colors.card.border}`,
-                boxShadow: AdminDesignSystem.shadows.md,
-                background: AdminDesignSystem.colors.card.background,
+                borderRadius: '8px',
+                border: '1px solid #e2e8f0',
+                background: '#fff',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
               }}
+              styles={{ body: { padding: '12px' } }}
             >
               <Statistic
                 title={
-                  <Text style={{ color: AdminDesignSystem.colors.text.secondary, fontSize: AdminDesignSystem.typography.fontSize.small }}>
+                  <Text style={{ color: '#64748b', fontSize: '12px' }}>
                     Online Users
                   </Text>
                 }
                 value={stats.onlineUsers}
-                prefix={<CheckCircleOutlined style={{ color: AdminDesignSystem.colors.success }} />}
+                prefix={<CheckCircleOutlined style={{ color: '#22c55e', fontSize: '18px' }} />}
                 valueStyle={{ 
-                  color: AdminDesignSystem.colors.success,
-                  fontSize: AdminDesignSystem.typography.fontSize.h3,
-                  fontWeight: AdminDesignSystem.typography.fontWeight.semibold,
+                  color: '#22c55e',
+                  fontSize: '18px',
+                  fontWeight: 600,
                 }}
               />
             </Card>
@@ -614,24 +617,25 @@ const UserManagement = () => {
             <Card
               hoverable
               style={{
-                borderRadius: AdminDesignSystem.borderRadius.md,
-                border: `1px solid ${AdminDesignSystem.colors.card.border}`,
-                boxShadow: AdminDesignSystem.shadows.md,
-                background: AdminDesignSystem.colors.card.background,
+                borderRadius: '8px',
+                border: '1px solid #e2e8f0',
+                background: '#fff',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
               }}
+              styles={{ body: { padding: '12px' } }}
             >
               <Statistic
                 title={
-                  <Text style={{ color: AdminDesignSystem.colors.text.secondary, fontSize: AdminDesignSystem.typography.fontSize.small }}>
+                  <Text style={{ color: '#64748b', fontSize: '12px' }}>
                     Offline Users
                   </Text>
                 }
                 value={stats.offlineUsers}
-                prefix={<StopOutlined style={{ color: AdminDesignSystem.colors.text.secondary }} />}
+                prefix={<StopOutlined style={{ color: '#64748b', fontSize: '18px' }} />}
                 valueStyle={{ 
-                  color: AdminDesignSystem.colors.text.secondary,
-                  fontSize: AdminDesignSystem.typography.fontSize.h3,
-                  fontWeight: AdminDesignSystem.typography.fontWeight.semibold,
+                  color: '#64748b',
+                  fontSize: '18px',
+                  fontWeight: 600,
                 }}
               />
             </Card>
@@ -640,24 +644,25 @@ const UserManagement = () => {
             <Card
               hoverable
               style={{
-                borderRadius: AdminDesignSystem.borderRadius.md,
-                border: `1px solid ${AdminDesignSystem.colors.card.border}`,
-                boxShadow: AdminDesignSystem.shadows.md,
-                background: AdminDesignSystem.colors.card.background,
+                borderRadius: '8px',
+                border: '1px solid #e2e8f0',
+                background: '#fff',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
               }}
+              styles={{ body: { padding: '12px' } }}
             >
               <Statistic
                 title={
-                  <Text style={{ color: AdminDesignSystem.colors.text.secondary, fontSize: AdminDesignSystem.typography.fontSize.small }}>
+                  <Text style={{ color: '#64748b', fontSize: '12px' }}>
                     Last 30 Days
                   </Text>
                 }
                 value={stats.last30DaysUsers}
-                prefix={<CalendarOutlined style={{ color: AdminDesignSystem.colors.primary }} />}
+                prefix={<CalendarOutlined style={{ color: '#3b82f6', fontSize: '18px' }} />}
                 valueStyle={{ 
-                  color: AdminDesignSystem.colors.text.primary,
-                  fontSize: AdminDesignSystem.typography.fontSize.h3,
-                  fontWeight: AdminDesignSystem.typography.fontWeight.semibold,
+                  color: '#1e293b',
+                  fontSize: '18px',
+                  fontWeight: 600,
                 }}
               />
             </Card>
@@ -666,24 +671,25 @@ const UserManagement = () => {
             <Card
               hoverable
               style={{
-                borderRadius: AdminDesignSystem.borderRadius.md,
-                border: `1px solid ${AdminDesignSystem.colors.card.border}`,
-                boxShadow: AdminDesignSystem.shadows.md,
-                background: AdminDesignSystem.colors.card.background,
+                borderRadius: '8px',
+                border: '1px solid #e2e8f0',
+                background: '#fff',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
               }}
+              styles={{ body: { padding: '12px' } }}
             >
               <Statistic
                 title={
-                  <Text style={{ color: AdminDesignSystem.colors.text.secondary, fontSize: AdminDesignSystem.typography.fontSize.small }}>
+                  <Text style={{ color: '#64748b', fontSize: '12px' }}>
                     Total Spent
                   </Text>
                 }
                 value={formatCurrency(stats.totalSpent || 0)}
-                prefix={<DollarOutlined style={{ color: AdminDesignSystem.colors.success }} />}
+                prefix={<DollarOutlined style={{ color: '#22c55e', fontSize: '18px' }} />}
                 valueStyle={{ 
-                  color: AdminDesignSystem.colors.success,
-                  fontSize: AdminDesignSystem.typography.fontSize.h3,
-                  fontWeight: AdminDesignSystem.typography.fontWeight.semibold,
+                  color: '#22c55e',
+                  fontSize: '18px',
+                  fontWeight: 600,
                 }}
               />
             </Card>
@@ -692,24 +698,25 @@ const UserManagement = () => {
             <Card
               hoverable
               style={{
-                borderRadius: AdminDesignSystem.borderRadius.md,
-                border: `1px solid ${AdminDesignSystem.colors.card.border}`,
-                boxShadow: AdminDesignSystem.shadows.md,
-                background: AdminDesignSystem.colors.card.background,
+                borderRadius: '8px',
+                border: '1px solid #e2e8f0',
+                background: '#fff',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
               }}
+              styles={{ body: { padding: '12px' } }}
             >
               <Statistic
                 title={
-                  <Text style={{ color: AdminDesignSystem.colors.text.secondary, fontSize: AdminDesignSystem.typography.fontSize.small }}>
+                  <Text style={{ color: '#64748b', fontSize: '12px' }}>
                     New Today
                   </Text>
                 }
                 value={stats.newUsersToday}
-                prefix={<ClockCircleOutlined style={{ color: AdminDesignSystem.colors.warning }} />}
+                prefix={<ClockCircleOutlined style={{ color: '#f59e0b', fontSize: '18px' }} />}
                 valueStyle={{ 
-                  color: AdminDesignSystem.colors.warning,
-                  fontSize: AdminDesignSystem.typography.fontSize.h3,
-                  fontWeight: AdminDesignSystem.typography.fontWeight.semibold,
+                  color: '#f59e0b',
+                  fontSize: '18px',
+                  fontWeight: 600,
                 }}
               />
             </Card>
@@ -762,19 +769,20 @@ const UserManagement = () => {
         <Card 
           title={
             <Space>
-              <TeamOutlined style={{ color: AdminDesignSystem.colors.primary }} />
-              <Text strong style={{ color: AdminDesignSystem.colors.text.primary }}>
+              <TeamOutlined style={{ color: '#3b82f6', fontSize: '16px' }} />
+              <Text strong style={{ color: '#1e293b', fontSize: '14px' }}>
                 Users Management
               </Text>
             </Space>
           }
           extra={
-            <Space wrap>
+            <Space wrap size="small">
               <Search
                 placeholder="Search users..."
                 value={searchText}
                 onChange={(e) => setSearchText(e.target.value)}
-                style={{ width: 200 }}
+                style={{ width: 180 }}
+                size="small"
                 prefix={<SearchOutlined />}
                 allowClear
               />
@@ -782,7 +790,8 @@ const UserManagement = () => {
                 placeholder="Filter by status"
                 value={statusFilter}
                 onChange={setStatusFilter}
-                style={{ width: 150 }}
+                style={{ width: 130 }}
+                size="small"
               >
                 <Option value="all">All Status</Option>
                 <Option value="online">Online</Option>
@@ -792,7 +801,8 @@ const UserManagement = () => {
                 placeholder="Filter by role"
                 value={roleFilter}
                 onChange={setRoleFilter}
-                style={{ width: 150 }}
+                style={{ width: 130 }}
+                size="small"
               >
                 <Option value="all">All Roles</Option>
                 <Option value="user">User</Option>
@@ -803,10 +813,13 @@ const UserManagement = () => {
                 type="primary" 
                 icon={<UserAddOutlined />} 
                 onClick={handleAddUser}
+                size="small"
                 style={{
-                  borderRadius: AdminDesignSystem.borderRadius.md,
-                  backgroundColor: AdminDesignSystem.colors.primary,
-                  borderColor: AdminDesignSystem.colors.primary,
+                  borderRadius: '6px',
+                  backgroundColor: '#3b82f6',
+                  borderColor: '#3b82f6',
+                  fontSize: '12px',
+                  height: '28px',
                 }}
               >
                 Add User
@@ -814,11 +827,12 @@ const UserManagement = () => {
             </Space>
           }
           style={{
-            borderRadius: AdminDesignSystem.borderRadius.md,
-            border: `1px solid ${AdminDesignSystem.colors.card.border}`,
-            boxShadow: AdminDesignSystem.shadows.md,
-            background: AdminDesignSystem.colors.card.background,
+            borderRadius: '8px',
+            border: '1px solid #e2e8f0',
+            background: '#fff',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
           }}
+          styles={{ body: { padding: '12px' } }}
         >
           <Table
             columns={columns}

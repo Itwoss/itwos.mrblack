@@ -130,9 +130,8 @@ const Settings = () => {
             
             // Safely get avatar URL with fallbacks
             const avatarUrl = (userData && (userData.avatarUrl || userData.avatar)) || ''
-            const apiBaseUrl = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:7000'
             const fullAvatarUrl = avatarUrl && !avatarUrl.startsWith('http') 
-              ? `${apiBaseUrl}${avatarUrl}` 
+              ? `http://localhost:7000${avatarUrl}` 
               : avatarUrl
             
             const newProfileData = {

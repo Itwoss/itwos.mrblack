@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { 
   Input, 
   Button, 
@@ -32,20 +33,26 @@ import {
   DeleteOutlined,
   CloseOutlined,
   UndoOutlined,
-  ArrowLeftOutlined
+  ArrowLeftOutlined,
+  VideoCameraOutlined,
+  PhoneOutlined
 } from '@ant-design/icons'
 import { useAuth } from "../../contexts/AuthContextOptimized"
+import { useCall } from '../../contexts/CallContext'
 import api from '../../services/api'
 import { threadsAPI, usersListAPI } from '../../services/api'
 import { getUserAvatarUrl, getUserInitials, getAvatarProps } from '../../utils/avatarUtils'
 import { io } from 'socket.io-client'
 import ChatInputWithMedia from '../../components/ChatInputWithMedia'
+import '../../styles/instagram-chat.css'
 
 const { Text } = Typography
 const { TextArea } = Input
 
 const UserChat = () => {
   const { user: currentUser, isAuthenticated } = useAuth()
+  const navigate = useNavigate()
+  const { initiateCall } = useCall()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const [rooms, setRooms] = useState([])
@@ -1091,6 +1098,21 @@ const UserChat = () => {
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
   }
 
+  const formatMessageDate = (timestamp) => {
+    if (!timestamp) return ''
+    const date = new Date(timestamp)
+    const now = new Date()
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+    const messageDate = new Date(date.getFullYear(), date.getMonth(), date.getDate())
+    const diffDays = Math.floor((today - messageDate) / (1000 * 60 * 60 * 24))
+    
+    if (diffDays === 0) return 'Today'
+    if (diffDays === 1) return 'Yesterday'
+    if (diffDays < 7) return date.toLocaleDateString([], { weekday: 'long' })
+    if (diffDays < 30) return date.toLocaleDateString([], { month: 'short', day: 'numeric' })
+    return date.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })
+  }
+
   const formatActiveStatus = (userId) => {
     if (!userId) return null
     
@@ -1266,56 +1288,55 @@ const UserChat = () => {
           }
         }
       `}</style>
-      <div style={{ 
-        display: 'flex',
+      <div className="instagram-chat-container" style={{ 
         height: 'calc(100vh - 80px)',
-        background: '#fff',
-        overflow: 'hidden',
-        position: 'relative'
       }}>
-      {/* iOS Style Left Sidebar - Conversations List */}
-      <div className={`chat-sidebar ${selectedRoom && isMobile ? 'hidden' : ''}`} style={{
-        borderRight: '0.5px solid rgba(0,0,0,0.1)',
-        display: 'flex',
-        flexDirection: 'column',
-        background: currentTheme.sidebarBg,
-        backdropFilter: 'blur(20px) saturate(180%)',
-        WebkitBackdropFilter: 'blur(20px) saturate(180%)'
+      {/* Instagram Style Chat List */}
+      <div className={`instagram-chat-list ${selectedRoom && isMobile ? 'hidden' : ''}`} style={{
+        display: selectedRoom && isMobile ? 'none' : 'flex'
       }}>
-        {/* iOS Style Header */}
-        <div style={{
-          padding: '12px 16px',
-          borderBottom: '0.5px solid rgba(0,0,0,0.1)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          background: currentTheme.sidebarBg,
-          backdropFilter: 'blur(20px) saturate(180%)',
-          WebkitBackdropFilter: 'blur(20px) saturate(180%)'
-        }}>
-          <Text strong style={{ fontSize: '16px' }}>{currentUser?.name || 'Messages'}</Text>
-          <Button 
-            type="text"
-            icon={<PlusOutlined />}
-            onClick={() => setCreateRoomModal(true)}
-            style={{ padding: '4px 8px' }}
-          />
+        {/* Instagram Style Header */}
+        <div className="instagram-chat-list-header">
+          <div className="instagram-chat-list-header-left">
+            <Avatar 
+              src={getUserAvatarUrl(currentUser)} 
+              icon={<UserOutlined />}
+              size={32}
+            >
+              {getUserInitials(currentUser?.name)}
+            </Avatar>
+          </div>
+          <div className="instagram-chat-list-header-center">
+            {currentUser?.name || 'Messages'}
+          </div>
+          <div className="instagram-chat-list-header-right">
+            <Button 
+              type="text"
+              icon={<VideoCameraOutlined />}
+              onClick={() => message.info('Video call feature')}
+              style={{ padding: '4px' }}
+            />
+            <Button 
+              type="text"
+              icon={<PlusOutlined />}
+              onClick={() => setCreateRoomModal(true)}
+              style={{ padding: '4px' }}
+            />
+          </div>
         </div>
 
-        {/* iOS Style Search */}
-        <div style={{ padding: '8px 12px' }}>
+        {/* Instagram Style Search */}
+        <div className="instagram-chat-search">
           <Input
-            prefix={<SearchOutlined style={{ color: '#8E8E93' }} />}
+            prefix={<SearchOutlined style={{ color: 'var(--ig-text-secondary)' }} />}
             placeholder="Search"
             value={conversationSearch}
             onChange={(e) => setConversationSearch(e.target.value)}
             style={{
-              borderRadius: '10px',
-              background: 'rgba(142, 142, 147, 0.12)',
+              borderRadius: 'var(--ig-radius-full)',
+              background: 'var(--ig-bg-tertiary)',
               border: 'none',
-              fontSize: '15px',
-              fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif',
-              height: '36px'
+              fontSize: 'var(--ig-font-size-sm)',
             }}
           />
         </div>
@@ -1354,32 +1375,15 @@ const UserChat = () => {
               return (
                 <div
                   key={room._id}
+                  className={`instagram-chat-item ${isSelected ? 'active' : ''}`}
                   onClick={() => setSelectedRoom(room)}
-                  style={{
-                    padding: '12px 16px',
-                    cursor: 'pointer',
-                    background: isSelected ? 'rgba(0,0,0,0.05)' : 'transparent',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '12px',
-                    transition: 'background 0.15s ease-out',
-                    borderBottom: '0.5px solid rgba(0,0,0,0.05)',
-                    fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif'
-                  }}
-                  onMouseEnter={(e) => {
-                    if (!isSelected) e.currentTarget.style.background = 'rgba(0,0,0,0.03)'
-                  }}
-                  onMouseLeave={(e) => {
-                    if (!isSelected) e.currentTarget.style.background = 'transparent'
-                  }}
                 >
-                  <div style={{ position: 'relative', flexShrink: 0 }}>
+                  <div className="instagram-chat-item-avatar">
                     <Avatar
                       src={getRoomAvatar(room)}
                       icon={<UserOutlined />}
                       size={56}
                       onError={(e) => {
-                        // Handle 429 and other image errors - fallback to initials
                         if (e && e.target) {
                           e.target.style.display = 'none';
                         }
@@ -1390,53 +1394,24 @@ const UserChat = () => {
                     {(() => {
                       const userId = otherParticipant?._id?.toString() || otherParticipant?.toString()
                       const isOnline = onlineUsers[userId] || false
-                      return isOnline && (
-                        <div style={{
-                          position: 'absolute',
-                          bottom: 0,
-                          right: 0,
-                          width: '14px',
-                          height: '14px',
-                          background: '#0095f6',
-                          border: '2px solid #fff',
-                          borderRadius: '50%'
-                        }} />
-                      )
+                      return isOnline && <div className="instagram-chat-item-online" />
                     })()}
                   </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <Text strong style={{ fontSize: '14px', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {getRoomDisplayName(room)}
-                        </Text>
-                        {(() => {
-                          const status = getOtherParticipantStatus(room)
-                          return status?.activeStatus && (
-                            <Text type="secondary" style={{ fontSize: '12px', display: 'block' }}>
-                              {status.activeStatus}
-                            </Text>
-                          )
-                        })()}
+                  <div className="instagram-chat-item-content">
+                    <div className="instagram-chat-item-header">
+                      <div className="instagram-chat-item-name">
+                        {getRoomDisplayName(room)}
                       </div>
                       {room.lastMessageAt && (
-                        <Text type="secondary" style={{ fontSize: '12px', marginLeft: '8px', flexShrink: 0 }}>
+                        <div className="instagram-chat-item-time">
                           {formatMessageTime(room.lastMessageAt)}
-                        </Text>
+                        </div>
                       )}
                     </div>
-                    <Text 
-                      type="secondary" 
-                      style={{ 
-                        fontSize: '14px',
-                        display: 'block',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap'
-                      }}
-                    >
+                    <div className="instagram-chat-item-preview">
                       {room.lastMessageText || 'No messages yet'}
-                    </Text>
+                      {room.unreadCount > 0 && <div className="instagram-chat-item-unread" />}
+                    </div>
                   </div>
                 </div>
               )
@@ -1469,30 +1444,17 @@ const UserChat = () => {
         }} />
         {selectedRoom ? (
           <>
-            {/* iOS Style Chat Header */}
-            <div style={{
-              padding: '10px 16px',
-              borderBottom: '0.5px solid rgba(0,0,0,0.1)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '12px',
+            {/* Instagram Style Chat Header */}
+            <div className="instagram-chat-conversation-header" style={{
               background: otherParticipantBanner 
                 ? (() => {
                     const baseUrl = (import.meta.env.VITE_API_URL || 'http://localhost:7000').replace('/api', '')
                     const imageUrl = otherParticipantBanner.imageUrl?.startsWith('http') 
                       ? otherParticipantBanner.imageUrl 
                       : `${baseUrl}${otherParticipantBanner.imageUrl}`
-                    console.log('🎨 Other participant banner image URL:', imageUrl, 'Base URL:', baseUrl, 'Image URL from banner:', otherParticipantBanner.imageUrl)
                     return `url(${imageUrl}) center/cover no-repeat`
                   })()
-                : currentTheme.headerBg,
-              backgroundSize: otherParticipantBanner ? 'cover' : undefined,
-              backdropFilter: otherParticipantBanner ? 'blur(0px)' : 'blur(20px) saturate(180%)',
-              WebkitBackdropFilter: otherParticipantBanner ? 'blur(0px)' : 'blur(20px) saturate(180%)',
-              position: 'relative',
-              zIndex: 10,
-              minHeight: '60px',
-              overflow: 'hidden'
+                : undefined,
             }}>
               {/* Back button for mobile */}
               {isMobile && (
@@ -1538,65 +1500,108 @@ const UserChat = () => {
                   )}
                 </>
               )}
-              <div style={{ position: 'relative', zIndex: 2, display: 'flex', alignItems: 'center', gap: '12px', width: '100%' }}>
-              <div style={{ position: 'relative' }}>
-                <Avatar
-                  src={getRoomAvatar(selectedRoom)}
-                  icon={<UserOutlined />}
-                  size={32}
-                  onError={(e) => {
-                    // Handle 429 and other image errors - fallback to initials
-                    if (e && e.target) {
-                      e.target.style.display = 'none';
-                    }
-                  }}
-                  crossOrigin={undefined}
-                >
-                  {getOtherParticipant(selectedRoom) ? getUserInitials(getOtherParticipant(selectedRoom).name) : 'U'}
-                </Avatar>
+              <div className="instagram-chat-conversation-header-left">
+                <div style={{ position: 'relative' }}>
+                  <Avatar
+                    src={getRoomAvatar(selectedRoom)}
+                    icon={<UserOutlined />}
+                    size={40}
+                    onError={(e) => {
+                      if (e && e.target) {
+                        e.target.style.display = 'none';
+                      }
+                    }}
+                  >
+                    {getOtherParticipant(selectedRoom) ? getUserInitials(getOtherParticipant(selectedRoom).name) : 'U'}
+                  </Avatar>
+                  {(() => {
+                    const otherParticipant = getOtherParticipant(selectedRoom)
+                    const userId = otherParticipant?._id?.toString() || otherParticipant?.toString()
+                    const isOnline = onlineUsers[userId] || false
+                    return isOnline && (
+                      <div style={{
+                        position: 'absolute',
+                        bottom: 0,
+                        right: 0,
+                        width: '12px',
+                        height: '12px',
+                        background: 'var(--ig-online)',
+                        border: '2px solid var(--ig-bg-primary)',
+                        borderRadius: '50%'
+                      }} />
+                    )
+                  })()}
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ 
+                    fontSize: 'var(--ig-font-size-base)', 
+                    fontWeight: 600,
+                    color: otherParticipantBanner ? '#fff' : 'var(--ig-text-primary)',
+                    textShadow: otherParticipantBanner ? '0 1px 2px rgba(0,0,0,0.5)' : undefined
+                  }}>
+                    {getRoomDisplayName(selectedRoom)}
+                  </div>
+                  {(() => {
+                    const status = getOtherParticipantStatus(selectedRoom)
+                    return status?.activeStatus && (
+                      <div style={{ 
+                        fontSize: 'var(--ig-font-size-xs)',
+                        color: otherParticipantBanner ? 'rgba(255,255,255,0.9)' : 'var(--ig-text-secondary)',
+                        textShadow: otherParticipantBanner ? '0 1px 2px rgba(0,0,0,0.5)' : undefined
+                      }}>
+                        {status.activeStatus}
+                      </div>
+                    )
+                  })()}
+                </div>
+              </div>
+              <div className="instagram-chat-conversation-header-right">
+                <Space size="small">
+                {/* Video Call Button */}
                 {(() => {
                   const otherParticipant = getOtherParticipant(selectedRoom)
-                  const userId = otherParticipant?._id?.toString() || otherParticipant?.toString()
-                  const isOnline = onlineUsers[userId] || false
-                  return isOnline && (
-                    <div style={{
-                      position: 'absolute',
-                      bottom: 0,
-                      right: 0,
-                      width: '10px',
-                      height: '10px',
-                      background: '#0095f6',
-                      border: '2px solid #fff',
-                      borderRadius: '50%'
-                    }} />
+                  const receiverId = otherParticipant?._id?.toString() || otherParticipant?.toString()
+                  return receiverId && (
+                    <Button
+                      type="text"
+                      icon={<VideoCameraOutlined />}
+                      onClick={() => {
+                        if (initiateCall) {
+                          initiateCall(receiverId, 'video');
+                        }
+                        navigate(`/video-call/${receiverId}`);
+                      }}
+                      style={{ 
+                        padding: '4px',
+                        color: otherParticipantBanner ? '#fff' : undefined
+                      }}
+                      title="Video Call"
+                    />
                   )
                 })()}
-              </div>
-              <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <div>
-                <Text strong style={{ 
-                  fontSize: '14px', 
-                  display: 'block',
-                  color: otherParticipantBanner ? '#fff' : undefined,
-                  textShadow: otherParticipantBanner ? '0 1px 2px rgba(0,0,0,0.5)' : undefined
-                }}>
-                  {getRoomDisplayName(selectedRoom)}
-                </Text>
+                {/* Audio Call Button */}
                 {(() => {
-                  const status = getOtherParticipantStatus(selectedRoom)
-                  return status?.activeStatus && (
-                    <Text type="secondary" style={{ 
-                      fontSize: '12px',
-                      color: otherParticipantBanner ? 'rgba(255,255,255,0.9)' : undefined,
-                      textShadow: otherParticipantBanner ? '0 1px 2px rgba(0,0,0,0.5)' : undefined
-                    }}>
-                      {status.activeStatus}
-                    </Text>
+                  const otherParticipant = getOtherParticipant(selectedRoom)
+                  const receiverId = otherParticipant?._id?.toString() || otherParticipant?.toString()
+                  return receiverId && (
+                    <Button
+                      type="text"
+                      icon={<PhoneOutlined />}
+                      onClick={() => {
+                        if (initiateCall) {
+                          initiateCall(receiverId, 'audio');
+                        }
+                        navigate(`/audio-call/${receiverId}`);
+                      }}
+                      style={{ 
+                        padding: '4px',
+                        color: otherParticipantBanner ? '#fff' : undefined
+                      }}
+                      title="Audio Call"
+                    />
                   )
                 })()}
-              </div>
-              </div>
-              <Dropdown
+                <Dropdown
                 menu={{
                   items: [
                     {
@@ -1689,30 +1694,23 @@ const UserChat = () => {
                 trigger={['click']}
                 placement="bottomRight"
               >
-              <Button 
-                type="text"
-                icon={<MoreOutlined />}
-                style={{ padding: '4px' }}
-              />
+                <Button 
+                  type="text"
+                  icon={<MoreOutlined />}
+                  style={{ 
+                    padding: '4px',
+                    color: otherParticipantBanner ? '#fff' : undefined
+                  }}
+                />
               </Dropdown>
+              </Space>
               </div>
             </div>
 
-            {/* iOS Style Messages Area */}
+            {/* Instagram Style Messages Area */}
             <div 
               ref={messagesContainerRef}
-              style={{
-                flex: 1,
-                overflowY: 'auto',
-                padding: isMobile ? '8px 12px' : '12px 16px',
-                background: 'transparent',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '2px',
-                position: 'relative',
-                zIndex: 1,
-                fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif'
-              }}
+              className="instagram-chat-messages"
             >
               {messages.length === 0 ? (
                 <div style={{
@@ -1723,34 +1721,43 @@ const UserChat = () => {
                   flexDirection: 'column',
                   opacity: 0.4
                 }}>
-                  <MessageOutlined style={{ fontSize: '64px', color: '#8E8E93', marginBottom: '16px' }} />
-                  <Text type="secondary" style={{ 
-                    fontSize: '17px',
-                    fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif',
-                    color: '#8E8E93'
+                  <MessageOutlined style={{ fontSize: '64px', color: 'var(--ig-text-secondary)', marginBottom: '16px' }} />
+                  <div style={{ 
+                    fontSize: 'var(--ig-font-size-lg)',
+                    color: 'var(--ig-text-secondary)',
+                    marginBottom: '8px'
                   }}>
                     No messages yet
-                  </Text>
-                  <Text type="secondary" style={{ 
-                    fontSize: '15px', 
-                    marginTop: '8px',
-                    fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif',
-                    color: '#8E8E93'
+                  </div>
+                  <div style={{ 
+                    fontSize: 'var(--ig-font-size-base)',
+                    color: 'var(--ig-text-secondary)'
                   }}>
                     Send a message to get started
-                  </Text>
+                  </div>
                 </div>
               ) : (
                 messages.map((msg, index) => {
+                  // Check if we need a date separator
+                  const prevMsg = messages[index - 1]
+                  const showDateSeparator = !prevMsg || 
+                    formatMessageDate(prevMsg.createdAt) !== formatMessageDate(msg.createdAt)
+                  
                   const senderId = msg.sender?._id || (typeof msg.sender === 'object' ? msg.sender?._id : msg.sender)
                   const isOwnMessage = senderId?.toString() === currentUser._id?.toString()
-                  const prevMsg = messages[index - 1]
                   const prevSenderId = prevMsg?.sender?._id || (typeof prevMsg?.sender === 'object' ? prevMsg?.sender?._id : prevMsg?.sender)
                   const showAvatar = !isOwnMessage && (!prevMsg || prevSenderId?.toString() !== senderId?.toString())
                   
                   return (
+                    <React.Fragment key={msg._id || index}>
+                      {showDateSeparator && (
+                        <div className="instagram-chat-date-separator">
+                          <span className="instagram-chat-date-text">
+                            {formatMessageDate(msg.createdAt)}
+                          </span>
+                        </div>
+                      )}
                     <div
-                      key={msg._id || index}
                       data-message-id={msg._id}
                       style={{
                         display: 'flex',
@@ -2147,6 +2154,19 @@ const UserChat = () => {
                               )}
                             </>
                           )}
+                          {/* Instagram Style Message Footer */}
+                          <div className="instagram-chat-message-footer">
+                            <span>{formatMessageTimeFull(msg.createdAt)}</span>
+                            {isOwnMessage && (
+                              <div className="instagram-chat-message-status">
+                                {msg.read ? (
+                                  <CheckCircleOutlined style={{ fontSize: '12px', color: 'rgba(255,255,255,0.8)' }} />
+                                ) : (
+                                  <CheckOutlined style={{ fontSize: '12px', color: 'rgba(255,255,255,0.8)' }} />
+                                )}
+                              </div>
+                            )}
+                          </div>
                         </div>
                         {/* Reply button - Show for all messages (Instagram style) */}
                         {/* Desktop: Show on hover | Mobile: Show on long press */}
@@ -2309,6 +2329,7 @@ const UserChat = () => {
                         </Avatar>
                       )}
                     </div>
+                    </React.Fragment>
                   )
                 })
               )}

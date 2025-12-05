@@ -18,7 +18,7 @@ import {
 } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from "../../contexts/AuthContextOptimized"
-import DashboardLayout from '../../components/DashboardLayout'
+import UserLayout from '../../components/UserLayout'
 
 const { Title, Paragraph } = Typography
 const { TextArea } = Input
@@ -189,7 +189,7 @@ const HelpCenter = () => {
   }
 
   return (
-    <DashboardLayout>
+    <UserLayout>
       <div>
         {/* Header */}
         <div style={{ marginBottom: '2rem' }}>
@@ -467,7 +467,7 @@ const HelpCenter = () => {
           </Form>
         </Modal>
       </div>
-    </DashboardLayout>
+    </UserLayout>
   )
 }
 

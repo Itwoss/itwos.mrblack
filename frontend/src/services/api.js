@@ -1,10 +1,66 @@
 import axios from 'axios'
 import toast from 'react-hot-toast'
 
-// Create axios instance
+// Get API URL with automatic localhost fallback
+const getApiURL = () => {
+  const envURL = import.meta.env.VITE_API_URL || 'http://localhost:7000/api'
+  
+  // If it's already localhost, use it
+  if (envURL.includes('localhost') || envURL.includes('127.0.0.1')) {
+    return envURL
+  }
+  
+  // For network IPs, check if we should fallback to localhost
+  // This will be determined by failed requests, so we'll start with env URL
+  // and let the error handler suggest localhost if needed
+  return envURL
+}
+
+// Helper to check if token is a mock token
+const isMockToken = (token) => {
+  if (!token) return false
+  return token.includes('mock-') || token.includes('Mock') || token.startsWith('mock')
+}
+
+// Helper to get valid JWT token (allow mock tokens in dev mode when backend is unavailable)
+const getValidToken = () => {
+  // Prioritize admin token for admin routes, then accessToken, then token
+  let token = localStorage.getItem('accessToken') || 
+               localStorage.getItem('token') || 
+               localStorage.getItem('adminToken')
+  
+  // If no token, return null
+  if (!token) {
+    return null
+  }
+  
+  // In development mode, allow mock tokens (backend might be unavailable)
+  // In production, reject mock tokens
+  if (isMockToken(token)) {
+    if (import.meta.env.DEV) {
+      // In dev mode, allow mock tokens (backend might be down)
+      console.warn('⚠️ Mock token detected in dev mode - allowing for offline development')
+      return token
+    }
+    
+    // In production, reject mock tokens
+    console.warn('⚠️ Mock token detected, attempting to get real token from refresh')
+    // Try to get refresh token and refresh
+    const refreshToken = localStorage.getItem('refreshToken')
+    if (refreshToken && !isMockToken(refreshToken)) {
+      // Return null to trigger refresh
+      return null
+    }
+    return null
+  }
+  
+  return token
+}
+
+// Create axios instance with increased timeout
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:7000/api',
-  timeout: 10000,
+  baseURL: getApiURL(),
+  timeout: 30000, // Increased to 30 seconds
   withCredentials: true, // Important for CORS with credentials
   headers: {
     'Content-Type': 'application/json',
@@ -13,8 +69,8 @@ const api = axios.create({
 
 // Create public API instance (no auth headers)
 const publicApi = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:7000/api',
-  timeout: 10000,
+  baseURL: getApiURL(),
+  timeout: 30000, // Increased to 30 seconds
   withCredentials: true, // Important for CORS
   headers: {
     'Content-Type': 'application/json',
@@ -29,16 +85,26 @@ api.interceptors.request.use(
     if (config.url?.includes('/admin/') || config.url?.includes('/notifications/admin')) {
       // For admin routes, prioritize adminToken
       token = localStorage.getItem('adminToken') || localStorage.getItem('accessToken') || localStorage.getItem('token')
+      // Allow mock tokens in dev mode
+      if (token && isMockToken(token) && !import.meta.env.DEV) {
+        token = null // Reject mock tokens in production
+      }
     } else {
       // For regular routes, use standard token
-      token = localStorage.getItem('accessToken') || localStorage.getItem('token') || localStorage.getItem('adminToken')
+      token = getValidToken()
     }
     
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
-      console.log(`🔑 API Request: ${config.method?.toUpperCase()} ${config.url} - Token: ${token.substring(0, 20)}...`)
+      // Only log in development
+      if (import.meta.env.DEV) {
+        console.log(`🔑 API Request: ${config.method?.toUpperCase()} ${config.url} - Token: ${token.substring(0, 20)}...`)
+      }
     } else {
-      console.warn(`⚠️ API Request: ${config.method?.toUpperCase()} ${config.url} - No token found`)
+      // Don't log warnings for public endpoints
+      if (!config.url?.includes('/public') && !config.url?.includes('/settings/maintenance-status')) {
+        console.warn(`⚠️ API Request: ${config.method?.toUpperCase()} ${config.url} - No valid token found`)
+      }
     }
     
     // For FormData uploads, remove the default Content-Type to let axios set it automatically
@@ -66,41 +132,50 @@ api.interceptors.response.use(
 
       try {
         const refreshToken = localStorage.getItem('refreshToken')
-        if (refreshToken) {
-          console.log('🔄 Attempting token refresh...')
+        
+        // Reject mock refresh tokens
+        if (!refreshToken || isMockToken(refreshToken)) {
+          throw new Error('No valid refresh token available')
+        }
+        
+        console.log('🔄 Attempting token refresh...')
+        
+        const response = await axios.post(`${api.defaults.baseURL}/auth/refresh`, {
+          refreshToken
+        }, {
+          timeout: 10000
+        })
+        
+        if (response.data && (response.data.accessToken || response.data.tokens?.accessToken)) {
+          const accessToken = response.data.accessToken || response.data.tokens?.accessToken
+          const newRefreshToken = response.data.refreshToken || response.data.tokens?.refreshToken
           
-          const response = await axios.post(`${api.defaults.baseURL}/auth/refresh`, {
-            refreshToken
-          })
-          
-          if (response.data && (response.data.accessToken || response.data.tokens?.accessToken)) {
-            const accessToken = response.data.accessToken || response.data.tokens?.accessToken
-            const refreshToken = response.data.refreshToken || response.data.tokens?.refreshToken
-            
-            // Update all token storage locations
-            localStorage.setItem('accessToken', accessToken)
-            localStorage.setItem('token', accessToken) // Also store as 'token' for compatibility
-            
-            // If this is an admin route, also update adminToken
-            if (originalRequest.url?.includes('/admin/') || originalRequest.url?.includes('/notifications/admin')) {
-              localStorage.setItem('adminToken', accessToken)
-              console.log('✅ Admin token refreshed')
-            }
-            
-            // Update refresh token if provided
-            if (refreshToken) {
-              localStorage.setItem('refreshToken', refreshToken)
-            }
-            
-            originalRequest.headers.Authorization = `Bearer ${accessToken}`
-            
-            console.log('✅ Token refreshed successfully')
-            return api(originalRequest)
-          } else {
-            throw new Error('Invalid refresh response')
+          // Validate new tokens are not mock tokens
+          if (isMockToken(accessToken)) {
+            throw new Error('Received mock token from refresh endpoint')
           }
+          
+          // Update all token storage locations
+          localStorage.setItem('accessToken', accessToken)
+          localStorage.setItem('token', accessToken) // Also store as 'token' for compatibility
+          
+          // If this is an admin route, also update adminToken
+          if (originalRequest.url?.includes('/admin/') || originalRequest.url?.includes('/notifications/admin')) {
+            localStorage.setItem('adminToken', accessToken)
+            console.log('✅ Admin token refreshed')
+          }
+          
+          // Update refresh token if provided
+          if (newRefreshToken && !isMockToken(newRefreshToken)) {
+            localStorage.setItem('refreshToken', newRefreshToken)
+          }
+          
+          originalRequest.headers.Authorization = `Bearer ${accessToken}`
+          
+          console.log('✅ Token refreshed successfully')
+          return api(originalRequest)
         } else {
-          throw new Error('No refresh token available')
+          throw new Error('Invalid refresh response')
         }
       } catch (refreshError) {
         console.error('❌ Token refresh failed:', refreshError)
@@ -143,21 +218,36 @@ api.interceptors.response.use(
     } else if (error.response?.status === 403) {
       toast.error('Access denied. You do not have permission to perform this action.')
     } else if (error.response?.status === 404) {
-      toast.error('Resource not found.')
+      // Don't show toast for 404s on background requests
+      const isBackgroundRequest = originalRequest?.url?.includes('/settings/maintenance-status') || 
+                                   originalRequest?.url?.includes('/notifications')
+      if (!isBackgroundRequest) {
+        toast.error('Resource not found.')
+      }
     } else if (error.response?.status === 429) {
       toast.error('Too many requests. Please wait a moment and try again.')
     } else if (error.code === 'ECONNABORTED') {
-      toast.error('Request timeout. Please check your connection.')
+      // Don't show toast for maintenance check or background requests
+      const isBackgroundRequest = originalRequest?.url?.includes('/settings/maintenance-status') || 
+                                   originalRequest?.url?.includes('/notifications')
+      if (!isBackgroundRequest) {
+        toast.error('Request timeout. Please check your connection.')
+      }
     } else if (!navigator.onLine) {
       toast.error('No internet connection. Please check your network.')
     } else if (error.code === 'ERR_NETWORK' || error.message?.includes('Network Error')) {
-      console.error('Network error details:', {
-        message: error.message,
-        code: error.code,
-        url: error.config?.url,
-        method: error.config?.method
-      })
-      toast.error('Network error. Please check your connection and try again.')
+      // Don't log network errors for background requests to reduce console spam
+      const isBackgroundRequest = originalRequest?.url?.includes('/settings/maintenance-status') || 
+                                   originalRequest?.url?.includes('/notifications')
+      if (!isBackgroundRequest) {
+        console.error('Network error details:', {
+          message: error.message,
+          code: error.code,
+          url: error.config?.url,
+          method: error.config?.method
+        })
+        toast.error('Network error. Please check your connection and try again.')
+      }
     }
 
     return Promise.reject(error)
@@ -193,8 +283,6 @@ export const userAPI = {
   getUserStats: (userId) => api.get(`/users/${userId}/stats`),
   deleteAccount: (password) => api.delete('/users/me', { data: { password } }),
 }
-
-
 
 // Payment API
 export const paymentAPI = {
@@ -457,8 +545,6 @@ export const productAPI = {
   markAllNotificationsAsRead: () => api.patch('/products/notifications/read-all'),
 }
 
-// Duplicate prebookAPI removed - functionality merged above
-
 // Trending Analytics API
 export const trendingAnalyticsAPI = {
   getAnalytics: (params) => api.get('/admin/trending/analytics', { params }),
@@ -472,5 +558,5 @@ export const trendingSettingsAPI = {
 }
 
 // Export api as both default and named export
-export { api }
+export { api, publicApi }
 export default api

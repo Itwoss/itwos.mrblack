@@ -218,75 +218,115 @@ const BannerStore = () => {
 
   if (loading) {
     return (
-      <div style={{ textAlign: 'center', padding: '100px 20px' }}>
+      <div style={{ 
+        textAlign: 'center', 
+        padding: '60px 16px',
+        background: '#f5f7fa',
+        minHeight: '400px',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center'
+      }}>
         <Spin size="large" />
-        <div style={{ marginTop: '20px' }}>
-          <Text type="secondary">Loading banners...</Text>
+        <div style={{ marginTop: '12px' }}>
+          <Text style={{ color: '#64748b', fontSize: '13px' }}>Loading banners...</Text>
         </div>
       </div>
     );
   }
 
   return (
-    <div style={{ padding: '24px', maxWidth: '1400px', margin: '0 auto' }}>
+    <div style={{ 
+      padding: '16px', 
+      maxWidth: '1400px', 
+      margin: '0 auto',
+      background: '#f5f7fa',
+      minHeight: '100vh'
+    }}>
       {/* Header */}
       <div style={{ 
-        marginBottom: '32px',
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-        borderRadius: '16px',
-        padding: '32px',
-        color: '#fff'
+        marginBottom: '16px',
+        background: '#fff',
+        borderRadius: '8px',
+        padding: '16px',
+        border: '1px solid #e2e8f0'
       }}>
-        <Title level={2} style={{ color: '#fff', margin: 0, marginBottom: '8px' }}>
+        <Title level={2} style={{ 
+          color: '#1e293b', 
+          margin: 0, 
+          marginBottom: '6px',
+          fontSize: '20px',
+          fontWeight: 600
+        }}>
           🎨 Banner Store
         </Title>
-        <Paragraph style={{ color: 'rgba(255,255,255,0.9)', margin: 0, fontSize: '16px' }}>
+        <Text style={{ color: '#64748b', fontSize: '13px', display: 'block' }}>
           Customize your profile with exclusive banners! Choose from Fire, Ice, Thunder, and more.
-        </Paragraph>
+        </Text>
       </div>
 
       {/* Filters */}
-      <Card style={{ marginBottom: '24px', borderRadius: '12px' }}>
-        <Row gutter={16}>
+      <Card 
+        style={{ 
+          marginBottom: '16px', 
+          borderRadius: '8px',
+          border: '1px solid #e2e8f0'
+        }}
+        styles={{ body: { padding: '12px' } }}
+      >
+        <Row gutter={12}>
           <Col xs={24} sm={12}>
-            <Text strong style={{ marginRight: '8px' }}>Rarity:</Text>
-            <Select
-              value={filterRarity}
-              onChange={setFilterRarity}
-              style={{ width: 200 }}
-            >
-              <Option value="all">All Rarities</Option>
-              <Option value="Common">Common</Option>
-              <Option value="Rare">Rare</Option>
-              <Option value="Epic">Epic</Option>
-              <Option value="Legendary">Legendary</Option>
-              <Option value="Mythic">Mythic</Option>
-            </Select>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+              <Text strong style={{ color: '#1e293b', fontSize: '13px' }}>Rarity:</Text>
+              <Select
+                value={filterRarity}
+                onChange={setFilterRarity}
+                style={{ flex: 1, maxWidth: '180px' }}
+                size="small"
+              >
+                <Option value="all">All Rarities</Option>
+                <Option value="Common">Common</Option>
+                <Option value="Rare">Rare</Option>
+                <Option value="Epic">Epic</Option>
+                <Option value="Legendary">Legendary</Option>
+                <Option value="Mythic">Mythic</Option>
+              </Select>
+            </div>
           </Col>
           <Col xs={24} sm={12}>
-            <Text strong style={{ marginRight: '8px' }}>Category:</Text>
-            <Select
-              value={filterCategory}
-              onChange={setFilterCategory}
-              style={{ width: 200 }}
-            >
-              <Option value="all">All Categories</Option>
-              <Option value="Fire">Fire</Option>
-              <Option value="Ice">Ice</Option>
-              <Option value="Thunder">Thunder</Option>
-              <Option value="Diamond">Diamond</Option>
-              <Option value="Season">Season</Option>
-              <Option value="Special">Special</Option>
-            </Select>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+              <Text strong style={{ color: '#1e293b', fontSize: '13px' }}>Category:</Text>
+              <Select
+                value={filterCategory}
+                onChange={setFilterCategory}
+                style={{ flex: 1, maxWidth: '180px' }}
+                size="small"
+              >
+                <Option value="all">All Categories</Option>
+                <Option value="Fire">Fire</Option>
+                <Option value="Ice">Ice</Option>
+                <Option value="Thunder">Thunder</Option>
+                <Option value="Diamond">Diamond</Option>
+                <Option value="Season">Season</Option>
+                <Option value="Special">Special</Option>
+              </Select>
+            </div>
           </Col>
         </Row>
       </Card>
 
       {/* Banner Grid */}
       {filteredBanners.length === 0 ? (
-        <Empty description="No banners available" />
+        <Card style={{ 
+          border: '1px solid #e2e8f0',
+          borderRadius: '8px',
+          background: '#fff'
+        }}>
+          <Empty description={<Text style={{ color: '#64748b', fontSize: '13px' }}>No banners available</Text>} />
+        </Card>
       ) : (
-        <Row gutter={[16, 16]}>
+        <Row gutter={[12, 12]}>
           {filteredBanners.map((banner) => {
             const owned = isOwned(banner._id);
             const isPurchasing = purchasing === banner._id;
@@ -296,20 +336,22 @@ const BannerStore = () => {
                 <Badge.Ribbon
                   text={banner.rarity}
                   color={getRarityColor(banner.rarity)}
-                  style={{ fontSize: '12px' }}
+                  style={{ fontSize: '11px', padding: '0 8px' }}
                 >
                   <Card
                     hoverable={!owned}
                     className={`banner-card banner-${banner.effect}`}
                     style={{
-                      borderRadius: '12px',
+                      borderRadius: '8px',
                       overflow: 'hidden',
-                      border: `2px solid ${getRarityColor(banner.rarity)}`,
-                      opacity: owned ? 0.7 : 1
+                      border: `1px solid ${owned ? '#e2e8f0' : getRarityColor(banner.rarity)}`,
+                      opacity: owned ? 0.85 : 1,
+                      background: '#fff'
                     }}
+                    styles={{ body: { padding: '12px' } }}
                     cover={
                       <div style={{ 
-                        height: '200px',
+                        height: '160px',
                         background: `url(${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:7000'}${banner.imageUrl})`,
                         backgroundSize: 'cover',
                         backgroundPosition: 'center',
@@ -318,52 +360,85 @@ const BannerStore = () => {
                         {owned && (
                           <div style={{
                             position: 'absolute',
-                            top: '10px',
-                            right: '10px',
-                            background: 'rgba(0,0,0,0.7)',
-                            borderRadius: '20px',
-                            padding: '4px 12px',
+                            top: '8px',
+                            right: '8px',
+                            background: 'rgba(34, 197, 94, 0.9)',
+                            borderRadius: '12px',
+                            padding: '3px 10px',
                             color: '#fff',
-                            fontSize: '12px',
+                            fontSize: '11px',
                             display: 'flex',
                             alignItems: 'center',
-                            gap: '4px'
+                            gap: '4px',
+                            fontWeight: 500
                           }}>
-                            <CheckCircleOutlined /> Owned
+                            <CheckCircleOutlined style={{ fontSize: '11px' }} /> Owned
                           </div>
                         )}
                       </div>
                     }
                   >
                     <div style={{ textAlign: 'center' }}>
-                      <Title level={5} style={{ margin: '8px 0', fontSize: '16px' }}>
+                      <Title level={5} style={{ 
+                        margin: '0 0 6px 0', 
+                        fontSize: '14px',
+                        fontWeight: 600,
+                        color: '#1e293b'
+                      }}>
                         {banner.name}
                       </Title>
                       
                       {banner.description && (
                         <Paragraph 
-                          type="secondary" 
-                          style={{ fontSize: '12px', marginBottom: '12px', minHeight: '36px' }}
+                          style={{ 
+                            fontSize: '12px', 
+                            marginBottom: '10px', 
+                            minHeight: '32px',
+                            color: '#64748b'
+                          }}
                           ellipsis={{ rows: 2 }}
                         >
                           {banner.description}
                         </Paragraph>
                       )}
 
-                      <div style={{ marginBottom: '12px' }}>
-                        <Tag color={getRarityColor(banner.rarity)} icon={getRarityIcon(banner.rarity)}>
+                      <div style={{ 
+                        marginBottom: '10px',
+                        display: 'flex',
+                        justifyContent: 'center',
+                        gap: '6px',
+                        flexWrap: 'wrap'
+                      }}>
+                        <Tag 
+                          color={getRarityColor(banner.rarity)} 
+                          icon={getRarityIcon(banner.rarity)}
+                          style={{ 
+                            fontSize: '11px',
+                            padding: '2px 8px',
+                            margin: 0
+                          }}
+                        >
                           {banner.rarity}
                         </Tag>
                         {banner.category && (
-                          <Tag>{banner.category}</Tag>
+                          <Tag style={{ 
+                            fontSize: '11px',
+                            padding: '2px 8px',
+                            margin: 0,
+                            background: '#f1f5f9',
+                            color: '#64748b',
+                            border: '1px solid #e2e8f0'
+                          }}>
+                            {banner.category}
+                          </Tag>
                         )}
                       </div>
 
                       <div style={{ 
-                        fontSize: '24px', 
-                        fontWeight: 'bold',
+                        fontSize: '18px', 
+                        fontWeight: 700,
                         color: getRarityColor(banner.rarity),
-                        marginBottom: '12px'
+                        marginBottom: '10px'
                       }}>
                         ₹{banner.price}
                       </div>
@@ -373,8 +448,15 @@ const BannerStore = () => {
                           type="default"
                           block
                           disabled
-                          icon={<CheckCircleOutlined />}
-                          style={{ borderRadius: '8px' }}
+                          icon={<CheckCircleOutlined style={{ fontSize: '12px' }} />}
+                          style={{ 
+                            borderRadius: '6px',
+                            fontSize: '12px',
+                            height: '32px',
+                            background: '#f1f5f9',
+                            borderColor: '#e2e8f0',
+                            color: '#64748b'
+                          }}
                         >
                           Already Owned
                         </Button>
@@ -384,9 +466,11 @@ const BannerStore = () => {
                           block
                           loading={isPurchasing}
                           onClick={() => handlePurchase(banner._id)}
-                          icon={<ShoppingCartOutlined />}
+                          icon={<ShoppingCartOutlined style={{ fontSize: '12px' }} />}
                           style={{
-                            borderRadius: '8px',
+                            borderRadius: '6px',
+                            fontSize: '12px',
+                            height: '32px',
                             background: getRarityColor(banner.rarity),
                             borderColor: getRarityColor(banner.rarity)
                           }}
@@ -396,7 +480,12 @@ const BannerStore = () => {
                       )}
 
                       {banner.stock !== -1 && (
-                        <Text type="secondary" style={{ fontSize: '11px', marginTop: '8px', display: 'block' }}>
+                        <Text style={{ 
+                          fontSize: '11px', 
+                          marginTop: '8px', 
+                          display: 'block',
+                          color: '#64748b'
+                        }}>
                           Stock: {banner.stock} left
                         </Text>
                       )}

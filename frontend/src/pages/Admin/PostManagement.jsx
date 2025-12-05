@@ -368,75 +368,78 @@ const PostManagement = () => {
   ];
 
   return (
-    <div style={{ padding: '24px', background: AdminDesignSystem.colors.background }}>
-      <div style={{ marginBottom: '24px' }}>
-        <Title level={2} style={{ margin: 0, color: AdminDesignSystem.colors.text.primary }}>
+    <div style={{ padding: '16px', background: '#f5f7fa', minHeight: '100vh' }}>
+      <div style={{ marginBottom: '16px', background: '#fff', padding: '16px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+        <Title level={2} style={{ margin: 0, marginBottom: '6px', fontSize: '20px', fontWeight: 600, color: '#1e293b' }}>
           Post Management
         </Title>
-        <Text type="secondary">
+        <Text style={{ color: '#64748b', fontSize: '13px' }}>
           Manage and moderate user posts
         </Text>
       </div>
 
       {/* Stats Cards */}
-      <Row gutter={16} style={{ marginBottom: '24px' }}>
-        <Col xs={24} sm={12} md={6}>
-          <Card>
+      <Row gutter={[12, 12]} style={{ marginBottom: '16px' }}>
+        <Col xs={12} sm={12} md={6}>
+          <Card style={{ borderRadius: '8px', border: '1px solid #e2e8f0', background: '#fff' }} styles={{ body: { padding: '12px' } }}>
             <Statistic
-              title="Total Posts"
+              title={<Text style={{ color: '#64748b', fontSize: '12px' }}>Total Posts</Text>}
               value={stats.total}
-              prefix={<EyeOutlined />}
+              prefix={<EyeOutlined style={{ color: '#3b82f6', fontSize: '18px' }} />}
+              valueStyle={{ fontSize: '18px', fontWeight: 600, color: '#3b82f6' }}
             />
           </Card>
         </Col>
-        <Col xs={24} sm={12} md={6}>
-          <Card>
+        <Col xs={12} sm={12} md={6}>
+          <Card style={{ borderRadius: '8px', border: '1px solid #e2e8f0', background: '#fff' }} styles={{ body: { padding: '12px' } }}>
             <Statistic
-              title="Published"
+              title={<Text style={{ color: '#64748b', fontSize: '12px' }}>Published</Text>}
               value={stats.published}
-              valueStyle={{ color: AdminDesignSystem.colors.success }}
-              prefix={<CheckCircleOutlined />}
+              valueStyle={{ fontSize: '18px', fontWeight: 600, color: '#22c55e' }}
+              prefix={<CheckCircleOutlined style={{ color: '#22c55e', fontSize: '18px' }} />}
             />
           </Card>
         </Col>
-        <Col xs={24} sm={12} md={6}>
-          <Card>
+        <Col xs={12} sm={12} md={6}>
+          <Card style={{ borderRadius: '8px', border: '1px solid #e2e8f0', background: '#fff' }} styles={{ body: { padding: '12px' } }}>
             <Statistic
-              title="Pending"
+              title={<Text style={{ color: '#64748b', fontSize: '12px' }}>Pending</Text>}
               value={stats.pending}
-              valueStyle={{ color: AdminDesignSystem.colors.warning }}
-              prefix={<ReloadOutlined />}
+              valueStyle={{ fontSize: '18px', fontWeight: 600, color: '#f59e0b' }}
+              prefix={<ReloadOutlined style={{ color: '#f59e0b', fontSize: '18px' }} />}
             />
           </Card>
         </Col>
-        <Col xs={24} sm={12} md={6}>
-          <Card>
+        <Col xs={12} sm={12} md={6}>
+          <Card style={{ borderRadius: '8px', border: '1px solid #e2e8f0', background: '#fff' }} styles={{ body: { padding: '12px' } }}>
             <Statistic
-              title="Flagged"
+              title={<Text style={{ color: '#64748b', fontSize: '12px' }}>Flagged</Text>}
               value={stats.flagged}
-              valueStyle={{ color: AdminDesignSystem.colors.error }}
-              prefix={<FlagOutlined />}
+              valueStyle={{ fontSize: '18px', fontWeight: 600, color: '#ec4899' }}
+              prefix={<FlagOutlined style={{ color: '#ec4899', fontSize: '18px' }} />}
             />
           </Card>
         </Col>
       </Row>
 
       {/* Filters */}
-      <Card style={{ marginBottom: '24px' }}>
-        <Space wrap style={{ width: '100%' }}>
+      <Card style={{ marginBottom: '16px', borderRadius: '8px', border: '1px solid #e2e8f0', background: '#fff' }} styles={{ body: { padding: '12px' } }}>
+        <Space wrap size="small" style={{ width: '100%' }}>
           <Input
             placeholder="Search posts..."
             prefix={<SearchOutlined />}
             value={filters.search}
             onChange={(e) => setFilters({ ...filters, search: e.target.value })}
-            style={{ width: 250 }}
+            style={{ width: 200 }}
+            size="small"
             allowClear
           />
           <Select
             placeholder="Status"
             value={filters.status}
             onChange={(value) => setFilters({ ...filters, status: value })}
-            style={{ width: 150 }}
+            style={{ width: 130 }}
+            size="small"
             allowClear
           >
             <Option value="published">Published</Option>
@@ -449,7 +452,8 @@ const PostManagement = () => {
             placeholder="Privacy"
             value={filters.privacy}
             onChange={(value) => setFilters({ ...filters, privacy: value })}
-            style={{ width: 150 }}
+            style={{ width: 130 }}
+            size="small"
             allowClear
           >
             <Option value="public">Public</Option>
@@ -460,7 +464,8 @@ const PostManagement = () => {
             placeholder="Flagged"
             value={filters.flagged}
             onChange={(value) => setFilters({ ...filters, flagged: value })}
-            style={{ width: 120 }}
+            style={{ width: 110 }}
+            size="small"
             allowClear
           >
             <Option value="true">Yes</Option>
@@ -472,6 +477,8 @@ const PostManagement = () => {
               setFilters({ status: null, privacy: null, flagged: null, search: '' });
               setPagination({ ...pagination, current: 1 });
             }}
+            size="small"
+            style={{ fontSize: '12px', height: '28px' }}
           >
             Reset
           </Button>
@@ -479,6 +486,8 @@ const PostManagement = () => {
             type="primary"
             icon={<ExportOutlined />}
             onClick={handleExport}
+            size="small"
+            style={{ fontSize: '12px', height: '28px', backgroundColor: '#3b82f6', borderColor: '#3b82f6' }}
           >
             Export CSV
           </Button>
@@ -486,7 +495,7 @@ const PostManagement = () => {
       </Card>
 
       {/* Posts Table */}
-      <Card>
+      <Card style={{ borderRadius: '8px', border: '1px solid #e2e8f0', background: '#fff' }} styles={{ body: { padding: '12px' } }}>
         <Table
           columns={columns}
           dataSource={posts}

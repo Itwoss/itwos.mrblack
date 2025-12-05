@@ -1,20 +1,24 @@
 import React, { useState, useEffect } from 'react'
-import { Form, Input, Button, Card, Typography, Space, Divider, Row, Col, App } from 'antd'
-import { UserOutlined, LockOutlined, GoogleOutlined, EyeInvisibleOutlined, EyeTwoTone } from '@ant-design/icons'
+import { Form, Input, Typography, App } from 'antd'
+import { MailOutlined, LockOutlined, GoogleOutlined, EyeInvisibleOutlined, EyeTwoTone } from '@ant-design/icons'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from "../../contexts/AuthContextOptimized"
+import '../../styles/glass-login.css'
 
-const { Title, Paragraph, Text } = Typography
+const { Text } = Typography
 
 const LoginPage = () => {
   const [isLoading, setIsLoading] = useState(false)
   const [isGoogleLoading, setIsGoogleLoading] = useState(false)
+  const [isFacebookLoading, setIsFacebookLoading] = useState(false)
+  const [isAppleLoading, setIsAppleLoading] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
   const { login, googleLogin, isAuthenticated, user } = useAuth()
   const { message } = App.useApp()
   const navigate = useNavigate()
   const location = useLocation()
 
-  const from = location.state?.from?.pathname || '/dashboard'
+  const from = location.state?.from?.pathname || '/feed'
 
   // Redirect if already authenticated
   useEffect(() => {
@@ -27,19 +31,11 @@ const LoginPage = () => {
   const onFinish = async (values) => {
     setIsLoading(true)
     try {
-      console.log('🔐🔐🔐 LOGIN PAGE: Attempting login for:', values.email)
-      console.log('🔐🔐🔐 LOGIN PAGE: Attempting login for:', values.email)
-      console.log('🔐🔐🔐 LOGIN PAGE: Attempting login for:', values.email)
       const result = await login(values)
-      console.log('🔐 Login result:', result)
       
       if (result.success) {
-        console.log('✅ Login successful, redirecting to:', result.redirectTo || from)
         message.success('Login successful!')
-        
-        // Navigate immediately - the auth state should be set by now
         const redirectPath = result.redirectTo || from
-        console.log('🚀 Navigating to:', redirectPath)
         navigate(redirectPath, { replace: true })
       } else {
         message.error(result.error || 'Login failed')
@@ -55,17 +51,11 @@ const LoginPage = () => {
   const handleGoogleLogin = async () => {
     setIsGoogleLoading(true)
     try {
-      console.log('🔐 Starting Google login...')
       const result = await googleLogin()
-      console.log('🔐 Google login result:', result)
       
       if (result.success) {
-        console.log('✅ Google login successful, redirecting to:', result.redirectTo || from)
         message.success('Google login successful!')
-        
-        // Navigate immediately
         const redirectPath = result.redirectTo || from
-        console.log('🚀 Navigating to:', redirectPath)
         navigate(redirectPath, { replace: true })
       } else {
         message.error(result.error || 'Google login failed')
@@ -78,33 +68,41 @@ const LoginPage = () => {
     }
   }
 
+  const handleFacebookLogin = async () => {
+    setIsFacebookLoading(true)
+    try {
+      message.info('Facebook login coming soon!')
+    } catch (error) {
+      console.error('❌ Facebook login error:', error)
+      message.error('Facebook login failed')
+    } finally {
+      setIsFacebookLoading(false)
+    }
+  }
+
+  const handleAppleLogin = async () => {
+    setIsAppleLoading(true)
+    try {
+      message.info('Apple login coming soon!')
+    } catch (error) {
+      console.error('❌ Apple login error:', error)
+      message.error('Apple login failed')
+    } finally {
+      setIsAppleLoading(false)
+    }
+  }
+
   return (
     <App>
-      <div style={{ 
-      minHeight: '100vh', 
-      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: '2rem'
-    }}>
-      <Row justify="center" style={{ width: '100%' }}>
-        <Col xs={24} sm={20} md={16} lg={12} xl={8}>
-          <Card 
-            style={{ 
-              width: '100%',
-              boxShadow: '0 20px 40px rgba(0,0,0,0.1)',
-              borderRadius: '16px',
-              border: 'none'
-            }}
-          >
-            <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-              <Title level={2} style={{ marginBottom: '0.5rem', color: '#1890ff' }}>
-                🚀 Welcome Back
-              </Title>
-              <Paragraph style={{ color: '#666', fontSize: '1.1rem' }}>
-                Sign in to your ITWOS AI account
-              </Paragraph>
+      <div className="glass-login-wrapper">
+        <div className="glass-login-container">
+          <div className="glass-card">
+            <div className="glass-card-header">
+              <h1>Log in</h1>
+              <p>
+                Log in to your account and seamlessly continue managing your projects,
+                ideas, and progress just where you left off.
+              </p>
             </div>
 
             <Form
@@ -112,112 +110,111 @@ const LoginPage = () => {
               onFinish={onFinish}
               autoComplete="off"
               layout="vertical"
-              size="large"
             >
+              {/* Email */}
               <Form.Item
                 name="email"
                 rules={[
                   { required: true, message: 'Please input your email!' },
                   { type: 'email', message: 'Please enter a valid email!' }
                 ]}
+                style={{ marginBottom: '16px' }}
               >
-                <Input 
-                  prefix={<UserOutlined style={{ color: '#1890ff' }} />} 
-                  placeholder="Enter your email address" 
-                  style={{ borderRadius: '8px' }}
-                />
+                <div>
+                  <label className="glass-field-label">Email address</label>
+                  <div className="glass-input-wrapper">
+                    <div className="glass-input-icon">
+                      <MailOutlined />
+                    </div>
+                    <Input
+                      placeholder="Enter your email address"
+                      prefix={null}
+                      bordered={false}
+                    />
+                  </div>
+                </div>
               </Form.Item>
 
+              {/* Password */}
               <Form.Item
                 name="password"
                 rules={[{ required: true, message: 'Please input your password!' }]}
+                style={{ marginBottom: '16px' }}
               >
-                <Input.Password 
-                  prefix={<LockOutlined style={{ color: '#1890ff' }} />} 
-                  placeholder="Enter your password" 
-                  style={{ borderRadius: '8px' }}
-                  iconRender={(visible) => (visible ? <EyeTwoTone /> : <EyeInvisibleOutlined />)}
-                />
+                <div>
+                  <label className="glass-field-label">Password</label>
+                  <div className="glass-input-wrapper">
+                    <div className="glass-input-icon">
+                      <LockOutlined />
+                    </div>
+                    <Input
+                      type={showPassword ? 'text' : 'password'}
+                      placeholder="Enter your password"
+                      prefix={null}
+                      bordered={false}
+                    />
+                    <button
+                      type="button"
+                      className="glass-input-action"
+                      onClick={() => setShowPassword(!showPassword)}
+                      aria-label="Toggle password visibility"
+                    >
+                      {showPassword ? <EyeTwoTone /> : <EyeInvisibleOutlined />}
+                    </button>
+                  </div>
+                </div>
               </Form.Item>
 
-              <Form.Item>
-                <Button 
-                  type="primary" 
-                  htmlType="submit" 
-                  loading={isLoading}
-                  size="large"
-                  style={{ 
-                    width: '100%',
-                    height: '48px',
-                    borderRadius: '8px',
-                    background: 'linear-gradient(135deg, #1890ff 0%, #722ed1 100%)',
-                    border: 'none',
-                    fontSize: '16px',
-                    fontWeight: '600'
-                  }}
+              <Form.Item style={{ marginBottom: 0 }}>
+                <button
+                  type="submit"
+                  className="glass-primary-btn"
+                  disabled={isLoading || isGoogleLoading || isFacebookLoading || isAppleLoading}
                 >
-                  {isLoading ? 'Signing In...' : 'Sign In'}
-                </Button>
+                  {isLoading ? 'Logging in...' : 'Log in'}
+                </button>
               </Form.Item>
             </Form>
 
-            <Divider style={{ margin: '1.5rem 0' }}>
-              <Text style={{ color: '#999' }}>Or continue with</Text>
-            </Divider>
+            <div className="glass-divider">or continue with</div>
 
-            <Button
-              icon={<GoogleOutlined />}
-              onClick={handleGoogleLogin}
-              loading={isGoogleLoading}
-              disabled={isLoading || isGoogleLoading}
-              size="large"
-              style={{ 
-                width: '100%',
-                height: '48px',
-                borderRadius: '8px',
-                border: '2px solid #f0f0f0',
-                fontSize: '16px',
-                fontWeight: '500'
-              }}
-            >
-              {isGoogleLoading ? 'Signing in with Google...' : 'Continue with Google'}
-            </Button>
-
-            <div style={{ textAlign: 'center', marginTop: '1rem' }}>
-              <Link to="/forgot-password" style={{ 
-                color: '#1890ff',
-                fontWeight: '500',
-                textDecoration: 'none'
-              }}>
-                Forgot your password?
-              </Link>
+            <div className="glass-social-row">
+              <button
+                className="glass-social-btn"
+                type="button"
+                onClick={handleFacebookLogin}
+                disabled={isLoading || isGoogleLoading || isFacebookLoading || isAppleLoading}
+              >
+                <span className="glass-social-icon"><span>f</span></span>
+                Facebook
+              </button>
+              <button
+                className="glass-social-btn"
+                type="button"
+                onClick={handleGoogleLogin}
+                disabled={isLoading || isGoogleLoading || isFacebookLoading || isAppleLoading}
+              >
+                <span className="glass-social-icon"><span>G</span></span>
+                Google
+              </button>
+              <button
+                className="glass-social-btn"
+                type="button"
+                onClick={handleAppleLogin}
+                disabled={isLoading || isGoogleLoading || isFacebookLoading || isAppleLoading}
+              >
+                <span className="glass-social-icon"><span>🍎</span></span>
+                Apple
+              </button>
             </div>
 
-            <div style={{ textAlign: 'center', marginTop: '1rem' }}>
-              <Text style={{ color: '#666' }}>
-                Don't have an account?{' '}
-                <Link to="/register" style={{ 
-                  color: '#1890ff',
-                  fontWeight: '600',
-                  textDecoration: 'none'
-                }}>
-                  Create one now
-                </Link>
-              </Text>
+            <div className="glass-card-footer">
+              Didn't have an account?
+              <Link to="/register">Sign up</Link>
             </div>
-
-            <div style={{ textAlign: 'center', marginTop: '1rem' }}>
-              <Link to="/forgot-password" style={{ 
-                color: '#1890ff',
-                fontSize: '14px'
-              }}>
-                Forgot your password?
-              </Link>
-            </div>
-          </Card>
-        </Col>
-      </Row>
-    </div>
+          </div>
+        </div>
+      </div>
     </App>
   )
 }

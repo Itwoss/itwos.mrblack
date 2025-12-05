@@ -597,6 +597,10 @@ app.use(cors({
       /^http:\/\/10\.\d+\.\d+\.\d+:5173$/,
       /^http:\/\/172\.\d+\.\d+\.\d+:5173$/,
       'http://127.0.0.1:3000',
+      'http://192.168.31.132:5173',
+      'http://192.168.31.132:5175',
+      'http://192.168.31.132:5174',
+      'http://192.168.31.132:3000',
       process.env.FRONTEND_URL
     ].filter(Boolean)
     
@@ -822,8 +826,8 @@ const { checkMaintenanceMode } = require('./src/middleware/maintenance')
 app.use((req, res, next) => {
   // Allow settings/maintenance-status endpoint to bypass maintenance check
   // Check both req.path and req.originalUrl to handle different Express path matching
-  const path = req.path || req.originalUrl || req.url || ''
-  if (path.startsWith('/api/settings') || path.includes('/api/settings')) {
+  const path = req.path || req.originalUrl || req.url
+  if (path.startsWith('/api/settings')) {
     return next()
   }
   // Apply maintenance mode check to all other routes

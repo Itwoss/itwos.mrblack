@@ -19,16 +19,34 @@ import { useAuth } from "../../contexts/AuthContextOptimized"
 import { usersListAPI, threadsAPI } from '../../services/api'
 import { getUserAvatarUrl, getUserInitials } from '../../utils/avatarUtils'
 import api from '../../services/api'
+import { IconlyTickSquare } from '../../components/IconlyTickSquare'
 
 const { Title, Paragraph, Text } = Typography
 
 const Dashboard = () => {
   const [isLoading, setIsLoading] = useState(true)
-  const { user, isAuthenticated, updateUser } = useAuth()
+  const { user, isAuthenticated, updateUser, authInitialized } = useAuth()
   const navigate = useNavigate()
+  
+  // Add timeout to prevent infinite loading
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      if (isLoading) {
+        console.warn('Dashboard: Loading timeout - forcing render')
+        setIsLoading(false)
+      }
+    }, 3000) // 3 second timeout
+    
+    return () => clearTimeout(timeout)
+  }, [isLoading])
   
   // Authentication check
   const checkAuth = useCallback(() => {
+    // Only check if auth is initialized
+    if (!authInitialized) {
+      return false
+    }
+    
     if (isAuthenticated && user?.role === 'user') {
       console.log('User is authenticated and authorized')
       setIsLoading(false)
@@ -48,7 +66,7 @@ const Dashboard = () => {
     }
     
     return false
-  }, [isAuthenticated, user, navigate])
+  }, [isAuthenticated, user, navigate, authInitialized])
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -73,43 +91,32 @@ const Dashboard = () => {
   const [loadingNewUsers, setLoadingNewUsers] = useState(false)
   const [isActiveStatusVisible, setIsActiveStatusVisible] = useState(true)
 
-  // Sync active status from user context immediately (0 delay, no API call)
+  // Sync active status from user context immediately
   useEffect(() => {
     if (user) {
-      // Update immediately from user context - instant sync
       setIsActiveStatusVisible(user.activeStatusVisible !== false)
     }
-  }, [user?.activeStatusVisible]) // Only re-run when activeStatusVisible changes
+  }, [user?.activeStatusVisible])
 
-  // Handle active status toggle - immediate update (0 delay)
+  // Handle active status toggle
   const handleActiveStatusToggle = async (checked) => {
-    // Update UI immediately (0 delay) - no waiting for API
     setIsActiveStatusVisible(checked)
     
-    // Update user context immediately for instant sync across app
     if (updateUser) {
       updateUser({ activeStatusVisible: checked })
     }
     
-    // Save to backend asynchronously (non-blocking)
     try {
       const response = await api.put('/users/me', { 
         activeStatusVisible: checked 
       })
-      console.log('✅ Active status update response:', response.data)
       if (response.data.success) {
         message.success(`Active status ${checked ? 'enabled' : 'disabled'}`)
       } else {
         throw new Error(response.data.message || 'Update failed')
       }
     } catch (error) {
-      console.error('❌ Error updating active status:', error)
-      console.error('❌ Error details:', {
-        message: error.message,
-        response: error.response?.data,
-        status: error.response?.status
-      })
-      // Revert on error
+      console.error('Error updating active status:', error)
       setIsActiveStatusVisible(!checked)
       if (updateUser) {
         updateUser({ activeStatusVisible: !checked })
@@ -129,7 +136,6 @@ const Dashboard = () => {
       })
       
       if (response.data.success) {
-        // Filter to only show new users
         const newUsersList = (response.data.users || []).filter(user => user.isNew)
         setNewUsers(newUsersList.slice(0, 6))
       }
@@ -160,7 +166,7 @@ const Dashboard = () => {
         justifyContent: 'center', 
         alignItems: 'center', 
         height: '50vh',
-        background: '#f5f5f5'
+        background: '#f5f7fa'
       }}>
         <div>Loading...</div>
       </div>
@@ -174,7 +180,7 @@ const Dashboard = () => {
         justifyContent: 'center', 
         alignItems: 'center', 
         height: '50vh',
-        background: '#f5f5f5'
+        background: '#f5f7fa'
       }}>
         <div>
           <Title level={2}>Access Denied</Title>
@@ -187,414 +193,528 @@ const Dashboard = () => {
     )
   }
 
-  return (
-    <div>
-      {/* Breadcrumb */}
-      <div style={{ marginBottom: 'var(--space-xl)', padding: '0 var(--container-padding-mobile)' }}>
-        <span style={{ color: 'var(--text-secondary)', fontSize: 'var(--type-small)' }}>
-          Home / Dashboard
-        </span>
-      </div>
+  // Check if user has verified badge
+  const isVerified = user?.isVerified && user?.verifiedTill && new Date(user.verifiedTill) > new Date()
 
+  return (
+    <div style={{ 
+      background: '#f5f7fa', 
+      minHeight: '100vh',
+      padding: '16px'
+    }}>
       {/* Welcome Section */}
-      <div style={{ 
-        marginBottom: 'var(--space-xxl)',
-        padding: '0 var(--container-padding-mobile)'
-      }}>
-        <Title 
-          level={1} 
-          style={{ 
-            color: 'var(--text-primary)', 
-            marginBottom: 'var(--space-sm)',
-            fontSize: 'var(--type-display)',
-            fontWeight: 'var(--weight-bold)',
-            lineHeight: 'var(--line-tight)'
-          }}
-        >
-          Welcome back, {user?.name || 'user123'}! 👋
-        </Title>
-        <Paragraph style={{ 
-          color: 'var(--text-secondary)', 
-          fontSize: 'var(--type-body)',
-          lineHeight: 'var(--line-relaxed)'
+      <div style={{ marginBottom: '16px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+          <Title 
+            level={2} 
+            style={{ 
+              color: '#1e293b', 
+              margin: 0,
+              fontSize: '20px',
+              fontWeight: 600,
+              lineHeight: '1.4'
+            }}
+          >
+            Welcome back, {user?.name || 'user123'}! 👋
+          </Title>
+          {isVerified && (
+            <IconlyTickSquare size={20} color="#0aa2ee" />
+          )}
+        </div>
+        <Text style={{ 
+          color: '#64748b', 
+          fontSize: '13px',
+          lineHeight: '1.5'
         }}>
           Here's what's happening with your learning journey.
-        </Paragraph>
+        </Text>
       </div>
 
-      {/* New Users Suggestions */}
+      {/* Stats Cards */}
+      <Row gutter={[12, 12]} style={{ marginBottom: '16px' }}>
+        <Col xs={12} sm={12} md={6}>
+          <Card 
+            style={{ 
+              background: '#fff',
+              border: '1px solid #e2e8f0',
+              borderRadius: '8px',
+              padding: '12px'
+            }}
+            bodyStyle={{ padding: 0 }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div style={{
+                width: '36px',
+                height: '36px',
+                borderRadius: '6px',
+                background: '#eff6ff',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}>
+                <ShoppingCartOutlined style={{ color: '#3b82f6', fontSize: '18px' }} />
+              </div>
+              <div style={{ flex: 1 }}>
+                <Text style={{ 
+                  color: '#64748b', 
+                  fontSize: '11px', 
+                  display: 'block',
+                  lineHeight: '1.2',
+                  marginBottom: '2px'
+                }}>
+                  Total Purchases
+                </Text>
+                <Text style={{ 
+                  color: '#1e293b', 
+                  fontSize: '18px', 
+                  fontWeight: 600,
+                  lineHeight: '1.2'
+                }}>
+                  {stats.totalPurchases}
+                </Text>
+              </div>
+            </div>
+          </Card>
+        </Col>
+        <Col xs={12} sm={12} md={6}>
+          <Card 
+            style={{ 
+              background: '#fff',
+              border: '1px solid #e2e8f0',
+              borderRadius: '8px',
+              padding: '12px'
+            }}
+            bodyStyle={{ padding: 0 }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div style={{
+                width: '36px',
+                height: '36px',
+                borderRadius: '6px',
+                background: '#f0fdf4',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}>
+                <BookOutlined style={{ color: '#22c55e', fontSize: '18px' }} />
+              </div>
+              <div style={{ flex: 1 }}>
+                <Text style={{ 
+                  color: '#64748b', 
+                  fontSize: '11px', 
+                  display: 'block',
+                  lineHeight: '1.2',
+                  marginBottom: '2px'
+                }}>
+                  Courses Enrolled
+                </Text>
+                <Text style={{ 
+                  color: '#1e293b', 
+                  fontSize: '18px', 
+                  fontWeight: 600,
+                  lineHeight: '1.2'
+                }}>
+                  {stats.coursesEnrolled}
+                </Text>
+              </div>
+            </div>
+          </Card>
+        </Col>
+        <Col xs={12} sm={12} md={6}>
+          <Card 
+            style={{ 
+              background: '#fff',
+              border: '1px solid #e2e8f0',
+              borderRadius: '8px',
+              padding: '12px'
+            }}
+            bodyStyle={{ padding: 0 }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div style={{
+                width: '36px',
+                height: '36px',
+                borderRadius: '6px',
+                background: '#fffbeb',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}>
+                <TrophyOutlined style={{ color: '#f59e0b', fontSize: '18px' }} />
+              </div>
+              <div style={{ flex: 1 }}>
+                <Text style={{ 
+                  color: '#64748b', 
+                  fontSize: '11px', 
+                  display: 'block',
+                  lineHeight: '1.2',
+                  marginBottom: '2px'
+                }}>
+                  Completed
+                </Text>
+                <Text style={{ 
+                  color: '#1e293b', 
+                  fontSize: '18px', 
+                  fontWeight: 600,
+                  lineHeight: '1.2'
+                }}>
+                  {stats.completed}
+                </Text>
+              </div>
+            </div>
+          </Card>
+        </Col>
+        <Col xs={12} sm={12} md={6}>
+          <Card 
+            style={{ 
+              background: '#fff',
+              border: '1px solid #e2e8f0',
+              borderRadius: '8px',
+              padding: '12px'
+            }}
+            bodyStyle={{ padding: 0 }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div style={{
+                width: '36px',
+                height: '36px',
+                borderRadius: '6px',
+                background: '#fdf2f8',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}>
+                <DollarOutlined style={{ color: '#ec4899', fontSize: '18px' }} />
+              </div>
+              <div style={{ flex: 1 }}>
+                <Text style={{ 
+                  color: '#64748b', 
+                  fontSize: '11px', 
+                  display: 'block',
+                  lineHeight: '1.2',
+                  marginBottom: '2px'
+                }}>
+                  Total Spent
+                </Text>
+                <Text style={{ 
+                  color: '#1e293b', 
+                  fontSize: '18px', 
+                  fontWeight: 600,
+                  lineHeight: '1.2'
+                }}>
+                  ${stats.totalSpent}
+                </Text>
+              </div>
+            </div>
+          </Card>
+        </Col>
+      </Row>
+
+      {/* New Users Section */}
       {newUsers.length > 0 && (
         <Card 
           title={
-            <Space>
-              <Tag color="green">NEW</Tag>
-              <span>New Users This Week - Start Chatting!</span>
-            </Space>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <Tag color="#22c55e" style={{ margin: 0, fontSize: '10px', padding: '2px 6px' }}>NEW</Tag>
+              <Text style={{ fontSize: '13px', fontWeight: 600, color: '#1e293b' }}>
+                New Users This Week
+              </Text>
+            </div>
           }
           extra={
-            <Button type="link" onClick={() => navigate('/discover')}>
+            <Button 
+              type="link" 
+              onClick={() => navigate('/discover')}
+              style={{ fontSize: '12px', padding: 0, height: 'auto' }}
+            >
               See All
             </Button>
           }
           style={{ 
-            marginBottom: 'var(--space-xl)',
-            borderRadius: 'var(--radius-lg)',
-            boxShadow: 'var(--elev-1)'
+            marginBottom: '16px',
+            borderRadius: '8px',
+            border: '1px solid #e2e8f0',
+            background: '#fff'
           }}
+          bodyStyle={{ padding: '12px' }}
         >
-          <Row gutter={[16, 16]}>
+          <Row gutter={[12, 12]}>
             {newUsers.map((newUser) => (
-              <Col xs={24} sm={12} md={8} lg={4} key={newUser._id}>
-                <Card
-                  size="small"
-                  hoverable
-                  style={{ 
+              <Col xs={8} sm={8} md={4} lg={4} key={newUser._id}>
+                <div
+                  style={{
                     textAlign: 'center',
-                    border: '2px solid var(--success)',
-                    borderRadius: 'var(--radius-md)',
-                    transition: 'all var(--transition-base)',
                     cursor: 'pointer',
-                    position: 'relative'
+                    padding: '8px',
+                    borderRadius: '6px',
+                    transition: 'background 0.2s'
                   }}
-                  onClick={(e) => {
-                    e.preventDefault()
-                    e.stopPropagation()
-                    console.log('🔍 Dashboard: Clicked user card, navigating to:', `/profile/${newUser._id}`)
-                    if (newUser._id) {
-                      navigate(`/profile/${newUser._id}`)
-                    } else {
-                      console.error('No newUser._id found:', newUser)
-                      message.error('Invalid user ID')
-                    }
-                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.background = '#f8fafc'}
+                  onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                  onClick={() => navigate(`/profile/${newUser._id}`)}
                 >
-
-                  <div 
-                    style={{ position: 'relative', display: 'inline-block', cursor: 'pointer' }}
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      navigate(`/profile/${newUser._id}`)
-                    }}
-                  >
+                  <div style={{ position: 'relative', display: 'inline-block', marginBottom: '6px' }}>
                     <Avatar 
-                      size={64} 
+                      size={48} 
                       src={getUserAvatarUrl(newUser)} 
                       icon={<UserOutlined />}
                     >
                       {getUserInitials(newUser.name)}
                     </Avatar>
                     <Tag 
-                      color="green" 
+                      color="#22c55e" 
                       style={{ 
                         position: 'absolute', 
-                        top: '-8px', 
-                        right: '-8px',
-                        fontSize: '10px',
-                        fontWeight: 'bold'
+                        top: '-4px', 
+                        right: '-4px',
+                        fontSize: '9px',
+                        padding: '0 4px',
+                        margin: 0,
+                        lineHeight: '16px'
                       }}
                     >
                       NEW
                     </Tag>
                   </div>
-                  <Title 
-                    level={5} 
-                    style={{ marginTop: '12px', marginBottom: '4px', cursor: 'pointer' }}
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      navigate(`/profile/${newUser._id}`)
+                  <Text 
+                    style={{ 
+                      fontSize: '12px', 
+                      fontWeight: 500,
+                      color: '#1e293b',
+                      display: 'block',
+                      marginBottom: '2px',
+                      lineHeight: '1.3'
                     }}
                   >
                     {newUser.name}
-                  </Title>
-                  <Paragraph type="secondary" style={{ fontSize: '12px' }}>
-                    {newUser.email}
-                  </Paragraph>
-                </Card>
+                  </Text>
+                  <Text style={{ 
+                    fontSize: '11px', 
+                    color: '#64748b',
+                    display: 'block',
+                    lineHeight: '1.2'
+                  }}>
+                    {newUser.email?.split('@')[0] || 'User'}
+                  </Text>
+                </div>
               </Col>
             ))}
           </Row>
         </Card>
       )}
 
-      {/* Summary Cards */}
-      <div style={{ padding: '0 var(--container-padding-mobile)' }}>
-        <Row gutter={[24, 24]} style={{ marginBottom: 'var(--space-xxl)' }}>
-          <Col xs={24} sm={12} md={6}>
-            <Card 
-                variant="borderless"
-              hoverable
-              style={{ 
-                background: 'var(--bg-primary)', 
-                borderRadius: 'var(--radius-lg)', 
-                boxShadow: 'var(--elev-1)',
-                padding: 'var(--space-lg)',
-                transition: 'all var(--transition-base)'
-              }}
-            >
-              <Statistic 
-                title={<span style={{ color: 'var(--text-secondary)', fontSize: 'var(--type-small)' }}>Total Purchases</span>}
-                value={stats.totalPurchases} 
-                prefix={<ShoppingCartOutlined style={{ color: 'var(--accent-primary)' }} />} 
-                valueStyle={{ color: 'var(--accent-primary)', fontSize: 'var(--type-h1)' }} 
-              />
-            </Card>
-          </Col>
-          <Col xs={24} sm={12} md={6}>
-            <Card 
-                variant="borderless"
-              hoverable
-              style={{ 
-                background: 'var(--bg-primary)', 
-                borderRadius: 'var(--radius-lg)', 
-                boxShadow: 'var(--elev-1)',
-                padding: 'var(--space-lg)',
-                transition: 'all var(--transition-base)'
-              }}
-            >
-              <Statistic 
-                title={<span style={{ color: 'var(--text-secondary)', fontSize: 'var(--type-small)' }}>Courses Enrolled</span>}
-                value={stats.coursesEnrolled} 
-                prefix={<BookOutlined style={{ color: 'var(--success)' }} />} 
-                valueStyle={{ color: 'var(--success)', fontSize: 'var(--type-h1)' }} 
-              />
-            </Card>
-          </Col>
-          <Col xs={24} sm={12} md={6}>
-            <Card 
-                variant="borderless"
-              hoverable
-              style={{ 
-                background: 'var(--bg-primary)', 
-                borderRadius: 'var(--radius-lg)', 
-                boxShadow: 'var(--elev-1)',
-                padding: 'var(--space-lg)',
-                transition: 'all var(--transition-base)'
-              }}
-            >
-              <Statistic 
-                title={<span style={{ color: 'var(--text-secondary)', fontSize: 'var(--type-small)' }}>Completed</span>}
-                value={stats.completed} 
-                prefix={<TrophyOutlined style={{ color: 'var(--warning)' }} />} 
-                valueStyle={{ color: 'var(--warning)', fontSize: 'var(--type-h1)' }} 
-              />
-            </Card>
-          </Col>
-          <Col xs={24} sm={12} md={6}>
-            <Card 
-                variant="borderless"
-              hoverable
-              style={{ 
-                background: 'var(--bg-primary)', 
-                borderRadius: 'var(--radius-lg)', 
-                boxShadow: 'var(--elev-1)',
-                padding: 'var(--space-lg)',
-                transition: 'all var(--transition-base)'
-              }}
-            >
-              <Statistic 
-                title={<span style={{ color: 'var(--text-secondary)', fontSize: 'var(--type-small)' }}>Total Spent</span>}
-                value={stats.totalSpent} 
-                prefix={<DollarOutlined style={{ color: 'var(--danger)' }} />} 
-                valueStyle={{ color: 'var(--danger)', fontSize: 'var(--type-h1)' }} 
-              />
-            </Card>
-          </Col>
-        </Row>
-      </div>
-
-      {/* Quick Settings Section */}
-      <div style={{ padding: '0 16px', marginBottom: '48px' }}>
-        <Card
-          title={
-            <Space>
-              <SettingOutlined />
-              <span style={{ fontSize: '16px', fontWeight: '600' }}>Quick Settings</span>
-            </Space>
-          }
-          extra={
-            <Button type="link" onClick={() => navigate('/settings')} style={{ fontSize: '14px' }}>
-              View All Settings
-            </Button>
-          }
-          style={{
-            borderRadius: '12px',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
-          }}
-        >
-          <Row gutter={[24, 24]}>
-            <Col xs={24} md={12}>
-              <Card
-                size="small"
-                style={{
-                  borderRadius: '8px',
-                  backgroundColor: '#fafafa',
-                  border: '1px solid #e8e8e8'
-                }}
-              >
-                <div style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  padding: '8px 0'
-                }}>
-                  <div style={{ flex: 1 }}>
-                    <div style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '8px',
-                      marginBottom: '4px'
-                    }}>
-                      <CheckCircleOutlined style={{
-                        color: isActiveStatusVisible ? '#52c41a' : '#999',
-                        fontSize: '16px'
-                      }} />
-                      <Text strong style={{ fontSize: '14px', fontWeight: '600', color: '#333' }}>
-                        Activity Status
-                      </Text>
-                      <Tag color={isActiveStatusVisible ? 'green' : 'default'} style={{ margin: 0, fontSize: '11px' }}>
-                        {isActiveStatusVisible ? 'ON' : 'OFF'}
-                      </Tag>
-                    </div>
-                    <Text type="secondary" style={{ fontSize: '12px', color: '#666', display: 'block' }}>
-                      {isActiveStatusVisible 
-                        ? 'Others can see when you\'re online' 
-                        : 'Your activity status is hidden'}
-                    </Text>
-                  </div>
-                  <Switch
-                    checked={isActiveStatusVisible}
-                    onChange={handleActiveStatusToggle}
-                    checkedChildren="ON"
-                    unCheckedChildren="OFF"
-                    style={{
-                      minWidth: '50px',
-                      marginLeft: '16px'
-                    }}
-                  />
-                </div>
-              </Card>
-            </Col>
-            <Col xs={24} md={12}>
-              <Card
-                size="small"
-                style={{
-                  borderRadius: '8px',
-                  backgroundColor: '#fafafa',
-                  border: '1px solid #e8e8e8',
-                  textAlign: 'center'
-                }}
-              >
-                <Paragraph style={{
-                  margin: 0,
-                  fontSize: '12px',
-                  color: '#666',
-                  marginBottom: '12px'
-                }}>
-                  Need more settings?
-                </Paragraph>
-                <Button
-                  type="primary"
-                  icon={<SettingOutlined />}
-                  onClick={() => navigate('/settings')}
-                  style={{
-                    marginTop: '8px',
-                    minHeight: '44px',
-                    borderRadius: '6px'
-                  }}
-                >
-                  Go to Settings
-                </Button>
-              </Card>
-            </Col>
-          </Row>
-        </Card>
-      </div>
-
-      {/* Verified Badge Products Section */}
-      <div style={{ padding: '0 var(--container-padding-mobile)', marginBottom: 'var(--space-xl)' }}>
-        <Card
-          hoverable
-          onClick={() => navigate('/dashboard/products')}
-          style={{
-            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-            borderRadius: '16px',
-            boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
-            border: 'none',
-            cursor: 'pointer',
-            color: '#fff'
-          }}
-          styles={{ body: { padding: '24px' } }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+      {/* Quick Settings */}
+      <Card
+        title={
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <SettingOutlined style={{ fontSize: '14px', color: '#64748b' }} />
+            <Text style={{ fontSize: '13px', fontWeight: 600, color: '#1e293b' }}>
+              Quick Settings
+            </Text>
+          </div>
+        }
+        extra={
+          <Button 
+            type="link" 
+            onClick={() => navigate('/settings')} 
+            style={{ fontSize: '12px', padding: 0, height: 'auto' }}
+          >
+            View All
+          </Button>
+        }
+        style={{
+          marginBottom: '16px',
+          borderRadius: '8px',
+          border: '1px solid #e2e8f0',
+          background: '#fff'
+        }}
+        bodyStyle={{ padding: '12px' }}
+      >
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          padding: '8px',
+          background: '#f8fafc',
+          borderRadius: '6px'
+        }}>
+          <div style={{ flex: 1 }}>
             <div style={{
-              width: '56px',
-              height: '56px',
-              borderRadius: '12px',
-              background: 'rgba(255,255,255,0.2)',
-              backdropFilter: 'blur(10px)',
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '28px'
+              gap: '6px',
+              marginBottom: '4px'
             }}>
-              <CheckCircleOutlined style={{ color: '#fff' }} />
+              <CheckCircleOutlined style={{
+                color: isActiveStatusVisible ? '#22c55e' : '#94a3b8',
+                fontSize: '14px'
+              }} />
+              <Text style={{ fontSize: '13px', fontWeight: 500, color: '#1e293b' }}>
+                Activity Status
+              </Text>
+              <Tag 
+                color={isActiveStatusVisible ? '#22c55e' : 'default'} 
+                style={{ margin: 0, fontSize: '10px', padding: '2px 6px' }}
+              >
+                {isActiveStatusVisible ? 'ON' : 'OFF'}
+              </Tag>
             </div>
-            <div style={{ flex: 1 }}>
-              <Title level={4} style={{ color: '#fff', margin: 0, marginBottom: '4px' }}>
-                Get Verified Badge
-              </Title>
-              <Paragraph style={{ color: 'rgba(255,255,255,0.9)', margin: 0 }}>
-                Show your authenticity with a blue checkmark badge
-              </Paragraph>
+            <Text style={{ fontSize: '11px', color: '#64748b', display: 'block' }}>
+              {isActiveStatusVisible 
+                ? 'Others can see when you\'re online' 
+                : 'Your activity status is hidden'}
+            </Text>
+          </div>
+          <Switch
+            checked={isActiveStatusVisible}
+            onChange={handleActiveStatusToggle}
+            size="small"
+            style={{ marginLeft: '12px' }}
+          />
+        </div>
+      </Card>
+
+      {/* Verified Badge Section */}
+      <Card
+        onClick={() => navigate('/dashboard/products')}
+        style={{
+          background: '#fff',
+          border: '1px solid #e2e8f0',
+          borderRadius: '8px',
+          marginBottom: '16px',
+          cursor: 'pointer',
+          transition: 'all 0.2s'
+        }}
+        bodyStyle={{ padding: '12px' }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.08)'
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.boxShadow = 'none'
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div style={{
+            width: '40px',
+            height: '40px',
+            borderRadius: '6px',
+            background: isVerified ? '#f0fdf4' : '#eff6ff',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}>
+            {isVerified ? (
+              <IconlyTickSquare size={20} color="#0aa2ee" />
+            ) : (
+              <CheckCircleOutlined style={{ color: '#3b82f6', fontSize: '18px' }} />
+            )}
+          </div>
+          <div style={{ flex: 1 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '2px' }}>
+              <Text style={{ 
+                fontSize: '13px', 
+                fontWeight: 600, 
+                color: '#1e293b',
+                display: 'block'
+              }}>
+                {isVerified ? 'Verified Badge Active' : 'Get Verified Badge'}
+              </Text>
+              {isVerified && (
+                <Tag color="#22c55e" style={{ margin: 0, fontSize: '10px', padding: '2px 6px' }}>
+                  Active
+                </Tag>
+              )}
             </div>
+            <Text style={{ 
+              fontSize: '11px', 
+              color: '#64748b',
+              display: 'block'
+            }}>
+              {isVerified 
+                ? `Your verified badge is active until ${new Date(user.verifiedTill).toLocaleDateString()}`
+                : 'Show your authenticity with a blue checkmark badge'}
+            </Text>
+          </div>
+          {!isVerified && (
             <Button
               type="primary"
+              size="small"
               style={{
-                background: 'rgba(255,255,255,0.2)',
-                border: '1px solid rgba(255,255,255,0.3)',
-                color: '#fff',
-                borderRadius: '8px',
-                fontWeight: 600
+                background: '#3b82f6',
+                border: 'none',
+                borderRadius: '6px',
+                fontSize: '12px',
+                height: '28px',
+                padding: '0 12px'
               }}
             >
               View Plans
             </Button>
-          </div>
-        </Card>
-      </div>
+          )}
+        </div>
+      </Card>
 
-      {/* Recent Purchases Section */}
-              <Card 
+      {/* Recent Purchases */}
+      <Card 
         title={
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <ShoppingCartOutlined />
-            Recent Purchases
-                          </div>
-                        }
-        extra={
-          <Button type="link" onClick={() => navigate('/purchases')}>
-            View All
-                          </Button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <ShoppingCartOutlined style={{ fontSize: '14px', color: '#64748b' }} />
+            <Text style={{ fontSize: '13px', fontWeight: 600, color: '#1e293b' }}>
+              Recent Purchases
+            </Text>
+          </div>
         }
-                  variant="borderless"
-                  style={{
-          background: '#fff', 
-                    borderRadius: '12px',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+        extra={
+          <Button 
+            type="link" 
+            onClick={() => navigate('/purchases')}
+            style={{ fontSize: '12px', padding: 0, height: 'auto' }}
+          >
+            View All
+          </Button>
+        }
+        style={{
+          borderRadius: '8px',
+          border: '1px solid #e2e8f0',
+          background: '#fff'
         }}
+        bodyStyle={{ padding: '12px' }}
       >
-        <div style={{ textAlign: 'center', padding: '2rem' }}>
-          <Title level={4} style={{ color: '#666' }}>
-            Recent Purchases
-                    </Title>
-          <Paragraph style={{ color: '#666' }}>
-            Your recent purchases will appear here. Click "View All" to see your complete purchase history.
-                    </Paragraph>
-          <Button type="primary" onClick={() => navigate('/purchases')}>
+        <div style={{ textAlign: 'center', padding: '24px 12px' }}>
+          <Text style={{ 
+            fontSize: '13px', 
+            fontWeight: 500,
+            color: '#64748b',
+            display: 'block',
+            marginBottom: '4px'
+          }}>
+            No recent purchases
+          </Text>
+          <Text style={{ 
+            fontSize: '11px', 
+            color: '#94a3b8',
+            display: 'block',
+            marginBottom: '12px'
+          }}>
+            Your recent purchases will appear here
+          </Text>
+          <Button 
+            type="primary" 
+            size="small"
+            onClick={() => navigate('/purchases')}
+            style={{
+              background: '#3b82f6',
+              border: 'none',
+              borderRadius: '6px',
+              fontSize: '12px',
+              height: '28px',
+              padding: '0 16px'
+            }}
+          >
             View All Purchases
           </Button>
-                  </div>
-                </Card>
+        </div>
+      </Card>
     </div>
   )
 }

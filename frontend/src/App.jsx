@@ -2,6 +2,7 @@ import React from 'react'
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
 import { ConfigProvider, App as AntApp } from 'antd'
 import { AuthProvider } from './contexts/AuthContextOptimized'
+import { CallProvider } from './contexts/CallContext'
 import './styles/design-tokens.css'
 import './styles/base.css'
 import './styles/components.css'
@@ -32,6 +33,9 @@ import AudioDownloader from './pages/User/AudioDownloader'
 import UserPurchases from './pages/User/UserPurchases'
 import UserFavorites from './pages/User/UserFavorites'
 import UserChat from './pages/User/UserChat'
+import GlobalChat from './pages/User/GlobalChat'
+import VideoCall from './pages/User/VideoCall'
+import AudioCall from './pages/User/AudioCall'
 import UserDiscovery from './pages/User/UserDiscovery'
 import UserNetwork from './pages/User/UserNetwork'
 import NewUsers from './pages/User/NewUsers'
@@ -50,11 +54,14 @@ import AdminAPITest from './pages/Admin/AdminAPITest'
 import UserManagement from './pages/Admin/UserManagement'
 import OrdersSales from './pages/Admin/OrdersSales'
 import Analytics from './pages/Admin/Analytics'
+import AnalyticsDashboard from './pages/Admin/AnalyticsDashboard'
 import ContentManagement from './pages/Admin/ContentManagement'
 import AdminNotifications from './pages/Admin/Notifications'
 import AdminSettings from './pages/Admin/Settings'
+import GlobalChatModeration from './pages/Admin/GlobalChatModeration'
 import NotFoundPage from './pages/NotFoundPage'
 import ErrorBoundary from './components/ErrorBoundary'
+import MaintenanceCheck from './components/MaintenanceCheck'
 import AddProduct from './pages/Admin/AddProduct'
 import Products from './pages/Admin/Products'
 import PrebookManagement from './pages/Admin/PrebookManagement'
@@ -83,19 +90,27 @@ function App() {
       >
         <AntApp>
           <AuthProvider>
-            <Router future={{ 
-              v7_relativeSplatPath: true,
-              v7_startTransition: true 
-            }}>
-              <div className="App">
+              <Router future={{ 
+                v7_relativeSplatPath: true,
+                v7_startTransition: true 
+              }}>
+                <CallProvider>
+                <MaintenanceCheck>
+                <div className="App">
                 <Routes>
                   {/* Public Routes */}
-                  <Route path="/" element={<Layout><HomePage /></Layout>} />
                   <Route path="/login" element={<LoginPage />} />
                   <Route path="/register" element={<RegisterPage />} />
                   <Route path="/forgot-password" element={<ForgotPasswordPage />} />
                   <Route path="/about" element={<Layout><AboutPage /></Layout>} />
                   <Route path="/contact" element={<Layout><ContactPage /></Layout>} />
+                  
+                  {/* Root Route - Redirect to login if not authenticated, feed if authenticated */}
+                  <Route path="/" element={
+                    <ProtectedRoute requiredRole="user">
+                      <UserLayout><Feed /></UserLayout>
+                    </ProtectedRoute>
+                  } />
                   
                   {/* User Routes - Protected */}
                   <Route path="/dashboard" element={
@@ -120,12 +135,12 @@ function App() {
                   } />
                   <Route path="/profile" element={
                     <ProtectedRoute requiredRole="user">
-                      <DashboardLayout><Profile /></DashboardLayout>
+                      <UserLayout><Profile /></UserLayout>
                     </ProtectedRoute>
                   } />
                   <Route path="/following" element={
                     <ProtectedRoute requiredRole="user">
-                      <DashboardLayout><Following /></DashboardLayout>
+                      <UserLayout><Following /></UserLayout>
                     </ProtectedRoute>
                   } />
                   <Route path="/purchases" element={
@@ -146,6 +161,21 @@ function App() {
                   <Route path="/chat" element={
                     <ProtectedRoute requiredRole="user">
                       <UserLayout><UserChat /></UserLayout>
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/global-chat" element={
+                    <ProtectedRoute requiredRole="user">
+                      <GlobalChat />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/video-call/:userId" element={
+                    <ProtectedRoute requiredRole="user">
+                      <VideoCall />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/audio-call/:userId" element={
+                    <ProtectedRoute requiredRole="user">
+                      <AudioCall />
                     </ProtectedRoute>
                   } />
                   <Route path="/feed" element={
@@ -200,17 +230,17 @@ function App() {
                   } />
                   <Route path="/wishlist" element={
                     <ProtectedRoute requiredRole="user">
-                      <Layout><Wishlist /></Layout>
+                      <UserLayout><Wishlist /></UserLayout>
                     </ProtectedRoute>
                   } />
                   <Route path="/messages" element={
                     <ProtectedRoute requiredRole="user">
-                      <Layout><Messages /></Layout>
+                      <UserLayout><Messages /></UserLayout>
                     </ProtectedRoute>
                   } />
                   <Route path="/reviews" element={
                     <ProtectedRoute requiredRole="user">
-                      <Layout><Reviews /></Layout>
+                      <UserLayout><Reviews /></UserLayout>
                     </ProtectedRoute>
                   } />
                   <Route path="/settings" element={
@@ -220,7 +250,7 @@ function App() {
                   } />
                   <Route path="/help" element={
                     <ProtectedRoute requiredRole="user">
-                      <Layout><HelpCenter /></Layout>
+                      <UserLayout><HelpCenter /></UserLayout>
                     </ProtectedRoute>
                   } />
                   
@@ -268,6 +298,11 @@ function App() {
                       <AdminLayout><Analytics /></AdminLayout>
                     </ProtectedRoute>
                   } />
+                  <Route path="/admin/analytics/usage" element={
+                    <ProtectedRoute requiredRole="admin">
+                      <AdminLayout><AnalyticsDashboard /></AdminLayout>
+                    </ProtectedRoute>
+                  } />
                   <Route path="/admin/content" element={
                     <ProtectedRoute requiredRole="admin">
                       <AdminLayout><ContentManagement /></AdminLayout>
@@ -303,6 +338,11 @@ function App() {
                       <AdminLayout><UserActivities /></AdminLayout>
                     </ProtectedRoute>
                   } />
+                  <Route path="/admin/global-chat" element={
+                    <ProtectedRoute requiredRole="admin">
+                      <AdminLayout><GlobalChatModeration /></AdminLayout>
+                    </ProtectedRoute>
+                  } />
                   <Route path="/admin/products/new" element={
                     <ProtectedRoute requiredRole="admin">
                       <AdminLayout><AddProduct /></AdminLayout>
@@ -323,6 +363,8 @@ function App() {
                   <Route path="*" element={<Layout><NotFoundPage /></Layout>} />
                 </Routes>
               </div>
+                </MaintenanceCheck>
+                </CallProvider>
             </Router>
           </AuthProvider>
         </AntApp>

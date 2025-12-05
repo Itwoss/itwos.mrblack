@@ -251,33 +251,50 @@ const BannerManagement = () => {
   ];
 
   return (
-    <div style={{ padding: '24px' }}>
-      <Title level={2}>🎨 Banner Management</Title>
+    <div style={{ padding: '16px', background: '#f5f7fa', minHeight: '100vh' }}>
+      <div style={{ marginBottom: '16px', background: '#fff', padding: '16px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+        <Title level={2} style={{ margin: 0, fontSize: '20px', fontWeight: 600, color: '#1e293b' }}>
+          🎨 Banner Management
+        </Title>
+      </div>
 
       {/* Statistics */}
       {stats && (
-        <Row gutter={16} style={{ marginBottom: '24px' }}>
-          <Col span={6}>
-            <Card>
-              <Statistic title="Total Banners" value={stats.totalBanners} />
-            </Card>
-          </Col>
-          <Col span={6}>
-            <Card>
-              <Statistic title="Active Banners" value={stats.activeBanners} />
-            </Card>
-          </Col>
-          <Col span={6}>
-            <Card>
-              <Statistic title="Total Purchases" value={stats.totalPurchases} />
-            </Card>
-          </Col>
-          <Col span={6}>
-            <Card>
+        <Row gutter={[12, 12]} style={{ marginBottom: '16px' }}>
+          <Col xs={12} sm={6}>
+            <Card style={{ borderRadius: '8px', border: '1px solid #e2e8f0', background: '#fff' }} styles={{ body: { padding: '12px' } }}>
               <Statistic 
-                title="Revenue" 
+                title={<Text style={{ color: '#64748b', fontSize: '12px' }}>Total Banners</Text>} 
+                value={stats.totalBanners}
+                valueStyle={{ fontSize: '18px', fontWeight: 600, color: '#3b82f6' }}
+              />
+            </Card>
+          </Col>
+          <Col xs={12} sm={6}>
+            <Card style={{ borderRadius: '8px', border: '1px solid #e2e8f0', background: '#fff' }} styles={{ body: { padding: '12px' } }}>
+              <Statistic 
+                title={<Text style={{ color: '#64748b', fontSize: '12px' }}>Active Banners</Text>} 
+                value={stats.activeBanners}
+                valueStyle={{ fontSize: '18px', fontWeight: 600, color: '#22c55e' }}
+              />
+            </Card>
+          </Col>
+          <Col xs={12} sm={6}>
+            <Card style={{ borderRadius: '8px', border: '1px solid #e2e8f0', background: '#fff' }} styles={{ body: { padding: '12px' } }}>
+              <Statistic 
+                title={<Text style={{ color: '#64748b', fontSize: '12px' }}>Total Purchases</Text>} 
+                value={stats.totalPurchases}
+                valueStyle={{ fontSize: '18px', fontWeight: 600, color: '#f59e0b' }}
+              />
+            </Card>
+          </Col>
+          <Col xs={12} sm={6}>
+            <Card style={{ borderRadius: '8px', border: '1px solid #e2e8f0', background: '#fff' }} styles={{ body: { padding: '12px' } }}>
+              <Statistic 
+                title={<Text style={{ color: '#64748b', fontSize: '12px' }}>Revenue</Text>} 
                 value={stats.totalPurchases * 100} 
                 prefix="₹"
+                valueStyle={{ fontSize: '18px', fontWeight: 600, color: '#ec4899' }}
               />
             </Card>
           </Col>
@@ -285,13 +302,15 @@ const BannerManagement = () => {
       )}
 
       {/* Banners Table */}
-      <Card>
-        <div style={{ marginBottom: '16px', display: 'flex', justifyContent: 'space-between' }}>
-          <Title level={4} style={{ margin: 0 }}>All Banners</Title>
+      <Card style={{ borderRadius: '8px', border: '1px solid #e2e8f0', background: '#fff' }} styles={{ body: { padding: '12px' } }}>
+        <div style={{ marginBottom: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Title level={4} style={{ margin: 0, fontSize: '14px', fontWeight: 600, color: '#1e293b' }}>All Banners</Title>
           <Button
             type="primary"
             icon={<PlusOutlined />}
             onClick={handleCreate}
+            size="small"
+            style={{ borderRadius: '6px', fontSize: '12px', height: '28px', backgroundColor: '#3b82f6', borderColor: '#3b82f6' }}
           >
             Create Banner
           </Button>

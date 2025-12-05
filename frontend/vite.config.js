@@ -11,6 +11,16 @@ export default defineConfig({
     // Memory optimization
     hmr: {
       overlay: false
+    },
+    // Reduce file watching overhead
+    watch: {
+      usePolling: false,
+      ignored: ['**/node_modules/**', '**/.git/**', '**/dist/**', '**/build/**']
+    },
+    // Ensure proper SPA routing - fallback to index.html for all routes
+    middlewareMode: false,
+    fs: {
+      strict: false
     }
   },
   build: {
@@ -39,7 +49,9 @@ export default defineConfig({
     // Reduce memory usage during optimization
     force: false,
     esbuildOptions: {
-      target: 'esnext'
+      target: 'esnext',
+      // Reduce memory usage
+      logLimit: 0
     }
   },
   // Reduce memory usage

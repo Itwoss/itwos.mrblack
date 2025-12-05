@@ -44,6 +44,7 @@ import {
   DollarCircleOutlined
 } from '@ant-design/icons'
 import { useAuth } from '../../contexts/AuthContextOptimized'
+import { prebookAPI } from '../../services/api'
 import dayjs from 'dayjs'
 
 const { Title, Paragraph, Text } = Typography
@@ -98,31 +99,27 @@ const MyPrebooks = () => {
   const fetchPrebooks = useCallback(async (silent = false) => {
     if (!silent) setLoading(true)
     try {
-      const response = await fetch('http://localhost:7000/api/prebook', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      })
+      const response = await prebookAPI.getUserPrebooks()
       
-      if (response.ok) {
-        const data = await response.json()
-        setPrebooks(data.data?.prebooks || [])
+      if (response.data.success) {
+        const prebooks = response.data.data?.prebooks || response.data.prebooks || []
+        setPrebooks(prebooks)
         
         // Calculate stats
-        const total = data.data?.prebooks?.length || 0
-        const pending = data.data?.prebooks?.filter(p => p.status === 'pending').length || 0
-        const approved = data.data?.prebooks?.filter(p => p.status === 'approved').length || 0
-        const rejected = data.data?.prebooks?.filter(p => p.status === 'rejected').length || 0
-        const paid = data.data?.prebooks?.filter(p => p.paymentStatus === 'completed').length || 0
-        const totalAmount = data.data?.prebooks?.reduce((sum, p) => sum + ((p.paymentAmount || 0) / 100), 0) || 0
+        const total = prebooks.length || 0
+        const pending = prebooks.filter(p => p.status === 'pending').length || 0
+        const approved = prebooks.filter(p => p.status === 'approved').length || 0
+        const rejected = prebooks.filter(p => p.status === 'rejected').length || 0
+        const paid = prebooks.filter(p => p.paymentStatus === 'completed').length || 0
+        const totalAmount = prebooks.reduce((sum, p) => sum + ((p.paymentAmount || 0) / 100), 0) || 0
         
         setStats({ total, pending, approved, rejected, paid, totalAmount })
       } else {
-        if (!silent) messageApi.error('Failed to fetch prebooks')
+        if (!silent) messageApi.error(response.data.message || 'Failed to fetch prebooks')
       }
     } catch (error) {
       console.error('Error fetching prebooks:', error)
-      if (!silent) messageApi.error('Network error')
+      if (!silent) messageApi.error(error.response?.data?.message || 'Network error')
     } finally {
       if (!silent) setLoading(false)
     }
@@ -210,12 +207,12 @@ const MyPrebooks = () => {
 
   const getStatusColor = (status) => {
     switch (status) {
-      case 'pending': return 'orange'
-      case 'reviewed': return 'blue'
-      case 'approved': return 'green'
-      case 'rejected': return 'red'
-      case 'completed': return 'purple'
-      default: return 'default'
+      case 'pending': return { color: '#f59e0b', bg: '#fffbeb', border: '#f59e0b' }
+      case 'reviewed': return { color: '#3b82f6', bg: '#eff6ff', border: '#3b82f6' }
+      case 'approved': return { color: '#22c55e', bg: '#f0fdf4', border: '#22c55e' }
+      case 'rejected': return { color: '#ef4444', bg: '#fef2f2', border: '#ef4444' }
+      case 'completed': return { color: '#ec4899', bg: '#fdf2f8', border: '#ec4899' }
+      default: return { color: '#64748b', bg: '#f1f5f9', border: '#64748b' }
     }
   }
 
@@ -232,9 +229,9 @@ const MyPrebooks = () => {
 
   const getPaymentStatusColor = (status) => {
     switch (status) {
-      case 'completed': return 'green'
-      case 'pending': return 'orange'
-      default: return 'default'
+      case 'completed': return { color: '#22c55e', bg: '#f0fdf4', border: '#22c55e' }
+      case 'pending': return { color: '#f59e0b', bg: '#fffbeb', border: '#f59e0b' }
+      default: return { color: '#64748b', bg: '#f1f5f9', border: '#64748b' }
     }
   }
 
@@ -247,18 +244,18 @@ const MyPrebooks = () => {
         key: 'product',
         render: (product) => (
           <div>
-            <Text strong style={{ fontSize: '14px' }}>{product?.title || 'Unknown Product'}</Text>
+            <Text strong style={{ fontSize: '13px', color: '#1e293b' }}>{product?.title || 'Unknown Product'}</Text>
             <br />
             {product?.prebookAmount ? (
-              <Text type="secondary" style={{ fontSize: '12px', color: '#52c41a', fontWeight: 'bold' }}>
+              <Text style={{ fontSize: '12px', color: '#22c55e', fontWeight: 600 }}>
                 Prebook: ${product.prebookAmount.toLocaleString()} {product?.currency || 'USD'}
               </Text>
             ) : product?.price ? (
-              <Text type="secondary" style={{ fontSize: '12px' }}>
+              <Text style={{ fontSize: '12px', color: '#64748b' }}>
                 ${product.price.toLocaleString()} {product?.currency || 'USD'}
               </Text>
             ) : (
-              <Text type="secondary" style={{ fontSize: '12px' }}>Price: N/A</Text>
+              <Text style={{ fontSize: '12px', color: '#64748b' }}>Price: N/A</Text>
             )}
           </div>
         ),
@@ -268,7 +265,11 @@ const MyPrebooks = () => {
         title: 'Project',
         dataIndex: 'projectType',
         key: 'projectType',
-        render: (type) => <Tag color="blue" style={{ fontSize: '12px' }}>{type}</Tag>,
+        render: (type) => (
+          <Tag style={{ fontSize: '11px', padding: '2px 8px', height: '22px', lineHeight: '18px', background: '#eff6ff', border: '1px solid #3b82f6', color: '#3b82f6', margin: 0 }}>
+            {type}
+          </Tag>
+        ),
         responsive: ['md']
       },
       {
@@ -276,7 +277,7 @@ const MyPrebooks = () => {
         dataIndex: 'budget',
         key: 'budget',
         render: (budget) => (
-          <Text style={{ fontSize: '14px', fontWeight: 'bold', color: '#52c41a' }}>
+          <Text style={{ fontSize: '13px', fontWeight: 600, color: '#22c55e' }}>
             ${budget}
           </Text>
         ),
@@ -286,52 +287,118 @@ const MyPrebooks = () => {
         title: 'Timeline',
         dataIndex: 'timeline',
         key: 'timeline',
-        render: (timeline) => <Tag style={{ fontSize: '12px' }}>{timeline} days</Tag>,
+        render: (timeline) => (
+          <Tag style={{ fontSize: '11px', padding: '2px 8px', height: '22px', lineHeight: '18px', background: '#f0fdf4', border: '1px solid #22c55e', color: '#22c55e', margin: 0 }}>
+            {timeline} days
+          </Tag>
+        ),
         responsive: ['lg']
       },
       {
         title: 'Status',
         dataIndex: 'status',
         key: 'status',
-        render: (status, record) => (
-          <div>
-            <Tag color={getStatusColor(status)} icon={getStatusIcon(status)} style={{ fontSize: '12px' }}>
-              {status.toUpperCase()}
-            </Tag>
-            {record.adminNotes && (
-              <Tooltip title={record.adminNotes}>
-                <InfoCircleOutlined style={{ marginLeft: '4px', color: '#1890ff' }} />
-              </Tooltip>
-            )}
-          </div>
-        )
+        render: (status, record) => {
+          const statusColors = {
+            pending: { color: '#f59e0b', bg: '#fffbeb', border: '#f59e0b' },
+            reviewed: { color: '#3b82f6', bg: '#eff6ff', border: '#3b82f6' },
+            approved: { color: '#22c55e', bg: '#f0fdf4', border: '#22c55e' },
+            rejected: { color: '#ef4444', bg: '#fef2f2', border: '#ef4444' },
+            completed: { color: '#ec4899', bg: '#fdf2f8', border: '#ec4899' }
+          }
+          const statusInfo = statusColors[status] || { color: '#64748b', bg: '#f1f5f9', border: '#64748b' }
+          return (
+            <div>
+              <Tag 
+                icon={getStatusIcon(status)} 
+                style={{ 
+                  fontSize: '11px', 
+                  padding: '2px 8px', 
+                  height: '22px', 
+                  lineHeight: '18px',
+                  background: statusInfo.bg,
+                  border: `1px solid ${statusInfo.border}`,
+                  color: statusInfo.color,
+                  margin: 0
+                }}
+              >
+                {status.toUpperCase()}
+              </Tag>
+              {record.adminNotes && (
+                <Tooltip title={record.adminNotes}>
+                  <InfoCircleOutlined style={{ marginLeft: '4px', color: '#3b82f6', fontSize: '14px' }} />
+                </Tooltip>
+              )}
+            </div>
+          )
+        }
       },
       {
         title: 'Payment',
         key: 'payment',
-        render: (_, record) => (
-          <div>
-            {record.paymentStatus === 'completed' ? (
+        render: (_, record) => {
+          if (record.paymentStatus === 'completed') {
+            return (
               <div>
-                <Tag color="green" icon={<CheckCircleOutlined />} style={{ fontSize: '12px' }}>
+                <Tag 
+                  icon={<CheckCircleOutlined />} 
+                  style={{ 
+                    fontSize: '11px', 
+                    padding: '2px 8px', 
+                    height: '22px', 
+                    lineHeight: '18px',
+                    background: '#f0fdf4',
+                    border: '1px solid #22c55e',
+                    color: '#22c55e',
+                    margin: 0
+                  }}
+                >
                   PAID
                 </Tag>
                 <br />
-                <Text type="secondary" style={{ fontSize: '11px' }}>
+                <Text style={{ fontSize: '11px', color: '#64748b', marginTop: '4px', display: 'block' }}>
                   ₹{((record.paymentAmount || 0) / 100).toFixed(2)}
                 </Text>
               </div>
-            ) : record.paymentStatus === 'pending' ? (
-              <Tag color="orange" icon={<ClockCircleOutlined />} style={{ fontSize: '12px' }}>
+            )
+          } else if (record.paymentStatus === 'pending') {
+            return (
+              <Tag 
+                icon={<ClockCircleOutlined />} 
+                style={{ 
+                  fontSize: '11px', 
+                  padding: '2px 8px', 
+                  height: '22px', 
+                  lineHeight: '18px',
+                  background: '#fffbeb',
+                  border: '1px solid #f59e0b',
+                  color: '#f59e0b',
+                  margin: 0
+                }}
+              >
                 PENDING
               </Tag>
-            ) : (
-              <Tag color="default" icon={<CreditCardOutlined />} style={{ fontSize: '12px' }}>
+            )
+          } else {
+            return (
+              <Tag 
+                icon={<CreditCardOutlined />} 
+                style={{ 
+                  fontSize: '11px', 
+                  padding: '2px 8px', 
+                  height: '22px', 
+                  lineHeight: '18px',
+                  background: '#f1f5f9',
+                  border: '1px solid #64748b',
+                  color: '#64748b',
+                  margin: 0
+                }}
+              >
                 UNPAID
               </Tag>
-            )}
-          </div>
-        ),
+            )
+          }
+        },
         responsive: ['md']
       },
       {
@@ -339,7 +406,7 @@ const MyPrebooks = () => {
         dataIndex: 'createdAt',
         key: 'createdAt',
         render: (date) => (
-          <Text style={{ fontSize: '12px' }}>
+          <Text style={{ fontSize: '12px', color: '#64748b' }}>
             {dayjs(date).format('MMM DD, YYYY')}
           </Text>
         ),
@@ -356,7 +423,7 @@ const MyPrebooks = () => {
                 size="small" 
                 icon={<EyeOutlined />}
                 onClick={() => handleView(record)}
-                style={{ fontSize: '12px' }}
+                style={{ fontSize: '12px', height: '24px', padding: '0 8px', backgroundColor: '#3b82f6', borderColor: '#3b82f6' }}
               />
             </Tooltip>
             <Tooltip title="Edit">
@@ -365,7 +432,7 @@ const MyPrebooks = () => {
                 size="small" 
                 icon={<EditOutlined />}
                 onClick={() => handleEdit(record)}
-                style={{ fontSize: '12px' }}
+                style={{ fontSize: '12px', height: '24px', padding: '0 8px', borderColor: '#e2e8f0', color: '#1e293b' }}
               />
             </Tooltip>
             <Popconfirm
@@ -374,7 +441,7 @@ const MyPrebooks = () => {
               onConfirm={() => handleDelete(record._id)}
               okText="Yes"
               cancelText="No"
-              icon={<ExclamationCircleOutlined style={{ color: 'red' }} />}
+              icon={<ExclamationCircleOutlined style={{ color: '#ef4444' }} />}
             >
               <Tooltip title="Delete">
                 <Button 
@@ -383,7 +450,7 @@ const MyPrebooks = () => {
                   size="small" 
                   icon={<DeleteOutlined />}
                   loading={deleteLoading[record._id]}
-                  style={{ fontSize: '12px' }}
+                  style={{ fontSize: '12px', height: '24px', padding: '0 8px' }}
                 />
               </Tooltip>
             </Popconfirm>
@@ -407,103 +474,176 @@ const MyPrebooks = () => {
 
   return (
     <App>
-      <div style={{ padding: '16px' }}>
+      <div style={{ padding: '16px', background: '#f5f7fa', minHeight: '100vh' }}>
         {/* Header */}
-        <div style={{ marginBottom: '24px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
+        <div style={{ marginBottom: '16px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
             <div>
-              <Title level={2} style={{ margin: 0, fontSize: '24px' }}>
-                <BookOutlined style={{ marginRight: '8px' }} />
+              <Title level={4} style={{ margin: 0, fontSize: '18px', fontWeight: 600, color: '#1e293b' }}>
+                <BookOutlined style={{ marginRight: '8px', fontSize: '18px', color: '#3b82f6' }} />
                 My Prebooks
               </Title>
-              <Paragraph style={{ margin: '8px 0 0 0', color: '#666' }}>
+              <Text style={{ fontSize: '12px', color: '#64748b', marginTop: '4px', display: 'block' }}>
                 Manage your prebooked products and track their status
-              </Paragraph>
+              </Text>
             </div>
-            <Space>
+            <Space size="small">
               <Button 
                 icon={<ReloadOutlined />} 
                 onClick={() => fetchPrebooks()}
                 loading={loading}
+                size="small"
+                style={{ fontSize: '12px', height: '32px' }}
               >
                 Refresh
               </Button>
               <Button 
                 type={autoRefresh ? 'primary' : 'default'}
                 onClick={() => setAutoRefresh(!autoRefresh)}
+                size="small"
+                style={{ 
+                  fontSize: '12px', 
+                  height: '32px',
+                  backgroundColor: autoRefresh ? '#3b82f6' : undefined,
+                  borderColor: autoRefresh ? '#3b82f6' : undefined
+                }}
               >
-                Auto Refresh {autoRefresh ? 'ON' : 'OFF'}
+                Auto {autoRefresh ? 'ON' : 'OFF'}
               </Button>
             </Space>
           </div>
         </div>
 
         {/* Statistics Cards - Responsive Grid */}
-        <Row gutter={[16, 16]} style={{ marginBottom: '24px' }}>
+        <Row gutter={[12, 12]} style={{ marginBottom: '16px' }}>
           <Col xs={12} sm={8} md={4}>
-            <Card size="small">
+            <Card
+              style={{
+                background: '#fff',
+                border: '1px solid #e2e8f0',
+                borderRadius: '8px',
+                boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+              }}
+              styles={{ body: { padding: '12px' } }}
+            >
               <Statistic
-                title={<span style={{ fontSize: '12px' }}>Total</span>}
+                title={<span style={{ fontSize: '11px', color: '#64748b' }}>Total</span>}
                 value={stats.total}
-                prefix={<BookOutlined style={{ fontSize: '14px' }} />}
-                valueStyle={{ color: '#1890ff', fontSize: '18px' }}
+                prefix={<BookOutlined style={{ fontSize: '18px', color: '#3b82f6' }} />}
+                valueStyle={{ color: '#1e293b', fontSize: '20px', fontWeight: 600 }}
               />
             </Card>
           </Col>
           <Col xs={12} sm={8} md={4}>
-            <Card size="small">
+            <Card
+              style={{
+                background: '#fff',
+                border: '1px solid #e2e8f0',
+                borderRadius: '8px',
+                boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+              }}
+              styles={{ body: { padding: '12px' } }}
+            >
               <Statistic
-                title={<span style={{ fontSize: '12px' }}>Pending</span>}
+                title={<span style={{ fontSize: '11px', color: '#64748b' }}>Pending</span>}
                 value={stats.pending}
-                prefix={<ClockCircleOutlined style={{ fontSize: '14px' }} />}
-                valueStyle={{ color: '#fa8c16', fontSize: '18px' }}
+                prefix={<ClockCircleOutlined style={{ fontSize: '18px', color: '#f59e0b' }} />}
+                valueStyle={{ color: '#1e293b', fontSize: '20px', fontWeight: 600 }}
               />
             </Card>
           </Col>
           <Col xs={12} sm={8} md={4}>
-            <Card size="small">
+            <Card
+              style={{
+                background: '#fff',
+                border: '1px solid #e2e8f0',
+                borderRadius: '8px',
+                boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+              }}
+              styles={{ body: { padding: '12px' } }}
+            >
               <Statistic
-                title={<span style={{ fontSize: '12px' }}>Approved</span>}
+                title={<span style={{ fontSize: '11px', color: '#64748b' }}>Approved</span>}
                 value={stats.approved}
-                prefix={<CheckCircleOutlined style={{ fontSize: '14px' }} />}
-                valueStyle={{ color: '#52c41a', fontSize: '18px' }}
+                prefix={<CheckCircleOutlined style={{ fontSize: '18px', color: '#22c55e' }} />}
+                valueStyle={{ color: '#1e293b', fontSize: '20px', fontWeight: 600 }}
               />
             </Card>
           </Col>
           <Col xs={12} sm={8} md={4}>
-            <Card size="small">
+            <Card
+              style={{
+                background: '#fff',
+                border: '1px solid #e2e8f0',
+                borderRadius: '8px',
+                boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+              }}
+              styles={{ body: { padding: '12px' } }}
+            >
               <Statistic
-                title={<span style={{ fontSize: '12px' }}>Rejected</span>}
+                title={<span style={{ fontSize: '11px', color: '#64748b' }}>Rejected</span>}
                 value={stats.rejected}
-                prefix={<DeleteOutlined style={{ fontSize: '14px' }} />}
-                valueStyle={{ color: '#ff4d4f', fontSize: '18px' }}
+                prefix={<DeleteOutlined style={{ fontSize: '18px', color: '#ef4444' }} />}
+                valueStyle={{ color: '#1e293b', fontSize: '20px', fontWeight: 600 }}
               />
             </Card>
           </Col>
           <Col xs={12} sm={8} md={4}>
-            <Card size="small">
+            <Card
+              style={{
+                background: '#fff',
+                border: '1px solid #e2e8f0',
+                borderRadius: '8px',
+                boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+              }}
+              styles={{ body: { padding: '12px' } }}
+            >
               <Statistic
-                title={<span style={{ fontSize: '12px' }}>Paid</span>}
+                title={<span style={{ fontSize: '11px', color: '#64748b' }}>Paid</span>}
                 value={stats.paid}
-                prefix={<DollarOutlined style={{ fontSize: '14px' }} />}
-                valueStyle={{ color: '#52c41a', fontSize: '18px' }}
+                prefix={<DollarOutlined style={{ fontSize: '18px', color: '#22c55e' }} />}
+                valueStyle={{ color: '#1e293b', fontSize: '20px', fontWeight: 600 }}
               />
             </Card>
           </Col>
           <Col xs={12} sm={8} md={4}>
-            <Card size="small">
+            <Card
+              style={{
+                background: '#fff',
+                border: '1px solid #e2e8f0',
+                borderRadius: '8px',
+                boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+              }}
+              styles={{ body: { padding: '12px' } }}
+            >
               <Statistic
-                title={<span style={{ fontSize: '12px' }}>Total Paid</span>}
+                title={<span style={{ fontSize: '11px', color: '#64748b' }}>Total Paid</span>}
                 value={stats.totalAmount}
                 prefix="₹"
-                valueStyle={{ color: '#52c41a', fontSize: '18px' }}
+                valueStyle={{ color: '#1e293b', fontSize: '20px', fontWeight: 600 }}
               />
             </Card>
           </Col>
         </Row>
 
         {/* Prebooks Table */}
-        <Card>
+        <Card
+          style={{
+            background: '#fff',
+            border: '1px solid #e2e8f0',
+            borderRadius: '8px',
+            boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+          }}
+          styles={{ body: { padding: '12px' } }}
+        >
+          <style>{`
+            .ant-table-tbody > tr:hover > td {
+              background: #f8fafc !important;
+            }
+            .ant-table-tbody > tr > td {
+              border-bottom: 1px solid #e2e8f0;
+            }
+          `}</style>
           <Spin spinning={loading}>
             {prebooks.length === 0 ? (
               <Empty 
@@ -524,11 +664,16 @@ const MyPrebooks = () => {
                   pageSize: 10,
                   showSizeChanger: true,
                   showQuickJumper: true,
-                  showTotal: (total, range) => 
-                    `${range[0]}-${range[1]} of ${total} prebooks`,
-                  responsive: true
+                  showTotal: (total, range) => (
+                    <Text style={{ fontSize: '12px', color: '#64748b' }}>
+                      {range[0]}-{range[1]} of {total} prebooks
+                    </Text>
+                  ),
+                  responsive: true,
+                  size: 'small'
                 }}
                 size="small"
+                style={{ fontSize: '12px' }}
               />
             )}
           </Spin>
@@ -564,23 +709,60 @@ const MyPrebooks = () => {
                 </div>
               </Descriptions.Item>
               <Descriptions.Item label="Project Type">
-                <Tag color="blue">{selectedPrebook.projectType}</Tag>
+                <Tag style={{ fontSize: '11px', padding: '2px 8px', height: '22px', lineHeight: '18px', background: '#eff6ff', border: '1px solid #3b82f6', color: '#3b82f6', margin: 0 }}>
+                  {selectedPrebook.projectType}
+                </Tag>
               </Descriptions.Item>
               <Descriptions.Item label="Budget">
-                <Text style={{ color: '#52c41a', fontWeight: 'bold' }}>${selectedPrebook.budget}</Text>
+                <Text style={{ color: '#22c55e', fontWeight: 600, fontSize: '13px' }}>${selectedPrebook.budget}</Text>
               </Descriptions.Item>
               <Descriptions.Item label="Timeline">
-                <Tag>{selectedPrebook.timeline} days</Tag>
+                <Tag style={{ fontSize: '11px', padding: '2px 8px', height: '22px', lineHeight: '18px', background: '#f0fdf4', border: '1px solid #22c55e', color: '#22c55e', margin: 0 }}>
+                  {selectedPrebook.timeline} days
+                </Tag>
               </Descriptions.Item>
               <Descriptions.Item label="Status">
-                <Tag color={getStatusColor(selectedPrebook.status)} icon={getStatusIcon(selectedPrebook.status)}>
-                  {selectedPrebook.status?.toUpperCase()}
-                </Tag>
+                {(() => {
+                  const statusInfo = getStatusColor(selectedPrebook.status)
+                  return (
+                    <Tag 
+                      icon={getStatusIcon(selectedPrebook.status)}
+                      style={{
+                        fontSize: '11px',
+                        padding: '2px 8px',
+                        height: '22px',
+                        lineHeight: '18px',
+                        background: statusInfo.bg,
+                        border: `1px solid ${statusInfo.border}`,
+                        color: statusInfo.color,
+                        margin: 0
+                      }}
+                    >
+                      {selectedPrebook.status?.toUpperCase()}
+                    </Tag>
+                  )
+                })()}
               </Descriptions.Item>
               <Descriptions.Item label="Payment Status">
-                <Tag color={getPaymentStatusColor(selectedPrebook.paymentStatus)}>
-                  {selectedPrebook.paymentStatus?.toUpperCase()}
-                </Tag>
+                {(() => {
+                  const paymentInfo = getPaymentStatusColor(selectedPrebook.paymentStatus)
+                  return (
+                    <Tag 
+                      style={{
+                        fontSize: '11px',
+                        padding: '2px 8px',
+                        height: '22px',
+                        lineHeight: '18px',
+                        background: paymentInfo.bg,
+                        border: `1px solid ${paymentInfo.border}`,
+                        color: paymentInfo.color,
+                        margin: 0
+                      }}
+                    >
+                      {selectedPrebook.paymentStatus?.toUpperCase()}
+                    </Tag>
+                  )
+                })()}
               </Descriptions.Item>
               {selectedPrebook.features && selectedPrebook.features.length > 0 && (
                 <Descriptions.Item label="Features">

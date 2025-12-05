@@ -14,17 +14,21 @@ const authenticateToken = async (req, res, next) => {
       });
     }
 
-    // Allow mock tokens in development only
-    if (process.env.NODE_ENV === 'production' && (token.includes('mock') || token.includes('Mock'))) {
+    // Reject mock tokens - they cause backend to ignore auth and never respond
+    // Only allow in development with explicit flag
+    const allowMockTokens = process.env.ALLOW_MOCK_TOKENS === 'true' && process.env.NODE_ENV !== 'production';
+    
+    if ((token.includes('mock') || token.includes('Mock')) && !allowMockTokens) {
+      console.warn('⚠️ Mock token rejected - use real JWT tokens for authentication');
       return res.status(401).json({
         success: false,
-        message: 'Mock tokens not allowed in production'
+        message: 'Invalid token format. Please login again to get a valid token.'
       });
     }
     
-    // Development mode: Handle mock tokens
-    if (process.env.NODE_ENV !== 'production' && (token.includes('mock') || token.includes('Mock'))) {
-      console.log('🔧 Development mode: Using mock token authentication')
+    // Development mode: Handle mock tokens (only if explicitly allowed)
+    if (allowMockTokens && (token.includes('mock') || token.includes('Mock'))) {
+      console.log('🔧 Development mode: Using mock token authentication (ALLOW_MOCK_TOKENS=true)')
       
       try {
         // Handle both simple mock tokens and complex JWT-like mock tokens
@@ -42,77 +46,43 @@ const authenticateToken = async (req, res, next) => {
         if (tokenData.role === 'admin') {
           realUser = await User.findOne({ role: 'admin', deletedAt: null }).select('_id email name role');
         } else {
-          realUser = await User.findOne({ role: 'user', deletedAt: null }).select('_id email name role');
+          // Try to find user by userId from token if available
+          if (tokenData.userId && tokenData.userId !== 'mock-user-id') {
+            realUser = await User.findOne({ 
+              $or: [
+                { _id: tokenData.userId },
+                { googleId: tokenData.userId }
+              ],
+              deletedAt: null 
+            }).select('_id email name role');
+          }
+          
+          // If not found, get any user
+          if (!realUser) {
+            realUser = await User.findOne({ role: 'user', deletedAt: null }).select('_id email name role');
+          }
         }
         
         if (realUser) {
-          req.user = {
-            _id: realUser._id,
-            id: realUser._id.toString(),
-            email: realUser.email,
-            name: realUser.name || 'Test User',
-            role: realUser.role,
-            isActive: true,
-            getFullProfile: function() {
-              return {
-                _id: this._id,
-                name: this.name,
-                email: this.email,
-                role: this.role,
-                avatarUrl: this.avatarUrl || null,
-                isActive: this.isActive,
-                createdAt: new Date(),
-                updatedAt: new Date()
-              };
-            },
-            save: function() {
-              // Mock save function - just return a promise that resolves
-              return Promise.resolve(this);
-            }
-          };
-          console.log('🔧 Using real user for mock token:', realUser.email);
-          return next();
-        } else {
-          return res.status(401).json({
-            success: false,
-            message: 'User not found in database'
-          });
+          // Get full user object for proper authentication
+          const fullUser = await User.findById(realUser._id).select('-passwordHash');
+          if (fullUser) {
+            req.user = fullUser;
+            console.log('🔧 Using real user for mock token:', fullUser.email);
+            return next();
+          }
         }
+        
+        return res.status(401).json({
+          success: false,
+          message: 'User not found in database. Please login again.'
+        });
       } catch (error) {
-        console.log('🔧 Mock token decode failed, using default admin user')
-        const adminUser = await User.findOne({ role: 'admin' }).select('_id email name role');
-        if (adminUser) {
-          req.user = {
-            _id: adminUser._id,
-            id: adminUser._id.toString(),
-            email: adminUser.email,
-            name: adminUser.name || 'Test Admin',
-            role: adminUser.role,
-            isActive: true,
-            getFullProfile: function() {
-              return {
-                _id: this._id,
-                name: this.name,
-                email: this.email,
-                role: this.role,
-                avatarUrl: this.avatarUrl || null,
-                isActive: this.isActive,
-                createdAt: new Date(),
-                updatedAt: new Date()
-              };
-            },
-            save: function() {
-              // Mock save function - just return a promise that resolves
-              return Promise.resolve(this);
-            }
-          };
-          return next();
-        } else {
-          return res.status(401).json({
-            success: false,
-            message: 'No admin user found'
-          });
-        }
+        console.error('🔧 Mock token processing error:', error);
+        return res.status(401).json({
+          success: false,
+          message: 'Invalid mock token format. Please login again.'
+        });
       }
     }
 

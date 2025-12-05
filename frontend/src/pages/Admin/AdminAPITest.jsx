@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { Card, Typography, Button, Space, Alert, Spin } from 'antd'
-import axios from 'axios'
+import { adminAPI } from '../../services/api'
 
 const { Title, Paragraph, Text } = Typography
 
@@ -14,22 +14,9 @@ const AdminAPITest = () => {
     setError(null)
     
     try {
-      const token = localStorage.getItem('accessToken') || localStorage.getItem('token') || localStorage.getItem('adminToken')
+      console.log('Testing admin API...')
       
-      if (!token) {
-        setError('No authentication token found')
-        setApiStatus('error')
-        return
-      }
-
-      console.log('Testing API with token:', token.substring(0, 20) + '...')
-      
-      const response = await axios.get('http://localhost:7000/api/admin/dashboard', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      })
+      const response = await adminAPI.getDashboard()
 
       console.log('API Response:', response.data)
       setApiData(response.data)

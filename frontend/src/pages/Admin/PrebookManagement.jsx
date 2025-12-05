@@ -559,21 +559,22 @@ const PrebookManagement = () => {
   return (
     <App>
       <div style={{
-        padding: AdminDesignSystem.layout.content.padding,
-        background: AdminDesignSystem.colors.background,
+        padding: '16px',
+        background: '#f5f7fa',
         minHeight: '100vh',
-        fontFamily: AdminDesignSystem.typography.fontFamily,
+        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
       }}>
-        <div style={{ marginBottom: AdminDesignSystem.spacing.xl }}>
+        <div style={{ marginBottom: '16px', background: '#fff', padding: '16px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
           <Title 
             level={2}
             style={{
-              color: AdminDesignSystem.colors.text.primary,
-              fontWeight: AdminDesignSystem.typography.fontWeight.semibold,
-              fontSize: AdminDesignSystem.typography.fontSize.h2,
+              color: '#1e293b',
+              fontWeight: 600,
+              fontSize: '20px',
+              margin: 0,
             }}
           >
-            <BookOutlined style={{ marginRight: AdminDesignSystem.spacing.sm, color: AdminDesignSystem.colors.primary }} />
+            <BookOutlined style={{ marginRight: '8px', color: '#3b82f6', fontSize: '20px' }} />
             Prebook Management & Payment Tracking
           </Title>
         </div>
@@ -592,103 +593,107 @@ const PrebookManagement = () => {
               children: (
                 <>
                   {/* Statistics */}
-                  <Row gutter={[AdminDesignSystem.spacing.md, AdminDesignSystem.spacing.md]} style={{ marginBottom: AdminDesignSystem.spacing.xl }}>
-                    <Col xs={24} sm={12} md={6}>
+                  <Row gutter={[12, 12]} style={{ marginBottom: '16px' }}>
+                    <Col xs={12} sm={12} md={6}>
                       <Card
                         style={{
-                          borderRadius: AdminDesignSystem.borderRadius.md,
-                          border: `1px solid ${AdminDesignSystem.colors.card.border}`,
-                          boxShadow: AdminDesignSystem.shadows.md,
-                          background: AdminDesignSystem.colors.card.background,
+                          borderRadius: '8px',
+                          border: '1px solid #e2e8f0',
+                          background: '#fff',
+                          boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
                         }}
+                        styles={{ body: { padding: '12px' } }}
                       >
                         <Statistic 
                           title={
-                            <Text style={{ color: AdminDesignSystem.colors.text.secondary, fontSize: AdminDesignSystem.typography.fontSize.small }}>
+                            <Text style={{ color: '#64748b', fontSize: '12px' }}>
                               Total Prebooks
                             </Text>
                           }
                           value={stats.total} 
-                          prefix={<BookOutlined style={{ color: AdminDesignSystem.colors.primary }} />}
+                          prefix={<BookOutlined style={{ color: '#3b82f6', fontSize: '18px' }} />}
                           valueStyle={{ 
-                            color: AdminDesignSystem.colors.text.primary,
-                            fontSize: AdminDesignSystem.typography.fontSize.h3,
-                            fontWeight: AdminDesignSystem.typography.fontWeight.semibold,
+                            color: '#3b82f6',
+                            fontSize: '18px',
+                            fontWeight: 600,
                           }}
                         />
                       </Card>
                     </Col>
-                    <Col xs={24} sm={12} md={6}>
+                    <Col xs={12} sm={12} md={6}>
                       <Card
                         style={{
-                          borderRadius: AdminDesignSystem.borderRadius.md,
-                          border: `1px solid ${AdminDesignSystem.colors.card.border}`,
-                          boxShadow: AdminDesignSystem.shadows.md,
-                          background: AdminDesignSystem.colors.card.background,
+                          borderRadius: '8px',
+                          border: '1px solid #e2e8f0',
+                          background: '#fff',
+                          boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
                         }}
+                        styles={{ body: { padding: '12px' } }}
                       >
                         <Statistic 
                           title={
-                            <Text style={{ color: AdminDesignSystem.colors.text.secondary, fontSize: AdminDesignSystem.typography.fontSize.small }}>
+                            <Text style={{ color: '#64748b', fontSize: '12px' }}>
                               Pending
                             </Text>
                           }
                           value={stats.pending} 
-                          prefix={<ClockCircleOutlined style={{ color: AdminDesignSystem.colors.warning }} />}
+                          prefix={<ClockCircleOutlined style={{ color: '#f59e0b', fontSize: '18px' }} />}
                           valueStyle={{ 
-                            color: AdminDesignSystem.colors.warning,
-                            fontSize: AdminDesignSystem.typography.fontSize.h3,
-                            fontWeight: AdminDesignSystem.typography.fontWeight.semibold,
+                            color: '#f59e0b',
+                            fontSize: '18px',
+                            fontWeight: 600,
                           }}
                         />
                       </Card>
                     </Col>
-                    <Col xs={24} sm={12} md={6}>
+                    <Col xs={12} sm={12} md={6}>
                       <Card
                         style={{
-                          borderRadius: AdminDesignSystem.borderRadius.md,
-                          border: `1px solid ${AdminDesignSystem.colors.card.border}`,
-                          boxShadow: AdminDesignSystem.shadows.md,
-                          background: AdminDesignSystem.colors.card.background,
+                          borderRadius: '8px',
+                          border: '1px solid #e2e8f0',
+                          background: '#fff',
+                          boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
                         }}
+                        styles={{ body: { padding: '12px' } }}
                       >
                         <Statistic 
                           title={
-                            <Text style={{ color: AdminDesignSystem.colors.text.secondary, fontSize: AdminDesignSystem.typography.fontSize.small }}>
+                            <Text style={{ color: '#64748b', fontSize: '12px' }}>
                               Approved
                             </Text>
                           }
                           value={stats.approved} 
-                          prefix={<CheckCircleOutlined style={{ color: AdminDesignSystem.colors.success }} />}
+                          prefix={<CheckCircleOutlined style={{ color: '#22c55e', fontSize: '18px' }} />}
                           valueStyle={{ 
-                            color: AdminDesignSystem.colors.success,
-                            fontSize: AdminDesignSystem.typography.fontSize.h3,
-                            fontWeight: AdminDesignSystem.typography.fontWeight.semibold,
+                            color: '#22c55e',
+                            fontSize: '18px',
+                            fontWeight: 600,
                           }}
                         />
                       </Card>
                     </Col>
-                    <Col xs={24} sm={12} md={6}>
+                    <Col xs={12} sm={12} md={6}>
                       <Card
                         style={{
-                          borderRadius: AdminDesignSystem.borderRadius.md,
-                          border: `1px solid ${AdminDesignSystem.colors.card.border}`,
-                          boxShadow: AdminDesignSystem.shadows.md,
-                          background: AdminDesignSystem.colors.card.background,
+                          borderRadius: '8px',
+                          border: '1px solid #e2e8f0',
+                          background: '#fff',
+                          boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
                         }}
+                        styles={{ body: { padding: '12px' } }}
                       >
                         <Statistic 
                           title={
-                            <Text style={{ color: AdminDesignSystem.colors.text.secondary, fontSize: AdminDesignSystem.typography.fontSize.small }}>
+                            <Text style={{ color: '#64748b', fontSize: '12px' }}>
                               Rejected
                             </Text>
                           }
                           value={stats.rejected} 
-                          prefix={<CloseCircleOutlined style={{ color: AdminDesignSystem.colors.error }} />}
+                          prefix={<CloseCircleOutlined style={{ color: '#ec4899', fontSize: '18px' }} />}
                           valueStyle={{ 
-                            color: AdminDesignSystem.colors.error,
-                            fontSize: AdminDesignSystem.typography.fontSize.h3,
-                            fontWeight: AdminDesignSystem.typography.fontWeight.semibold,
+                            color: '#ec4899',
+                            fontSize: '18px',
+                            fontWeight: 600,
                           }}
                         />
                       </Card>
@@ -697,7 +702,7 @@ const PrebookManagement = () => {
                   {/* Prebooks Table */}
                   <Card 
                     title={
-                      <Text strong style={{ color: AdminDesignSystem.colors.text.primary }}>
+                      <Text strong style={{ color: '#1e293b', fontSize: '14px' }}>
                         All Prebook Requests
                       </Text>
                     }
@@ -706,21 +711,25 @@ const PrebookManagement = () => {
                         type="primary" 
                         onClick={fetchPrebooks} 
                         icon={<BookOutlined />}
+                        size="small"
                         style={{
-                          borderRadius: AdminDesignSystem.borderRadius.md,
-                          backgroundColor: AdminDesignSystem.colors.primary,
-                          borderColor: AdminDesignSystem.colors.primary,
+                          borderRadius: '6px',
+                          backgroundColor: '#3b82f6',
+                          borderColor: '#3b82f6',
+                          fontSize: '12px',
+                          height: '28px',
                         }}
                       >
                         Refresh
                       </Button>
                     }
                     style={{
-                      borderRadius: AdminDesignSystem.borderRadius.md,
-                      border: `1px solid ${AdminDesignSystem.colors.card.border}`,
-                      boxShadow: AdminDesignSystem.shadows.md,
-                      background: AdminDesignSystem.colors.card.background,
+                      borderRadius: '8px',
+                      border: '1px solid #e2e8f0',
+                      background: '#fff',
+                      boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
                     }}
+                    styles={{ body: { padding: '12px' } }}
                   >
                     <Spin spinning={loading}>
                       <Table
@@ -750,102 +759,106 @@ const PrebookManagement = () => {
               children: (
                 <>
                   {/* Payment Tracking Statistics */}
-                  <Row gutter={[AdminDesignSystem.spacing.md, AdminDesignSystem.spacing.md]} style={{ marginBottom: AdminDesignSystem.spacing.xl }}>
-                    <Col xs={24} sm={12} md={6}>
+                  <Row gutter={[12, 12]} style={{ marginBottom: '16px' }}>
+                    <Col xs={12} sm={12} md={6}>
                       <Card
                         style={{
-                          borderRadius: AdminDesignSystem.borderRadius.md,
-                          border: `1px solid ${AdminDesignSystem.colors.card.border}`,
-                          boxShadow: AdminDesignSystem.shadows.md,
-                          background: AdminDesignSystem.colors.card.background,
+                          borderRadius: '8px',
+                          border: '1px solid #e2e8f0',
+                          background: '#fff',
+                          boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
                         }}
+                        styles={{ body: { padding: '12px' } }}
                       >
                         <Statistic 
                           title={
-                            <Text style={{ color: AdminDesignSystem.colors.text.secondary, fontSize: AdminDesignSystem.typography.fontSize.small }}>
+                            <Text style={{ color: '#64748b', fontSize: '12px' }}>
                               Total Payments
                             </Text>
                           }
                           value={paymentStats.total} 
-                          prefix={<CreditCardOutlined style={{ color: AdminDesignSystem.colors.primary }} />}
+                          prefix={<CreditCardOutlined style={{ color: '#3b82f6', fontSize: '18px' }} />}
                           valueStyle={{ 
-                            color: AdminDesignSystem.colors.text.primary,
-                            fontSize: AdminDesignSystem.typography.fontSize.h3,
-                            fontWeight: AdminDesignSystem.typography.fontWeight.semibold,
+                            color: '#3b82f6',
+                            fontSize: '18px',
+                            fontWeight: 600,
                           }}
                         />
                       </Card>
                     </Col>
-                    <Col xs={24} sm={12} md={6}>
+                    <Col xs={12} sm={12} md={6}>
                       <Card
                         style={{
-                          borderRadius: AdminDesignSystem.borderRadius.md,
-                          border: `1px solid ${AdminDesignSystem.colors.card.border}`,
-                          boxShadow: AdminDesignSystem.shadows.md,
-                          background: AdminDesignSystem.colors.card.background,
+                          borderRadius: '8px',
+                          border: '1px solid #e2e8f0',
+                          background: '#fff',
+                          boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
                         }}
+                        styles={{ body: { padding: '12px' } }}
                       >
                         <Statistic 
                           title={
-                            <Text style={{ color: AdminDesignSystem.colors.text.secondary, fontSize: AdminDesignSystem.typography.fontSize.small }}>
+                            <Text style={{ color: '#64748b', fontSize: '12px' }}>
                               Subscriptions
                             </Text>
                           }
                           value={paymentStats.subscriptions} 
-                          prefix={<CheckCircleOutlined style={{ color: AdminDesignSystem.colors.primary }} />}
+                          prefix={<CheckCircleOutlined style={{ color: '#22c55e', fontSize: '18px' }} />}
                           valueStyle={{ 
-                            color: AdminDesignSystem.colors.primary,
-                            fontSize: AdminDesignSystem.typography.fontSize.h3,
-                            fontWeight: AdminDesignSystem.typography.fontWeight.semibold,
+                            color: '#22c55e',
+                            fontSize: '18px',
+                            fontWeight: 600,
                           }}
                         />
                       </Card>
                     </Col>
-                    <Col xs={24} sm={12} md={6}>
+                    <Col xs={12} sm={12} md={6}>
                       <Card
                         style={{
-                          borderRadius: AdminDesignSystem.borderRadius.md,
-                          border: `1px solid ${AdminDesignSystem.colors.card.border}`,
-                          boxShadow: AdminDesignSystem.shadows.md,
-                          background: AdminDesignSystem.colors.card.background,
+                          borderRadius: '8px',
+                          border: '1px solid #e2e8f0',
+                          background: '#fff',
+                          boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
                         }}
+                        styles={{ body: { padding: '12px' } }}
                       >
                         <Statistic 
                           title={
-                            <Text style={{ color: AdminDesignSystem.colors.text.secondary, fontSize: AdminDesignSystem.typography.fontSize.small }}>
+                            <Text style={{ color: '#64748b', fontSize: '12px' }}>
                               Product Purchases
                             </Text>
                           }
                           value={paymentStats.products} 
-                          prefix={<DollarOutlined style={{ color: AdminDesignSystem.colors.success }} />}
+                          prefix={<DollarOutlined style={{ color: '#f59e0b', fontSize: '18px' }} />}
                           valueStyle={{ 
-                            color: AdminDesignSystem.colors.success,
-                            fontSize: AdminDesignSystem.typography.fontSize.h3,
-                            fontWeight: AdminDesignSystem.typography.fontWeight.semibold,
+                            color: '#f59e0b',
+                            fontSize: '18px',
+                            fontWeight: 600,
                           }}
                         />
                       </Card>
                     </Col>
-                    <Col xs={24} sm={12} md={6}>
+                    <Col xs={12} sm={12} md={6}>
                       <Card
                         style={{
-                          borderRadius: AdminDesignSystem.borderRadius.md,
-                          border: `1px solid ${AdminDesignSystem.colors.card.border}`,
-                          boxShadow: AdminDesignSystem.shadows.md,
-                          background: AdminDesignSystem.colors.card.background,
+                          borderRadius: '8px',
+                          border: '1px solid #e2e8f0',
+                          background: '#fff',
+                          boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
                         }}
+                        styles={{ body: { padding: '12px' } }}
                       >
                         <Statistic 
                           title={
-                            <Text style={{ color: AdminDesignSystem.colors.text.secondary, fontSize: AdminDesignSystem.typography.fontSize.small }}>
+                            <Text style={{ color: '#64748b', fontSize: '12px' }}>
                               Total Revenue
                             </Text>
                           }
                           value={formatCurrency(paymentStats.totalAmount || 0)} 
                           valueStyle={{ 
-                            color: AdminDesignSystem.colors.error,
-                            fontSize: AdminDesignSystem.typography.fontSize.h3,
-                            fontWeight: AdminDesignSystem.typography.fontWeight.semibold,
+                            color: '#ec4899',
+                            fontSize: '18px',
+                            fontWeight: 600,
                           }}
                         />
                       </Card>
@@ -855,7 +868,7 @@ const PrebookManagement = () => {
                   {/* Payment Tracking Table */}
                   <Card 
                     title={
-                      <Text strong style={{ color: AdminDesignSystem.colors.text.primary }}>
+                      <Text strong style={{ color: '#1e293b', fontSize: '14px' }}>
                         Payment Tracking Records
                       </Text>
                     }
@@ -864,21 +877,25 @@ const PrebookManagement = () => {
                         type="primary" 
                         onClick={fetchPaymentTracking} 
                         icon={<CreditCardOutlined />}
+                        size="small"
                         style={{
-                          borderRadius: AdminDesignSystem.borderRadius.md,
-                          backgroundColor: AdminDesignSystem.colors.primary,
-                          borderColor: AdminDesignSystem.colors.primary,
+                          borderRadius: '6px',
+                          backgroundColor: '#3b82f6',
+                          borderColor: '#3b82f6',
+                          fontSize: '12px',
+                          height: '28px',
                         }}
                       >
                         Refresh
                       </Button>
                     }
                     style={{
-                      borderRadius: AdminDesignSystem.borderRadius.md,
-                      border: `1px solid ${AdminDesignSystem.colors.card.border}`,
-                      boxShadow: AdminDesignSystem.shadows.md,
-                      background: AdminDesignSystem.colors.card.background,
+                      borderRadius: '8px',
+                      border: '1px solid #e2e8f0',
+                      background: '#fff',
+                      boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
                     }}
+                    styles={{ body: { padding: '12px' } }}
                   >
                     <Spin spinning={paymentLoading}>
                       <Table

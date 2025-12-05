@@ -1,18 +1,22 @@
 import React, { useState } from 'react'
-import { Form, Input, Button, Card, Typography, Space, Divider, message, Row, Col, Checkbox, Upload, Avatar, DatePicker, Select } from 'antd'
-import { UserOutlined, LockOutlined, GoogleOutlined, MailOutlined, PhoneOutlined, CameraOutlined, EditOutlined } from '@ant-design/icons'
+import { Form, Input, Typography, App, Row, Col, Checkbox, Upload, Avatar, DatePicker, Select } from 'antd'
+import { UserOutlined, LockOutlined, MailOutlined, PhoneOutlined, CameraOutlined, EyeInvisibleOutlined, EyeTwoTone } from '@ant-design/icons'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from "../../contexts/AuthContextOptimized"
+import '../../styles/glass-login.css'
 
-const { Title, Paragraph, Text } = Typography
+const { Text } = Typography
 const { TextArea } = Input
-const { Option } = Select
 
 const RegisterPage = () => {
   const [isLoading, setIsLoading] = useState(false)
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false)
   const [avatarUrl, setAvatarUrl] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [form] = Form.useForm()
   const navigate = useNavigate()
+  const { message } = App.useApp()
 
   const onFinish = async (values) => {
     setIsLoading(true)
@@ -34,7 +38,7 @@ const RegisterPage = () => {
           phone: values.phone,
           bio: values.bio,
           avatarUrl: avatarUrl,
-          dateOfBirth: values.dateOfBirth,
+          dateOfBirth: values.dateOfBirth ? (values.dateOfBirth.format ? values.dateOfBirth.format('YYYY-MM-DD') : values.dateOfBirth) : null,
           location: values.location,
           interests: values.interests
         })
@@ -62,8 +66,6 @@ const RegisterPage = () => {
       message.success('Avatar uploaded successfully!')
     } else if (info.file.status === 'error') {
       message.error('Avatar upload failed. Please try again.')
-    } else if (info.file.status === 'uploading') {
-      // Show upload progress if needed
     }
   }
 
@@ -110,41 +112,22 @@ const RegisterPage = () => {
   }
 
   const handleGoogleRegister = () => {
-    message.info('Google registration would be implemented here')
+    setIsGoogleLoading(true)
+    message.info('Google registration coming soon!')
+    setTimeout(() => setIsGoogleLoading(false), 1000)
   }
 
   return (
-    <div style={{ 
-      minHeight: '100vh', 
-      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: '1rem'
-    }}>
-      <Row justify="center" style={{ width: '100%', maxWidth: '1200px' }}>
-        <Col xs={24} sm={22} md={18} lg={14} xl={12}>
-          <Card 
-            style={{ 
-              width: '100%',
-              boxShadow: '0 20px 40px rgba(0,0,0,0.1)',
-              borderRadius: '16px',
-              border: 'none',
-              margin: '0 auto'
-            }}
-            styles={{
-              body: {
-                padding: '1rem'
-              }
-            }}
-          >
-            <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-              <Title level={2} style={{ marginBottom: '0.5rem', color: '#1890ff' }}>
-                🚀 Join ITWOS AI
-              </Title>
-              <Paragraph style={{ color: '#666', fontSize: '1.1rem' }}>
-                Create your account and start your journey
-              </Paragraph>
+    <App>
+      <div className="glass-login-wrapper">
+        <div className="glass-login-container" style={{ maxWidth: '800px' }}>
+          <div className="glass-card">
+            <div className="glass-card-header">
+              <h1>Sign up</h1>
+              <p>
+                Create your account and seamlessly start managing your projects,
+                ideas, and progress.
+              </p>
             </div>
 
             <Form
@@ -153,165 +136,229 @@ const RegisterPage = () => {
               onFinish={onFinish}
               autoComplete="off"
               layout="vertical"
-              size="large"
             >
-              <Row gutter={[16, 16]}>
+              <Row gutter={[16, 0]}>
                 <Col xs={24} sm={12}>
                   <Form.Item
                     name="fullName"
-                    label="Full Name"
                     rules={[{ required: true, message: 'Please input your full name!' }]}
+                    style={{ marginBottom: '16px' }}
                   >
-                    <Input 
-                      prefix={<UserOutlined style={{ color: '#1890ff' }} />} 
-                      placeholder="Enter your full name" 
-                      style={{ borderRadius: '8px' }}
-                    />
+                    <div>
+                      <label className="glass-field-label">Full Name</label>
+                      <div className="glass-input-wrapper">
+                        <div className="glass-input-icon">
+                          <UserOutlined />
+                        </div>
+                        <Input
+                          placeholder="Enter your full name"
+                          prefix={null}
+                          bordered={false}
+                        />
+                      </div>
+                    </div>
                   </Form.Item>
                 </Col>
                 <Col xs={24} sm={12}>
                   <Form.Item
                     name="email"
-                    label="Email"
                     rules={[
                       { required: true, message: 'Please input your email!' },
                       { type: 'email', message: 'Please enter a valid email!' }
                     ]}
+                    style={{ marginBottom: '16px' }}
                   >
-                    <Input 
-                      prefix={<MailOutlined style={{ color: '#1890ff' }} />} 
-                      placeholder="Enter your email" 
-                      style={{ borderRadius: '8px' }}
-                    />
+                    <div>
+                      <label className="glass-field-label">Email address</label>
+                      <div className="glass-input-wrapper">
+                        <div className="glass-input-icon">
+                          <MailOutlined />
+                        </div>
+                        <Input
+                          placeholder="Enter your email"
+                          prefix={null}
+                          bordered={false}
+                        />
+                      </div>
+                    </div>
                   </Form.Item>
                 </Col>
               </Row>
 
-              <Row gutter={[16, 16]}>
+              <Row gutter={[16, 0]}>
                 <Col xs={24} sm={12}>
                   <Form.Item
                     name="phone"
-                    label="Phone Number"
                     rules={[
                       { required: true, message: 'Please input your phone number!' },
                       { pattern: /^[\+]?[1-9][\d]{0,15}$/, message: 'Please enter a valid phone number!' }
                     ]}
+                    style={{ marginBottom: '16px' }}
                   >
-                    <Input 
-                      prefix={<PhoneOutlined style={{ color: '#1890ff' }} />} 
-                      placeholder="Enter your phone number" 
-                      style={{ borderRadius: '8px' }}
-                    />
+                    <div>
+                      <label className="glass-field-label">Phone Number</label>
+                      <div className="glass-input-wrapper">
+                        <div className="glass-input-icon">
+                          <PhoneOutlined />
+                        </div>
+                        <Input
+                          placeholder="Enter your phone number"
+                          prefix={null}
+                          bordered={false}
+                        />
+                      </div>
+                    </div>
                   </Form.Item>
                 </Col>
                 <Col xs={24} sm={12}>
                   <Form.Item
                     name="location"
-                    label="Location"
                     rules={[{ required: true, message: 'Please input your location!' }]}
+                    style={{ marginBottom: '16px' }}
                   >
-                    <Input 
-                      placeholder="Enter your city/country" 
-                      style={{ borderRadius: '8px' }}
-                    />
+                    <div>
+                      <label className="glass-field-label">Location</label>
+                      <div className="glass-input-wrapper">
+                        <div className="glass-input-icon">
+                          <UserOutlined />
+                        </div>
+                        <Input
+                          placeholder="Enter your city/country"
+                          prefix={null}
+                          bordered={false}
+                        />
+                      </div>
+                    </div>
                   </Form.Item>
                 </Col>
               </Row>
 
-              <Row gutter={[16, 16]}>
+              <Row gutter={[16, 0]}>
                 <Col xs={24} sm={12}>
                   <Form.Item
                     name="dateOfBirth"
-                    label="Date of Birth"
                     rules={[{ required: true, message: 'Please select your date of birth!' }]}
+                    style={{ marginBottom: '16px' }}
                   >
-                    <DatePicker 
-                      style={{ width: '100%', borderRadius: '8px' }}
-                      placeholder="Select your date of birth"
-                    />
+                    <div>
+                      <label className="glass-field-label">Date of Birth</label>
+                      <DatePicker
+                        placeholder="Select your date of birth"
+                        style={{ width: '100%' }}
+                      />
+                    </div>
                   </Form.Item>
                 </Col>
                 <Col xs={24} sm={12}>
                   <Form.Item
                     name="interests"
-                    label="Interests"
                     rules={[{ required: true, message: 'Please select your interests!' }]}
+                    style={{ marginBottom: '16px' }}
                   >
-                    <Select
-                      mode="multiple"
-                      placeholder="Select your interests"
-                      style={{ borderRadius: '8px' }}
-                      options={[
-                        { value: 'technology', label: 'Technology' },
-                        { value: 'business', label: 'Business' },
-                        { value: 'design', label: 'Design' },
-                        { value: 'marketing', label: 'Marketing' },
-                        { value: 'education', label: 'Education' },
-                        { value: 'health', label: 'Health' },
-                        { value: 'sports', label: 'Sports' },
-                        { value: 'music', label: 'Music' },
-                        { value: 'art', label: 'Art' },
-                        { value: 'travel', label: 'Travel' }
-                      ]}
-                    />
+                    <div>
+                      <label className="glass-field-label">Interests</label>
+                      <Select
+                        mode="multiple"
+                        placeholder="Select your interests"
+                        style={{ width: '100%' }}
+                        options={[
+                          { value: 'technology', label: 'Technology' },
+                          { value: 'business', label: 'Business' },
+                          { value: 'design', label: 'Design' },
+                          { value: 'marketing', label: 'Marketing' },
+                          { value: 'education', label: 'Education' },
+                          { value: 'health', label: 'Health' },
+                          { value: 'sports', label: 'Sports' },
+                          { value: 'music', label: 'Music' },
+                          { value: 'art', label: 'Art' },
+                          { value: 'travel', label: 'Travel' }
+                        ]}
+                      />
+                    </div>
                   </Form.Item>
                 </Col>
               </Row>
 
               <Form.Item
                 name="bio"
-                label="Bio"
                 rules={[
                   { required: true, message: 'Please write a short bio!' },
                   { max: 500, message: 'Bio must be less than 500 characters!' }
                 ]}
+                style={{ marginBottom: '16px' }}
               >
-                <TextArea 
-                  rows={4}
-                  placeholder="Tell us about yourself..."
-                  style={{ borderRadius: '8px' }}
-                />
+                <div>
+                  <label className="glass-field-label">Bio</label>
+                  <TextArea
+                    rows={4}
+                    placeholder="Tell us about yourself..."
+                    style={{ width: '100%' }}
+                  />
+                </div>
               </Form.Item>
 
               <Form.Item
                 name="avatar"
-                label="Profile Picture"
+                style={{ marginBottom: '16px' }}
               >
-                <div style={{ textAlign: 'center' }}>
-                  <Upload {...uploadProps}>
-                    {avatarUrl ? (
-                      <Avatar size={100} src={avatarUrl} />
-                    ) : (
-                      <div style={{ textAlign: 'center' }}>
-                        <CameraOutlined style={{ fontSize: '32px', color: '#1890ff' }} />
-                        <div style={{ marginTop: '8px' }}>Upload Photo</div>
-                      </div>
-                    )}
-                  </Upload>
+                <div>
+                  <label className="glass-field-label">Profile Picture</label>
+                  <div style={{ textAlign: 'center', marginTop: '8px' }}>
+                    <Upload {...uploadProps}>
+                      {avatarUrl ? (
+                        <Avatar size={100} src={avatarUrl} />
+                      ) : (
+                        <div style={{ 
+                          textAlign: 'center',
+                          padding: '20px',
+                          cursor: 'pointer'
+                        }}>
+                          <CameraOutlined style={{ fontSize: '32px', color: '#9ca3af' }} />
+                          <div style={{ marginTop: '8px', color: '#9ca3af' }}>Upload Photo</div>
+                        </div>
+                      )}
+                    </Upload>
+                  </div>
                 </div>
               </Form.Item>
 
-              <Row gutter={[16, 16]}>
+              <Row gutter={[16, 0]}>
                 <Col xs={24} sm={12}>
                   <Form.Item
                     name="password"
-                    label="Password"
                     rules={[
                       { required: true, message: 'Please input your password!' },
                       { min: 6, message: 'Password must be at least 6 characters!' }
                     ]}
+                    style={{ marginBottom: '16px' }}
                   >
-                    <Input.Password 
-                      prefix={<LockOutlined style={{ color: '#1890ff' }} />} 
-                      placeholder="Create a password" 
-                      style={{ borderRadius: '8px' }}
-                    />
+                    <div>
+                      <label className="glass-field-label">Password</label>
+                      <div className="glass-input-wrapper">
+                        <div className="glass-input-icon">
+                          <LockOutlined />
+                        </div>
+                        <Input
+                          type={showPassword ? 'text' : 'password'}
+                          placeholder="Create a password"
+                          prefix={null}
+                          bordered={false}
+                        />
+                        <button
+                          type="button"
+                          className="glass-input-action"
+                          onClick={() => setShowPassword(!showPassword)}
+                          aria-label="Toggle password visibility"
+                        >
+                          {showPassword ? <EyeTwoTone /> : <EyeInvisibleOutlined />}
+                        </button>
+                      </div>
+                    </div>
                   </Form.Item>
                 </Col>
                 <Col xs={24} sm={12}>
                   <Form.Item
                     name="confirmPassword"
-                    label="Confirm Password"
                     dependencies={['password']}
                     rules={[
                       { required: true, message: 'Please confirm your password!' },
@@ -324,12 +371,30 @@ const RegisterPage = () => {
                         },
                       }),
                     ]}
+                    style={{ marginBottom: '16px' }}
                   >
-                    <Input.Password 
-                      prefix={<LockOutlined style={{ color: '#1890ff' }} />} 
-                      placeholder="Confirm password" 
-                      style={{ borderRadius: '8px' }}
-                    />
+                    <div>
+                      <label className="glass-field-label">Confirm Password</label>
+                      <div className="glass-input-wrapper">
+                        <div className="glass-input-icon">
+                          <LockOutlined />
+                        </div>
+                        <Input
+                          type={showConfirmPassword ? 'text' : 'password'}
+                          placeholder="Confirm password"
+                          prefix={null}
+                          bordered={false}
+                        />
+                        <button
+                          type="button"
+                          className="glass-input-action"
+                          onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                          aria-label="Toggle password visibility"
+                        >
+                          {showConfirmPassword ? <EyeTwoTone /> : <EyeInvisibleOutlined />}
+                        </button>
+                      </div>
+                    </div>
                   </Form.Item>
                 </Col>
               </Row>
@@ -343,77 +408,53 @@ const RegisterPage = () => {
                       value ? Promise.resolve() : Promise.reject(new Error('Please accept the terms and conditions'))
                   }
                 ]}
+                style={{ marginBottom: '16px' }}
               >
                 <Checkbox>
                   I agree to the{' '}
-                  <Link to="/terms" style={{ color: '#1890ff' }}>
+                  <Link to="/terms" style={{ color: '#60a5fa' }}>
                     Terms and Conditions
                   </Link>
                   {' '}and{' '}
-                  <Link to="/privacy" style={{ color: '#1890ff' }}>
+                  <Link to="/privacy" style={{ color: '#60a5fa' }}>
                     Privacy Policy
                   </Link>
                 </Checkbox>
               </Form.Item>
 
-              <Form.Item>
-                <Button 
-                  type="primary" 
-                  htmlType="submit" 
-                  loading={isLoading}
-                  size="large"
-                  style={{ 
-                    width: '100%',
-                    height: '48px',
-                    borderRadius: '8px',
-                    background: 'linear-gradient(135deg, #1890ff 0%, #722ed1 100%)',
-                    border: 'none',
-                    fontSize: '16px',
-                    fontWeight: '600'
-                  }}
+              <Form.Item style={{ marginBottom: 0 }}>
+                <button
+                  type="submit"
+                  className="glass-primary-btn"
+                  disabled={isLoading || isGoogleLoading}
                 >
                   {isLoading ? 'Creating Account...' : 'Create Account'}
-                </Button>
+                </button>
               </Form.Item>
             </Form>
 
-            <Divider style={{ margin: '1.5rem 0' }}>
-              <Text style={{ color: '#999' }}>Or continue with</Text>
-            </Divider>
+            <div className="glass-divider">or continue with</div>
 
-            <Button
-              icon={<GoogleOutlined />}
-              onClick={handleGoogleRegister}
-              disabled={isLoading}
-              size="large"
-              style={{ 
-                width: '100%',
-                height: '48px',
-                borderRadius: '8px',
-                border: '2px solid #f0f0f0',
-                fontSize: '16px',
-                fontWeight: '500'
-              }}
-            >
-              Continue with Google
-            </Button>
-
-            <div style={{ textAlign: 'center', marginTop: '2rem' }}>
-              <Text style={{ color: '#666' }}>
-                Already have an account?{' '}
-                <Link to="/login" style={{ 
-                  color: '#1890ff',
-                  fontWeight: '600',
-                  textDecoration: 'none'
-                }}>
-                  Sign in here
-                </Link>
-              </Text>
+            <div className="glass-social-row">
+              <button
+                className="glass-social-btn"
+                type="button"
+                onClick={handleGoogleRegister}
+                disabled={isLoading || isGoogleLoading}
+              >
+                <span className="glass-social-icon"><span>G</span></span>
+                Google
+              </button>
             </div>
-          </Card>
-        </Col>
-      </Row>
-    </div>
+
+            <div className="glass-card-footer">
+              Already have an account?
+              <Link to="/login">Sign in here</Link>
+            </div>
+          </div>
+        </div>
+      </div>
+    </App>
   )
 }
 

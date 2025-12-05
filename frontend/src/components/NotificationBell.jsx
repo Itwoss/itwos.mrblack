@@ -24,31 +24,24 @@ const NotificationBell = () => {
       ? user.id 
       : (adminUser?._id || adminUser?.id) || null
   
-  console.log('🔔 NotificationBell Debug:', {
-    userId,
-    userRole,
-    isAuthenticated,
-    userFromAuth: user,
-    adminUserFromStorage: adminUser,
-    hasAdminUser: !!adminUserStr,
-    finalUserRole: userRole,
-    finalUserId: userId
-  })
+  // Debug logging (only in development, and only on mount)
+  useEffect(() => {
+    if (import.meta.env.DEV) {
+      console.log('🔔 NotificationBell initialized:', { userId, userRole, isAuthenticated })
+    }
+  }, []) // Only log once on mount
   
   const { unreadCount, fetchNotifications, notifications } = useNotifications(userId, userRole)
   
   // Use actual unread count (no demo count)
   const displayCount = unreadCount > 0 ? unreadCount : 0
   
-  // Debug: Log when unreadCount changes
+  // Debug: Log when unreadCount changes (only in development)
   useEffect(() => {
-    console.log('🔔 NotificationBell - Unread count updated:', {
-      unreadCount,
-      displayCount,
-      notificationsCount: notifications?.length || 0,
-      userId
-    })
-  }, [unreadCount, displayCount, notifications?.length, userId])
+    if (import.meta.env.DEV && unreadCount > 0) {
+      console.log('🔔 NotificationBell - Unread count:', unreadCount)
+    }
+  }, [unreadCount])
 
   const handleBellClick = () => {
     setNotificationVisible(true)
@@ -81,11 +74,7 @@ const NotificationBell = () => {
     
     // The useNotifications hook already handles Socket.IO connections
     // This effect just ensures we're aware of changes
-    console.log('🔔 NotificationBell - Monitoring notifications:', {
-      unreadCount,
-      notificationsCount: notifications?.length || 0,
-      userId
-    })
+    // (Debug logging removed to reduce console noise)
   }, [notifications, unreadCount, userId])
 
   return (

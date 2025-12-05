@@ -12,7 +12,8 @@ import {
 } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from "../../contexts/AuthContextOptimized"
-import DashboardLayout from '../../components/DashboardLayout'
+import UserLayout from '../../components/UserLayout'
+import api from '../../services/api'
 // ProductDisplay removed - product management features removed
 
 const { Title, Paragraph } = Typography
@@ -39,10 +40,45 @@ const Wishlist = () => {
   const fetchWishlist = async () => {
     setLoading(true)
     try {
-      // TODO: Replace with real API call
-      setWishlist([])
+      // Use saved posts API as wishlist functionality
+      const response = await api.get('/posts/saved')
+      
+      if (response.data.success) {
+        const savedPosts = response.data.data?.posts || response.data.posts || []
+        // Convert saved posts to wishlist format
+        const wishlistItems = savedPosts.map(post => ({
+          _id: post._id,
+          product: {
+            _id: post._id,
+            title: post.caption || 'Untitled Post',
+            thumbnail: post.imageUrl || '/placeholder-image.svg',
+            price: 0,
+            originalPrice: 0,
+            discount: 0,
+            rating: { average: post.likes || 0, count: post.comments?.length || 0 },
+            shortDescription: post.caption || ''
+          },
+          addedDate: new Date(post.createdAt || Date.now()).toLocaleDateString()
+        }))
+        setWishlist(wishlistItems)
+        
+        // Calculate stats
+        setStats({
+          totalItems: wishlistItems.length,
+          totalValue: 0,
+          onSale: 0,
+          newItems: wishlistItems.filter(item => {
+            const addedDate = new Date(item.product.createdAt || item.addedDate)
+            const daysSinceAdded = (Date.now() - addedDate.getTime()) / (1000 * 60 * 60 * 24)
+            return daysSinceAdded < 7
+          }).length
+        })
+      } else {
+        setWishlist([])
+      }
     } catch (error) {
       console.error('Failed to fetch wishlist:', error)
+      setWishlist([])
     } finally {
       setLoading(false)
     }
@@ -72,7 +108,7 @@ const Wishlist = () => {
   }
 
   return (
-    <DashboardLayout>
+    <UserLayout>
       <div>
         {/* Header */}
         <div style={{ marginBottom: '2rem' }}>
@@ -294,7 +330,7 @@ const Wishlist = () => {
           </div>
         )}
       </div>
-    </DashboardLayout>
+    </UserLayout>
   )
 }
 

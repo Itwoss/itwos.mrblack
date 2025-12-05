@@ -88,9 +88,13 @@ class NotificationService {
       })
 
       this.socket.on('connect_error', (error) => {
-        // Only log errors, don't spam console
-        if (error.message && !error.message.includes('xhr poll error')) {
-          console.error('🔌 Connection error:', error.message)
+        // Suppress timeout and network errors to reduce console spam
+        const isTimeoutError = error.message?.includes('timeout') || 
+                               error.message?.includes('xhr poll error') ||
+                               error.type === 'TransportError'
+        
+        if (!isTimeoutError) {
+          console.warn('🔌 Connection error:', error.message || error.type)
         }
         this.isConnected = false
         // Don't auto-reconnect on error - let Socket.IO handle it

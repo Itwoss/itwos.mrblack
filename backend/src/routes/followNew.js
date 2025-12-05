@@ -999,113 +999,177 @@ router.get('/requests', authenticateToken, requireUser, async (req, res) => {
 
 // GET /api/follow/followers - Get current user's followers list
 router.get('/followers', authenticateToken, requireUser, async (req, res) => {
+  // Set timeout for this request
+  const timeout = setTimeout(() => {
+    if (!res.headersSent) {
+      console.error('⚠️ GET /follow/followers timeout - sending response');
+      return res.status(200).json({
+        success: true,
+        followers: [],
+        count: 0,
+        message: 'Request completed with default values due to timeout'
+      });
+    }
+  }, 25000); // 25 second timeout
+  
   try {
     const currentUserId = req.user._id.toString();
     
     // Find all accepted follow relationships where current user is the followee
+    // Add lean() for faster queries and limit to prevent huge datasets
     const followersList = await Follow.find({
       followeeId: currentUserId,
       status: 'accepted'
-    }).populate('followerId', 'name email avatarUrl bio isOnline lastSeen isVerified verifiedTill createdAt')
-      .sort({ createdAt: -1 });
+    })
+    .populate('followerId', 'name email avatarUrl bio isOnline lastSeen isVerified verifiedTill createdAt')
+    .sort({ createdAt: -1 })
+    .limit(1000) // Limit to prevent huge queries
+    .lean(); // Use lean() for faster queries
     
     // Extract user data from populated followerId
     const followers = followersList.map(follow => ({
-      ...follow.followerId.toObject(),
+      ...follow.followerId,
       _id: follow.followerId._id,
       followedAt: follow.createdAt
     }));
     
-    res.json({
-      success: true,
-      followers: followers,
-      count: followers.length
-    });
+    clearTimeout(timeout);
+    
+    if (!res.headersSent) {
+      return res.status(200).json({
+        success: true,
+        followers: followers,
+        count: followers.length
+      });
+    }
   } catch (error) {
+    clearTimeout(timeout);
     console.error('Get followers error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to get followers list',
-      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
-    });
+    
+    if (!res.headersSent) {
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to get followers list',
+        error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+      });
+    }
   }
 });
 
 // GET /api/follow/following - Get current user's following list
 router.get('/following', authenticateToken, requireUser, async (req, res) => {
+  // Set timeout for this request
+  const timeout = setTimeout(() => {
+    if (!res.headersSent) {
+      console.error('⚠️ GET /follow/following timeout - sending response');
+      return res.status(200).json({
+        success: true,
+        following: [],
+        count: 0,
+        message: 'Request completed with default values due to timeout'
+      });
+    }
+  }, 25000); // 25 second timeout
+  
   try {
     const currentUserId = req.user._id.toString();
     
     // Find all accepted follow relationships where current user is the follower
+    // Add lean() for faster queries and limit to prevent huge datasets
     const followingList = await Follow.find({
       followerId: currentUserId,
       status: 'accepted'
-    }).populate('followeeId', 'name email avatarUrl bio isOnline lastSeen isVerified verifiedTill createdAt')
-      .sort({ createdAt: -1 });
+    })
+    .populate('followeeId', 'name email avatarUrl bio isOnline lastSeen isVerified verifiedTill createdAt')
+    .sort({ createdAt: -1 })
+    .limit(1000) // Limit to prevent huge queries
+    .lean(); // Use lean() for faster queries
     
     // Extract user data from populated followeeId
     const following = followingList.map(follow => ({
-      ...follow.followeeId.toObject(),
+      ...follow.followeeId,
       _id: follow.followeeId._id,
       followedAt: follow.createdAt
     }));
     
-    res.json({
-      success: true,
-      following: following,
-      count: following.length
-    });
+    clearTimeout(timeout);
+    
+    if (!res.headersSent) {
+      return res.status(200).json({
+        success: true,
+        following: following,
+        count: following.length
+      });
+    }
   } catch (error) {
+    clearTimeout(timeout);
     console.error('Get following error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to get following list',
-      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
-    });
+    
+    if (!res.headersSent) {
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to get following list',
+        error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+      });
+    }
   }
 });
 
 // GET /api/follow/check/:userId - Check if current user is following a specific user
 router.get('/check/:userId', authenticateToken, requireUser, validateObjectId('userId'), async (req, res) => {
+  // Set timeout for this request
+  const timeout = setTimeout(() => {
+    if (!res.headersSent) {
+      console.error('⚠️ GET /follow/check/:userId timeout - sending default response');
+      return res.status(200).json({
+        success: true,
+        isFollowing: false,
+        isPending: false,
+        followStatus: null,
+        followId: null,
+        message: 'Request completed with default values due to timeout'
+      });
+    }
+  }, 25000); // 25 second timeout
+  
   try {
     const { userId } = req.params;
     const currentUserId = req.user._id.toString();
     
-    console.log('🔍 Checking follow status:', {
-      currentUserId,
-      targetUserId: userId
-    });
-    
     // Check if current user is following this user (accepted status)
+    // Use lean() and select only needed fields for faster query
     const follow = await Follow.findOne({
       followerId: currentUserId,
       followeeId: userId
-    });
+    })
+    .select('status _id')
+    .lean();
     
     const isFollowing = follow && follow.status === 'accepted';
     const isPending = follow && follow.status === 'pending';
     
-    console.log('✅ Follow status check result:', {
-      isFollowing,
-      isPending,
-      followStatus: follow?.status || 'none',
-      followId: follow?._id
-    });
+    clearTimeout(timeout);
     
-    res.json({
-      success: true,
-      isFollowing: !!isFollowing,
-      isPending: !!isPending,
-      followStatus: follow ? follow.status : null,
-      followId: follow ? follow._id : null
-    });
+    if (!res.headersSent) {
+      return res.status(200).json({
+        success: true,
+        isFollowing: !!isFollowing,
+        isPending: !!isPending,
+        followStatus: follow ? follow.status : null,
+        followId: follow ? follow._id : null
+      });
+    }
   } catch (error) {
+    clearTimeout(timeout);
     console.error('❌ Check follow status error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to check follow status',
-      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
-    });
+    
+    if (!res.headersSent) {
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to check follow status',
+        error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+      });
+    }
   }
 });
 
@@ -1216,69 +1280,119 @@ router.delete('/', authenticateToken, requireUser, async (req, res) => {
 
 // GET /api/follow/followers/:userId - Get followers list for a specific user
 router.get('/followers/:userId', authenticateToken, async (req, res) => {
+  // Set timeout for this request
+  const timeout = setTimeout(() => {
+    if (!res.headersSent) {
+      console.error('⚠️ GET /follow/followers/:userId timeout - sending response');
+      return res.status(200).json({
+        success: true,
+        followers: [],
+        count: 0,
+        message: 'Request completed with default values due to timeout'
+      });
+    }
+  }, 25000); // 25 second timeout
+  
   try {
     const targetUserId = req.params.userId;
     
     // Find all accepted follow relationships where target user is the followee
+    // Add lean() for faster queries and limit to prevent huge datasets
     const followersList = await Follow.find({
       followeeId: targetUserId,
       status: 'accepted'
-    }).populate('followerId', 'name email avatarUrl bio isOnline lastSeen isVerified verifiedTill createdAt')
-      .sort({ createdAt: -1 });
+    })
+    .populate('followerId', 'name email avatarUrl bio isOnline lastSeen isVerified verifiedTill createdAt')
+    .sort({ createdAt: -1 })
+    .limit(1000) // Limit to prevent huge queries
+    .lean(); // Use lean() for faster queries
     
     // Extract user data from populated followerId
     const followers = followersList.map(follow => ({
-      ...follow.followerId.toObject(),
+      ...follow.followerId,
       _id: follow.followerId._id,
       followedAt: follow.createdAt
     }));
     
-    res.json({
-      success: true,
-      followers: followers,
-      count: followers.length
-    });
+    clearTimeout(timeout);
+    
+    if (!res.headersSent) {
+      return res.status(200).json({
+        success: true,
+        followers: followers,
+        count: followers.length
+      });
+    }
   } catch (error) {
+    clearTimeout(timeout);
     console.error('Get followers error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to get followers list',
-      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
-    });
+    
+    if (!res.headersSent) {
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to get followers list',
+        error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+      });
+    }
   }
 });
 
 // GET /api/follow/following/:userId - Get following list for a specific user
 router.get('/following/:userId', authenticateToken, async (req, res) => {
+  // Set timeout for this request
+  const timeout = setTimeout(() => {
+    if (!res.headersSent) {
+      console.error('⚠️ GET /follow/following/:userId timeout - sending response');
+      return res.status(200).json({
+        success: true,
+        following: [],
+        count: 0,
+        message: 'Request completed with default values due to timeout'
+      });
+    }
+  }, 25000); // 25 second timeout
+  
   try {
     const targetUserId = req.params.userId;
     
     // Find all accepted follow relationships where target user is the follower
+    // Add lean() for faster queries and limit to prevent huge datasets
     const followingList = await Follow.find({
       followerId: targetUserId,
       status: 'accepted'
-    }).populate('followeeId', 'name email avatarUrl bio isOnline lastSeen isVerified verifiedTill createdAt')
-      .sort({ createdAt: -1 });
+    })
+    .populate('followeeId', 'name email avatarUrl bio isOnline lastSeen isVerified verifiedTill createdAt')
+    .sort({ createdAt: -1 })
+    .limit(1000) // Limit to prevent huge queries
+    .lean(); // Use lean() for faster queries
     
     // Extract user data from populated followeeId
     const following = followingList.map(follow => ({
-      ...follow.followeeId.toObject(),
+      ...follow.followeeId,
       _id: follow.followeeId._id,
       followedAt: follow.createdAt
     }));
     
-    res.json({
-      success: true,
-      following: following,
-      count: following.length
-    });
+    clearTimeout(timeout);
+    
+    if (!res.headersSent) {
+      return res.status(200).json({
+        success: true,
+        following: following,
+        count: following.length
+      });
+    }
   } catch (error) {
+    clearTimeout(timeout);
     console.error('Get following error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to get following list',
-      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
-    });
+    
+    if (!res.headersSent) {
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to get following list',
+        error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+      });
+    }
   }
 });
 

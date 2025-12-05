@@ -53,7 +53,8 @@ const UserLayout = ({ children }) => {
     if (path.includes('/store')) return 'store'
     if (path.includes('/banner-store')) return 'banner-store'
     if (path.includes('/banner-inventory')) return 'banner-inventory'
-    if (path.includes('/chat')) return 'chat'
+    if (path.includes('/chat') && !path.includes('/global-chat')) return 'chat'
+    if (path.includes('/global-chat')) return 'global-chat'
     if (path.includes('/discover')) return 'discover'
     if (path.includes('/new-users')) return 'new-users'
     if (path.includes('/network')) return 'network'
@@ -135,6 +136,11 @@ const UserLayout = ({ children }) => {
       label: 'Chat',
     },
     {
+      key: 'global-chat',
+      icon: <MessageOutlined />,
+      label: 'All Chat',
+    },
+    {
       key: 'discover',
       icon: <SearchOutlined />,
       label: 'Discover Users',
@@ -208,6 +214,9 @@ const UserLayout = ({ children }) => {
       case 'chat':
         navigate('/chat')
         break
+      case 'global-chat':
+        navigate('/global-chat')
+        break
       case 'discover':
         navigate('/discover')
         break
@@ -233,7 +242,7 @@ const UserLayout = ({ children }) => {
       background: '#f5f5f5', 
       minHeight: '100vh'
     }}>
-      {/* Header */}
+      {/* Header - Fixed */}
       <div style={{ 
         display: 'flex', 
         justifyContent: 'space-between', 
@@ -241,7 +250,13 @@ const UserLayout = ({ children }) => {
         padding: '1rem 2rem',
         borderBottom: '1px solid #e8e8e8',
         background: '#fff',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+        boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        zIndex: 1000,
+        height: '80px'
       }}>
         <div style={{ display: 'flex', alignItems: 'center' }}>
           <Title level={3} style={{ color: '#1890ff', margin: 0, marginRight: '2rem' }}>
@@ -300,9 +315,10 @@ const UserLayout = ({ children }) => {
           </Sider>
         )}
 
-        {/* Main Content - Offset for fixed sidebar on desktop */}
+        {/* Main Content - Offset for fixed sidebar and header */}
         <Content style={{ 
           marginLeft: isMobile ? '0' : '250px',
+          marginTop: '80px',
           padding: isMobile ? '1rem' : '2rem', 
           background: '#f5f5f5',
           minHeight: 'calc(100vh - 80px)',

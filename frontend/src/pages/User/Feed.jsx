@@ -219,7 +219,13 @@ const Feed = () => {
       setError(null)
       
       console.log('🔄 Loading feed from /posts/feed...')
-      const response = await api.get('/posts/feed')
+      // Add timeout to prevent hanging
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Request timeout')), 8000)
+      })
+      
+      const apiPromise = api.get('/posts/feed')
+      const response = await Promise.race([apiPromise, timeoutPromise])
       console.log('📥 Feed API response:', {
         success: response.data?.success,
         hasData: !!response.data?.data,

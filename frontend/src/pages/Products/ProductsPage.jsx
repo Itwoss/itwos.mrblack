@@ -120,9 +120,9 @@ const ProductsPage = () => {
 
   const fetchCategories = async () => {
     try {
-      const response = await fetch('http://localhost:7000/api/products/categories/list')
-      const data = await response.json()
-      if (data.success && data.data.categories.length > 0) {
+      const response = await productAPI.getCategories()
+      const data = response.data
+      if (data.success && data.data?.categories?.length > 0) {
         setCategories(data.data.categories)
       } else {
         // Comprehensive fallback categories
@@ -163,9 +163,9 @@ const ProductsPage = () => {
 
   const fetchTags = async () => {
     try {
-      const response = await fetch('http://localhost:7000/api/products/tags/list')
-      const data = await response.json()
-      if (data.success && data.data.tags.length > 0) {
+      const response = await productAPI.getTags()
+      const data = response.data
+      if (data.success && data.data?.tags?.length > 0) {
         setTags(data.data.tags)
       } else {
         // Comprehensive fallback tags

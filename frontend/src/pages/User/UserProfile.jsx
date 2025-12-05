@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
   Avatar,
@@ -64,6 +64,10 @@ const UserProfile = () => {
   const [postsLoaded, setPostsLoaded] = useState(false)
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768)
   const BIO_MAX_LENGTH = 150 // Characters to show before "View More"
+  
+  // Request cancellation refs to prevent duplicate calls
+  const abortControllerRef = useRef(null)
+  const isInitializingRef = useRef(false)
 
   // Handle window resize for responsive design
   useEffect(() => {
@@ -77,6 +81,11 @@ const UserProfile = () => {
   useEffect(() => {
     console.log('UserProfile useEffect - userId:', userId)
     console.log('UserProfile useEffect - currentUser:', currentUser)
+    
+    // Cancel any pending requests
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort()
+    }
     
     // If no userId in params, try to use current user's ID
     if (!userId) {
@@ -93,11 +102,46 @@ const UserProfile = () => {
       }
     }
     
-    if (userId) {
+    if (userId && !isInitializingRef.current) {
+      isInitializingRef.current = true
       setBioExpanded(false) // Reset bio expansion when user changes
-      loadUserProfile()
-      checkFollowStatus()
-      loadStats()
+      
+      // Create new abort controller for this request sequence
+      abortControllerRef.current = new AbortController()
+      
+      // Load data sequentially: profile -> follow status -> stats
+      const loadDataSequentially = async () => {
+        try {
+          // Step 1: Load user profile first
+          await loadUserProfile()
+          
+          // Step 2: Check follow status (only if not own profile)
+          const isOwnProfile = currentUser?._id?.toString() === userId?.toString() || 
+                               currentUser?.id?.toString() === userId?.toString()
+          if (!isOwnProfile) {
+            await checkFollowStatus()
+          }
+          
+          // Step 3: Load stats last
+          await loadStats()
+        } catch (error) {
+          if (error.name !== 'AbortError') {
+            console.error('Error in sequential data loading:', error)
+          }
+        } finally {
+          isInitializingRef.current = false
+        }
+      }
+      
+      loadDataSequentially()
+    }
+    
+    // Cleanup function
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort()
+      }
+      isInitializingRef.current = false
     }
   }, [userId, currentUser])
 
@@ -151,17 +195,48 @@ const UserProfile = () => {
     try {
       console.log('Loading user profile for userId:', userId)
       
-      // Try different API endpoints
+      // Check if request was aborted
+      if (abortControllerRef.current?.signal.aborted) {
+        return
+      }
+      
+      // Try different API endpoints with timeout protection
       let response
       try {
-        response = await api.get(`/users/${userId}`)
+        const timeoutPromise = new Promise((_, reject) => {
+          setTimeout(() => reject(new Error('Request timeout')), 25000)
+        })
+        
+        const apiPromise = api.get(`/users/${userId}`, {
+          signal: abortControllerRef.current?.signal
+        })
+        
+        response = await Promise.race([apiPromise, timeoutPromise])
       } catch (err) {
+        // Check if aborted
+        if (err.name === 'AbortError' || abortControllerRef.current?.signal.aborted) {
+          return
+        }
+        
         // Fallback: try usersListAPI
         console.log('Trying alternative endpoint...')
-        const usersResponse = await usersListAPI.getUsers({ userId })
-        if (usersResponse.data.success && usersResponse.data.users?.length > 0) {
-          setProfileUser(usersResponse.data.users[0])
-          setLoading(false)
+        try {
+          const timeoutPromise = new Promise((_, reject) => {
+            setTimeout(() => reject(new Error('Request timeout')), 25000)
+          })
+          
+          const usersResponsePromise = usersListAPI.getUsers({ userId })
+          const usersResponse = await Promise.race([usersResponsePromise, timeoutPromise])
+          
+          if (usersResponse.data.success && usersResponse.data.users?.length > 0) {
+            setProfileUser(usersResponse.data.users[0])
+            setLoading(false)
+            return
+          }
+        } catch (fallbackErr) {
+          if (fallbackErr.name !== 'AbortError') {
+            throw err // Throw original error
+          }
           return
         }
         throw err
@@ -239,9 +314,27 @@ const UserProfile = () => {
   }
 
   const checkFollowStatus = async () => {
+    // Don't check if viewing own profile
+    const isOwnProfile = currentUser?._id?.toString() === userId?.toString() || 
+                         currentUser?.id?.toString() === userId?.toString()
+    if (isOwnProfile) {
+      return
+    }
+    
+    // Check if request was aborted
+    if (abortControllerRef.current?.signal.aborted) {
+      return
+    }
+    
     try {
-      // Use dedicated check endpoint for accurate follow status
-      const response = await followAPI.checkFollowStatus(userId)
+      // Use dedicated check endpoint for accurate follow status with timeout
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Request timeout')), 25000)
+      })
+      
+      const apiPromise = followAPI.checkFollowStatus(userId)
+      const response = await Promise.race([apiPromise, timeoutPromise])
+      
       if (response.data.success) {
         const status = response.data.status || response.data.followStatus
         const isFollowing = response.data.isFollowing || false
@@ -263,39 +356,68 @@ const UserProfile = () => {
         setFollowRequestSent(false)
       }
     } catch (error) {
+      // Check if aborted
+      if (error.name === 'AbortError' || abortControllerRef.current?.signal.aborted) {
+        return
+      }
+      
+      // Don't log timeout errors as errors - they're expected if backend is slow
+      if (error.message === 'Request timeout') {
+        console.warn('⚠️ Follow status check timed out, using default values')
+        setFollowing(false)
+        setFollowRequestSent(false)
+        return
+      }
+      
       console.error('❌ Error checking follow status:', error)
       console.error('Error details:', {
         message: error.message,
         response: error.response?.data,
         status: error.response?.status
       })
-      // Fallback: try checking following list
-      try {
-        const fallbackResponse = await followAPI.getFollowing()
-        if (fallbackResponse.data.success && fallbackResponse.data.following) {
-          const followingList = fallbackResponse.data.following
-          const userIdStr = userId?.toString()
-          const isFollowing = Array.isArray(followingList) 
-            ? followingList.some(user => {
-                const useridStr = user._id?.toString() || user._id
-                return useridStr === userIdStr || user._id === userId
-              })
-            : false
-          setFollowing(isFollowing)
+      
+      // Fallback: try checking following list (only if not aborted)
+      if (!abortControllerRef.current?.signal.aborted) {
+        try {
+          const timeoutPromise = new Promise((_, reject) => {
+            setTimeout(() => reject(new Error('Request timeout')), 25000)
+          })
+          
+          const fallbackResponsePromise = followAPI.getFollowing()
+          const fallbackResponse = await Promise.race([fallbackResponsePromise, timeoutPromise])
+          
+          if (fallbackResponse.data.success && fallbackResponse.data.following) {
+            const followingList = fallbackResponse.data.following
+            const userIdStr = userId?.toString()
+            const isFollowing = Array.isArray(followingList) 
+              ? followingList.some(user => {
+                  const useridStr = user._id?.toString() || user._id
+                  return useridStr === userIdStr || user._id === userId
+                })
+              : false
+            setFollowing(isFollowing)
+            setFollowRequestSent(false)
+            console.log('✅ Fallback follow status checked:', { userId, isFollowing })
+          }
+        } catch (fallbackError) {
+          if (fallbackError.name !== 'AbortError') {
+            console.warn('Fallback check also failed:', fallbackError.message)
+          }
+          setFollowing(false) // Default to not following on error
           setFollowRequestSent(false)
-          console.log('✅ Fallback follow status checked:', { userId, isFollowing })
         }
-      } catch (fallbackError) {
-        console.error('Fallback check also failed:', fallbackError)
-        setFollowing(false) // Default to not following on error
-        setFollowRequestSent(false)
       }
     }
   }
 
   const loadStats = async () => {
+    // Check if request was aborted
+    if (abortControllerRef.current?.signal.aborted) {
+      return
+    }
+    
     try {
-      // First try to get counts from user profile data
+      // First try to get counts from user profile data (already loaded)
       if (profileUser) {
         if (profileUser.followersCount !== undefined) {
           setFollowersCount(profileUser.followersCount || 0)
@@ -305,59 +427,121 @@ const UserProfile = () => {
         }
       }
 
-      // Also try to get from follow endpoints
+      // Also try to get from follow endpoints (with timeout)
       try {
         // Load followers count
-        const followersRes = await api.get(`/follow/followers/${userId}`)
+        const timeoutPromise = new Promise((_, reject) => {
+          setTimeout(() => reject(new Error('Request timeout')), 25000)
+        })
+        
+        const followersResPromise = api.get(`/follow/followers/${userId}`, {
+          signal: abortControllerRef.current?.signal
+        })
+        const followersRes = await Promise.race([followersResPromise, timeoutPromise])
+        
         if (followersRes.data.success) {
           const count = followersRes.data.followers?.length || followersRes.data.count || 0
           setFollowersCount(count)
         }
       } catch (err) {
-        console.error('Error loading followers:', err)
+        // Check if aborted
+        if (err.name === 'AbortError' || abortControllerRef.current?.signal.aborted) {
+          return
+        }
+        
+        // Don't log timeout errors - use profileUser data as fallback
+        if (err.message !== 'Request timeout') {
+          console.warn('Error loading followers:', err.message)
+        }
         // Fallback: use profileUser data if available
         if (profileUser?.followersCount !== undefined) {
           setFollowersCount(profileUser.followersCount || 0)
         }
       }
 
+      // Check if aborted before next request
+      if (abortControllerRef.current?.signal.aborted) {
+        return
+      }
+
       try {
         // Load following count
-        const followingRes = await api.get(`/follow/following/${userId}`)
+        const timeoutPromise = new Promise((_, reject) => {
+          setTimeout(() => reject(new Error('Request timeout')), 25000)
+        })
+        
+        const followingResPromise = api.get(`/follow/following/${userId}`, {
+          signal: abortControllerRef.current?.signal
+        })
+        const followingRes = await Promise.race([followingResPromise, timeoutPromise])
+        
         if (followingRes.data.success) {
           const count = followingRes.data.following?.length || followingRes.data.count || 0
           setFollowingCount(count)
         }
       } catch (err) {
-        console.error('Error loading following:', err)
+        // Check if aborted
+        if (err.name === 'AbortError' || abortControllerRef.current?.signal.aborted) {
+          return
+        }
+        
+        // Don't log timeout errors - use profileUser data as fallback
+        if (err.message !== 'Request timeout') {
+          console.warn('Error loading following:', err.message)
+        }
         // Fallback: use profileUser data if available
         if (profileUser?.followingCount !== undefined) {
           setFollowingCount(profileUser.followingCount || 0)
         }
       }
 
+      // Check if aborted before posts request
+      if (abortControllerRef.current?.signal.aborted) {
+        return
+      }
+
       // Load posts count
       const isOwnProfile = currentUser?._id?.toString() === userId?.toString() || 
                            currentUser?.id?.toString() === userId?.toString();
       
-      if (isOwnProfile) {
-        // For own profile, use my-posts endpoint
-        const postsRes = await api.get('/posts/my-posts?limit=1')
+      try {
+        const timeoutPromise = new Promise((_, reject) => {
+          setTimeout(() => reject(new Error('Request timeout')), 25000)
+        })
+        
+        let postsResPromise
+        if (isOwnProfile) {
+          // For own profile, use my-posts endpoint
+          postsResPromise = api.get('/posts/my-posts?limit=1', {
+            signal: abortControllerRef.current?.signal
+          })
+        } else {
+          // For other users, try to get public posts count
+          postsResPromise = api.get(`/posts/user/${userId}?limit=1`, {
+            signal: abortControllerRef.current?.signal
+          })
+        }
+        
+        const postsRes = await Promise.race([postsResPromise, timeoutPromise])
         if (postsRes.data.success) {
           setPostsCount(postsRes.data.pagination?.total || 0)
         }
-      } else {
-        // For other users, try to get public posts count
-        try {
-          const postsRes = await api.get(`/posts/user/${userId}?limit=1`)
-          if (postsRes.data.success) {
-            setPostsCount(postsRes.data.pagination?.total || 0)
-          }
-        } catch (err) {
-          // Endpoint might not exist, that's okay
+      } catch (err) {
+        // Check if aborted
+        if (err.name === 'AbortError' || abortControllerRef.current?.signal.aborted) {
+          return
+        }
+        
+        // Don't log errors for posts count - it's optional
+        if (err.message !== 'Request timeout' && !err.response?.status === 404) {
+          console.warn('Error loading posts count:', err.message)
         }
       }
     } catch (error) {
+      // Check if aborted
+      if (error.name === 'AbortError' || abortControllerRef.current?.signal.aborted) {
+        return
+      }
       console.error('Error loading stats:', error)
     }
   }

@@ -1,13 +1,14 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { Badge, Dropdown, List, Button, Typography, Space, Spin, Empty, message } from 'antd'
 import { BellOutlined, CheckOutlined, DeleteOutlined } from '@ant-design/icons'
 import { useAuth } from "../../contexts/AuthContextOptimized"
 import { notificationsAPI } from '../../services/api'
+import notificationService from '../../services/notificationService'
 
 const { Text, Title } = Typography
 
 const NotificationBell = () => {
-  const { isAuthenticated } = useAuth()
+  const { isAuthenticated, user } = useAuth()
   const [notifications, setNotifications] = useState([])
   const [unreadCount, setUnreadCount] = useState(0)
   const [loading, setLoading] = useState(false)
@@ -15,7 +16,7 @@ const NotificationBell = () => {
   const [error, setError] = useState(null)
 
   // Fetch notifications
-  const fetchNotifications = async () => {
+  const fetchNotifications = useCallback(async () => {
     if (!isAuthenticated) {
       setLoading(false)
       setNotifications([])
@@ -82,7 +83,7 @@ const NotificationBell = () => {
       // Always clear loading state
       setLoading(false)
     }
-  }
+  }, [isAuthenticated])
 
   // Mark notification as read
   const markAsRead = async (notificationId) => {
@@ -170,19 +171,110 @@ const NotificationBell = () => {
         return '👤'
       case 'follow_accepted':
         return '✅'
+      case 'like':
+        return '❤️'
+      case 'comment':
+        return '💬'
+      case 'comment_like':
+        return '👍'
       default:
         return '🔔'
     }
   }
 
   useEffect(() => {
-    if (isAuthenticated) {
+    if (isAuthenticated && user) {
+      console.log('🔔 NotificationBell: Setting up notifications for user:', user._id || user.id)
+      
       fetchNotifications()
       // Poll for new notifications every 30 seconds
       const interval = setInterval(fetchNotifications, 30000)
-      return () => clearInterval(interval)
+      
+      // Listen for real-time notifications via Socket.IO
+      const handleNewNotification = (data) => {
+        console.log('🔔 Real-time notification received in NotificationBell:', data)
+        console.log('🔔 Notification type:', data.type)
+        console.log('🔔 Notification title:', data.title)
+        console.log('🔔 Notification message:', data.message)
+        console.log('🔔 Notification _id:', data._id || data.id)
+        console.log('🔔 Notification from:', data.from)
+        console.log('🔔 Current user ID:', user?._id || user?.id)
+        
+        // Verify this notification is for the current user
+        const currentUserId = (user?._id || user?.id)?.toString()
+        if (!currentUserId) {
+          console.warn('⚠️ NotificationBell: No user ID available, ignoring notification')
+          return
+        }
+        
+        // Add the new notification to the list
+        setNotifications(prev => {
+          // Check if notification already exists (avoid duplicates)
+          const notificationId = data._id || data.id
+          const exists = prev.some(n => {
+            const nId = (n._id || n.id)?.toString()
+            const dataId = notificationId?.toString()
+            return nId === dataId
+          })
+          
+          if (exists) {
+            console.log('🔔 Notification already exists, skipping:', notificationId)
+            return prev
+          }
+          
+          console.log('🔔 Adding new notification to list:', notificationId)
+          
+          // Add new notification at the beginning
+          return [{
+            _id: notificationId || `notif_${Date.now()}`,
+            id: notificationId || `notif_${Date.now()}`,
+            type: data.type || 'general',
+            title: data.title || 'Notification',
+            message: data.message || 'You have a new notification.',
+            read: false,
+            createdAt: data.createdAt ? new Date(data.createdAt) : new Date(),
+            data: data.data || {},
+            from: data.from || null
+          }, ...prev]
+        })
+        
+        // Increment unread count
+        setUnreadCount(prev => {
+          const newCount = prev + 1
+          console.log('🔔 Unread count updated:', newCount)
+          return newCount
+        })
+        
+        // Refresh notifications after a short delay to ensure consistency
+        setTimeout(() => {
+          fetchNotifications()
+        }, 500)
+      }
+      
+      // Connect to notification service
+      const userId = user._id || user.id
+      const userRole = user?.role || 'user'
+      
+      if (userId) {
+        console.log('🔔 NotificationBell: Connecting to Socket.IO for user:', userId, 'role:', userRole)
+        const socket = notificationService.connect(userId, userRole)
+        if (socket) {
+          console.log('🔔 NotificationBell: Socket.IO connected, setting up listener')
+          notificationService.on('new_notification', handleNewNotification)
+        } else {
+          console.error('❌ NotificationBell: Failed to connect to Socket.IO')
+        }
+      } else {
+        console.warn('⚠️ NotificationBell: No user ID available for Socket.IO connection')
+      }
+      
+      return () => {
+        console.log('🔔 NotificationBell: Cleaning up listeners')
+        clearInterval(interval)
+        notificationService.off('new_notification', handleNewNotification)
+      }
     }
-  }, [isAuthenticated])
+  }, [isAuthenticated, user, fetchNotifications])
 
   if (!isAuthenticated) {
     return null

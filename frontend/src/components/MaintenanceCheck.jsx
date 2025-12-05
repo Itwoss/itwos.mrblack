@@ -16,7 +16,6 @@ const MaintenanceCheck = ({ children }) => {
       // Check if current route is admin login or admin pages - always allow access
       const isAdminRoute = location.pathname.startsWith('/admin')
       if (isAdminRoute) {
-        console.log('✅ Admin route detected, bypassing maintenance check')
         setMaintenanceMode(false)
         setChecking(false)
         return
@@ -30,34 +29,34 @@ const MaintenanceCheck = ({ children }) => {
       const isAdminUser = (user && user.role === 'admin') || (adminUser && adminUser.role === 'admin')
       setIsAdmin(isAdminUser)
 
-      // Use public API endpoint
-      const response = await publicApi.get('/settings/maintenance-status')
+      // Use public API endpoint with timeout
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Request timeout')), 5000)
+      })
+      
+      const apiPromise = publicApi.get('/settings/maintenance-status')
+      const response = await Promise.race([apiPromise, timeoutPromise])
       
       if (response.data.success) {
         const isMaintenanceMode = response.data.data?.maintenanceMode || false
         
-        console.log('🔍 Maintenance check result:', {
-          isMaintenanceMode,
-          isAdminUser,
-          willShowMaintenance: isMaintenanceMode && !isAdminUser,
-          currentState: maintenanceMode
-        })
-        
         // Admin users can bypass maintenance mode
         if (isMaintenanceMode && !isAdminUser) {
-          console.log('✅ Setting maintenance mode ON')
           maintenanceModeRef.current = true
           setMaintenanceMode(true)
         } else {
           // If maintenance mode is disabled, clear the maintenance state immediately
-          console.log('✅ Setting maintenance mode OFF - maintenance disabled or user is admin')
           maintenanceModeRef.current = false
           setMaintenanceMode(false)
         }
       }
     } catch (error) {
-      console.error('Error checking maintenance status:', error)
-      // On error, allow access (fail open)
+      // Silently fail - don't spam console with errors
+      // Only log if it's not a timeout or network error
+      if (error.code !== 'ECONNABORTED' && error.code !== 'ERR_NETWORK' && !error.message?.includes('timeout')) {
+        console.warn('Maintenance check error:', error.message)
+      }
+      // On error, allow access (fail open) - don't block users if backend is down
       setMaintenanceMode(false)
     } finally {
       setChecking(false)
@@ -66,19 +65,38 @@ const MaintenanceCheck = ({ children }) => {
 
   useEffect(() => {
     checkMaintenanceStatus()
-    // Check every 5 seconds for faster response when admin disables maintenance
-    const interval = setInterval(checkMaintenanceStatus, 5000)
+    
+    // Use exponential backoff to reduce spam if backend is down
+    let retryCount = 0
+    const maxRetryCount = 3
+    
+    const scheduleNextCheck = () => {
+      // Start with 5 seconds, increase to 30 seconds if backend is down
+      const delay = retryCount < maxRetryCount ? 5000 : 30000
+      
+      setTimeout(() => {
+        checkMaintenanceStatus().then(() => {
+          // Reset retry count on success
+          retryCount = 0
+          scheduleNextCheck()
+        }).catch(() => {
+          // Increment retry count on error
+          retryCount = Math.min(retryCount + 1, maxRetryCount)
+          scheduleNextCheck()
+        })
+      }, delay)
+    }
+    
+    scheduleNextCheck()
     
     // Listen for maintenance mode changes from admin settings
     const handleMaintenanceChange = (event) => {
-      console.log('🔄 Maintenance mode changed event received:', event.detail)
       // Check immediately when admin changes maintenance mode
       checkMaintenanceStatus()
     }
     window.addEventListener('maintenanceModeChanged', handleMaintenanceChange)
     
     return () => {
-      clearInterval(interval)
       window.removeEventListener('maintenanceModeChanged', handleMaintenanceChange)
     }
   }, [checkMaintenanceStatus])

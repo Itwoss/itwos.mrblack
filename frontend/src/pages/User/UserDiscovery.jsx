@@ -135,10 +135,8 @@ const UserDiscovery = () => {
       }
     } catch (error) {
       console.error('Search users error:', error)
-      
-      // TODO: Replace with real API call
       setUsers([])
-      message.error('Failed to search users. Please try again.')
+      message.error(error.response?.data?.message || 'Failed to search users. Please try again.')
     } finally {
       setLoading(false)
     }

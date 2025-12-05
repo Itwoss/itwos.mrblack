@@ -12,9 +12,7 @@ import {
   Spin,
   message,
   Row,
-  Col,
-  Statistic,
-  Divider
+  Col
 } from 'antd'
 import { 
   BellOutlined, 
@@ -26,7 +24,9 @@ import {
   ReloadOutlined,
   UserAddOutlined,
   UserOutlined,
-  CloseOutlined
+  CloseOutlined,
+  HeartOutlined,
+  CommentOutlined
 } from '@ant-design/icons'
 import useNotifications from '../../hooks/useNotifications'
 import { useAuth } from '../../contexts/AuthContextOptimized'
@@ -39,11 +39,17 @@ const { Title, Text } = Typography
 const Notifications = () => {
   const { user } = useAuth()
   
-  // Only render if user is authenticated
   if (!user) {
     return (
-      <div style={{ padding: '2rem', textAlign: 'center' }}>
-        <Title level={2}>Please log in to view notifications</Title>
+      <div style={{ 
+        padding: '16px', 
+        textAlign: 'center',
+        background: '#f5f7fa',
+        minHeight: '100vh'
+      }}>
+        <Title level={2} style={{ color: '#1e293b', fontSize: '18px' }}>
+          Please log in to view notifications
+        </Title>
       </div>
     )
   }
@@ -69,28 +75,20 @@ const Notifications = () => {
         return
       }
 
-      console.log('Accepting follow request:', { followId, requesterId, notification })
-
-      // Try using followId first, then fallback to userId
       let response
       if (followId) {
-        // Use followId endpoint if available
         try {
           response = await api.post(`/follow/accept/${followId}`)
         } catch (err) {
-          // Fallback to userId endpoint
           response = await followAPI.acceptFollowRequest(requesterId)
         }
       } else {
-        // Use userId endpoint
         response = await followAPI.acceptFollowRequest(requesterId)
       }
 
       if (response.data.success) {
         message.success('Follow request accepted')
-        // Mark notification as read
         await markAsRead(notification._id)
-        // Refresh notifications
         setTimeout(() => fetchNotifications(), 500)
       } else {
         message.error(response.data.message || 'Failed to accept follow request')
@@ -112,28 +110,20 @@ const Notifications = () => {
         return
       }
 
-      console.log('Declining follow request:', { followId, requesterId, notification })
-
-      // Try using followId first, then fallback to userId
       let response
       if (followId) {
-        // Use followId endpoint if available
         try {
           response = await api.post(`/follow/decline/${followId}`)
         } catch (err) {
-          // Fallback to userId endpoint
           response = await followAPI.declineFollowRequest(requesterId)
         }
       } else {
-        // Use userId endpoint
         response = await followAPI.declineFollowRequest(requesterId)
       }
 
       if (response.data.success) {
         message.success('Follow request declined')
-        // Mark notification as read
         await markAsRead(notification._id)
-        // Refresh notifications
         setTimeout(() => fetchNotifications(), 500)
       } else {
         message.error(response.data.message || 'Failed to decline follow request')
@@ -150,50 +140,68 @@ const Notifications = () => {
       case 'payment_success':
         return {
           icon: <DollarOutlined />,
-          color: '#52c41a',
-          bgColor: '#f6ffed'
+          color: '#22c55e',
+          bgColor: '#f0fdf4'
         }
       case 'prebook_confirmed':
         return {
           icon: <CheckCircleOutlined />,
-          color: '#52c41a',
-          bgColor: '#f6ffed'
+          color: '#22c55e',
+          bgColor: '#f0fdf4'
         }
       case 'prebook_rejected':
         return {
           icon: <CloseCircleOutlined />,
-          color: '#f5222d',
-          bgColor: '#fff2f0'
+          color: '#ef4444',
+          bgColor: '#fef2f2'
         }
       case 'prebook_status_update':
         return {
           icon: <InfoCircleOutlined />,
-          color: '#1890ff',
-          bgColor: '#e6f7ff'
+          color: '#3b82f6',
+          bgColor: '#eff6ff'
         }
       case 'follow_request':
         return {
           icon: <UserAddOutlined />,
-          color: '#1890ff',
-          bgColor: '#e6f7ff'
+          color: '#3b82f6',
+          bgColor: '#eff6ff'
         }
       case 'follow':
         return {
           icon: <UserOutlined />,
-          color: '#52c41a',
-          bgColor: '#f6ffed'
+          color: '#22c55e',
+          bgColor: '#f0fdf4'
         }
       case 'follow_accepted':
         return {
           icon: <CheckCircleOutlined />,
-          color: '#52c41a',
-          bgColor: '#f6ffed'
+          color: '#22c55e',
+          bgColor: '#f0fdf4'
+        }
+      case 'like':
+        return {
+          icon: <HeartOutlined />,
+          color: '#ec4899',
+          bgColor: '#fdf2f8'
+        }
+      case 'comment':
+        return {
+          icon: <CommentOutlined />,
+          color: '#3b82f6',
+          bgColor: '#eff6ff'
+        }
+      case 'comment_like':
+        return {
+          icon: <HeartOutlined />,
+          color: '#ec4899',
+          bgColor: '#fdf2f8'
         }
       default:
         return {
           icon: <BellOutlined />,
-          color: '#666',
-          bgColor: '#f5f5f5'
+          color: '#64748b',
+          bgColor: '#f8fafc'
         }
     }
   }
@@ -202,103 +210,61 @@ const Notifications = () => {
   const formatDate = (dateString) => {
     const date = new Date(dateString)
     const now = new Date()
-    const diffInHours = Math.floor((now - date) / (1000 * 60 * 60))
+    const diffInMinutes = Math.floor((now - date) / (1000 * 60))
     
-    if (diffInHours < 1) {
-      return 'Just now'
-    } else if (diffInHours < 24) {
-      return `${diffInHours}h ago`
-    } else {
-      return date.toLocaleDateString()
-    }
+    if (diffInMinutes < 1) return 'Just now'
+    if (diffInMinutes < 60) return `${diffInMinutes}m ago`
+    if (diffInMinutes < 1440) return `${Math.floor(diffInMinutes / 60)}h ago`
+    return date.toLocaleDateString()
   }
 
   // Get notification statistics
   const getNotificationStats = () => {
-    const stats = {
+    return {
       total: notifications.length,
       unread: unreadCount,
       paymentSuccess: notifications.filter(n => n.type === 'payment_success').length,
       prebookConfirmed: notifications.filter(n => n.type === 'prebook_confirmed').length,
-      prebookRejected: notifications.filter(n => n.type === 'prebook_rejected').length,
       followRequests: notifications.filter(n => n.type === 'follow_request').length,
-      follows: notifications.filter(n => n.type === 'follow').length,
-      followAccepted: notifications.filter(n => n.type === 'follow_accepted').length
+      likes: notifications.filter(n => n.type === 'like' || n.type === 'comment_like').length
     }
-    return stats
   }
 
   const stats = getNotificationStats()
 
   return (
-    <div style={{ padding: '2rem' }}>
-      <Title level={2}>
-            <BellOutlined style={{ marginRight: '8px' }} />
-            Notifications
-          </Title>
-
-      {/* Notification Statistics */}
-        <Row gutter={[16, 16]} style={{ marginBottom: '2rem' }}>
-          <Col xs={12} sm={6}>
-          <Card size="small">
-              <Statistic
-                title="Total Notifications"
-              value={stats.total}
-              prefix={<BellOutlined />}
-              />
-            </Card>
-          </Col>
-          <Col xs={12} sm={6}>
-          <Card size="small">
-              <Statistic
-                title="Unread"
-              value={stats.unread}
-              valueStyle={{ color: stats.unread > 0 ? '#f5222d' : '#666' }}
-              prefix={<Badge dot color="#f5222d" />}
-              />
-            </Card>
-          </Col>
-          <Col xs={12} sm={6}>
-          <Card size="small">
-              <Statistic
-              title="Payment Success"
-              value={stats.paymentSuccess}
-              prefix={<DollarOutlined />}
-              />
-            </Card>
-          </Col>
-          <Col xs={12} sm={6}>
-          <Card size="small">
-              <Statistic
-              title="Prebook Confirmed"
-              value={stats.prebookConfirmed}
-              prefix={<CheckCircleOutlined />}
-              />
-            </Card>
-          </Col>
-        </Row>
-
-          {/* Notifications List */}
-            <Card 
-        title={
-          <Space>
-            <BellOutlined />
-            <span>Your Notifications</span>
+    <div style={{ 
+      background: '#f5f7fa', 
+      minHeight: '100vh',
+      padding: '16px'
+    }}>
+      {/* Header */}
+      <div style={{ marginBottom: '16px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <BellOutlined style={{ fontSize: '18px', color: '#1e293b' }} />
+            <Title level={2} style={{ 
+              margin: 0, 
+              fontSize: '18px', 
+              fontWeight: 600,
+              color: '#1e293b'
+            }}>
+              Notifications
+            </Title>
             {unreadCount > 0 && (
-              <Badge count={unreadCount} size="small" />
+              <Badge count={unreadCount} size="small" style={{ backgroundColor: '#ef4444' }} />
             )}
-          </Space>
-        }
-              extra={
-                <Space>
+          </div>
+          <Space size="small">
             {unreadCount > 0 && (
               <Button 
                 type="link" 
                 size="small" 
                 onClick={markAllAsRead}
+                style={{ fontSize: '12px', padding: 0, height: 'auto' }}
               >
                 Mark all read
-                  </Button>
+              </Button>
             )}
             <Button 
               type="link" 
@@ -306,274 +272,458 @@ const Notifications = () => {
               icon={<ReloadOutlined />}
               onClick={fetchNotifications}
               loading={loading}
+              style={{ fontSize: '12px', padding: 0, height: 'auto' }}
             >
               Refresh
             </Button>
-            <Button 
-              type="link" 
-              size="small"
-              onClick={async () => {
-                try {
-                  await notificationsAPI.createTest({
-                    type: 'general',
-                    title: 'Test Notification',
-                    message: 'This is a test notification to verify the system is working!'
-                  })
-                  message.success('Test notification created! Refreshing...')
-                  setTimeout(() => fetchNotifications(), 1000)
-                } catch (err) {
-                  message.error('Failed to create test notification')
-                }
-              }}
-            >
-              Create Test
-            </Button>
-                </Space>
-              }
-            >
+          </Space>
+        </div>
+      </div>
+
+      {/* Notification Statistics */}
+      <Row gutter={[12, 12]} style={{ marginBottom: '16px' }}>
+        <Col xs={6} sm={6} md={4}>
+          <Card 
+            style={{ 
+              background: '#fff',
+              border: '1px solid #e2e8f0',
+              borderRadius: '8px',
+              padding: '12px'
+            }}
+            bodyStyle={{ padding: 0 }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div style={{
+                width: '36px',
+                height: '36px',
+                borderRadius: '6px',
+                background: '#f8fafc',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}>
+                <BellOutlined style={{ color: '#64748b', fontSize: '18px' }} />
+              </div>
+              <div style={{ flex: 1 }}>
+                <Text style={{ 
+                  color: '#64748b', 
+                  fontSize: '11px', 
+                  display: 'block',
+                  lineHeight: '1.2',
+                  marginBottom: '2px'
+                }}>
+                  Total
+                </Text>
+                <Text style={{ 
+                  color: '#1e293b', 
+                  fontSize: '18px', 
+                  fontWeight: 600,
+                  lineHeight: '1.2'
+                }}>
+                  {stats.total}
+                </Text>
+              </div>
+            </div>
+          </Card>
+        </Col>
+        <Col xs={6} sm={6} md={4}>
+          <Card 
+            style={{ 
+              background: '#fff',
+              border: '1px solid #e2e8f0',
+              borderRadius: '8px',
+              padding: '12px'
+            }}
+            bodyStyle={{ padding: 0 }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div style={{
+                width: '36px',
+                height: '36px',
+                borderRadius: '6px',
+                background: '#fef2f2',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}>
+                <Badge dot style={{ backgroundColor: '#ef4444' }} />
+              </div>
+              <div style={{ flex: 1 }}>
+                <Text style={{ 
+                  color: '#64748b', 
+                  fontSize: '11px', 
+                  display: 'block',
+                  lineHeight: '1.2',
+                  marginBottom: '2px'
+                }}>
+                  Unread
+                </Text>
+                <Text style={{ 
+                  color: stats.unread > 0 ? '#ef4444' : '#1e293b', 
+                  fontSize: '18px', 
+                  fontWeight: 600,
+                  lineHeight: '1.2'
+                }}>
+                  {stats.unread}
+                </Text>
+              </div>
+            </div>
+          </Card>
+        </Col>
+        <Col xs={6} sm={6} md={4}>
+          <Card 
+            style={{ 
+              background: '#fff',
+              border: '1px solid #e2e8f0',
+              borderRadius: '8px',
+              padding: '12px'
+            }}
+            bodyStyle={{ padding: 0 }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div style={{
+                width: '36px',
+                height: '36px',
+                borderRadius: '6px',
+                background: '#f0fdf4',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}>
+                <DollarOutlined style={{ color: '#22c55e', fontSize: '18px' }} />
+              </div>
+              <div style={{ flex: 1 }}>
+                <Text style={{ 
+                  color: '#64748b', 
+                  fontSize: '11px', 
+                  display: 'block',
+                  lineHeight: '1.2',
+                  marginBottom: '2px'
+                }}>
+                  Payments
+                </Text>
+                <Text style={{ 
+                  color: '#1e293b', 
+                  fontSize: '18px', 
+                  fontWeight: 600,
+                  lineHeight: '1.2'
+                }}>
+                  {stats.paymentSuccess}
+                </Text>
+              </div>
+            </div>
+          </Card>
+        </Col>
+        <Col xs={6} sm={6} md={4}>
+          <Card 
+            style={{ 
+              background: '#fff',
+              border: '1px solid #e2e8f0',
+              borderRadius: '8px',
+              padding: '12px'
+            }}
+            bodyStyle={{ padding: 0 }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div style={{
+                width: '36px',
+                height: '36px',
+                borderRadius: '6px',
+                background: '#fdf2f8',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}>
+                <HeartOutlined style={{ color: '#ec4899', fontSize: '18px' }} />
+              </div>
+              <div style={{ flex: 1 }}>
+                <Text style={{ 
+                  color: '#64748b', 
+                  fontSize: '11px', 
+                  display: 'block',
+                  lineHeight: '1.2',
+                  marginBottom: '2px'
+                }}>
+                  Likes
+                </Text>
+                <Text style={{ 
+                  color: '#1e293b', 
+                  fontSize: '18px', 
+                  fontWeight: 600,
+                  lineHeight: '1.2'
+                }}>
+                  {stats.likes}
+                </Text>
+              </div>
+            </div>
+          </Card>
+        </Col>
+      </Row>
+
+      {/* Notifications List */}
+      <Card 
+        style={{
+          background: '#fff',
+          border: '1px solid #e2e8f0',
+          borderRadius: '8px'
+        }}
+        bodyStyle={{ padding: '12px' }}
+      >
         {loading ? (
-          <div style={{ textAlign: 'center', padding: '2rem' }}>
-            <Spin size="large" />
-            <div style={{ marginTop: '1rem' }}>
-              {error ? (
-                <>
-                  <Text type="danger">{error}</Text>
-                  <br />
-                  <Text type="secondary" style={{ fontSize: '12px', marginTop: '8px', display: 'block' }}>
-                    Please wait while we fetch your notifications...
-                  </Text>
-                </>
-              ) : (
-                'Loading notifications...'
-              )}
+          <div style={{ textAlign: 'center', padding: '32px' }}>
+            <Spin size="small" />
+            <div style={{ marginTop: '12px' }}>
+              <Text style={{ fontSize: '12px', color: '#64748b' }}>
+                {error ? error : 'Loading notifications...'}
+              </Text>
             </div>
           </div>
         ) : error ? (
-          <div style={{ textAlign: 'center', padding: '2rem' }}>
-            <Text type="danger">{error}</Text>
-            <br />
-            <Button onClick={fetchNotifications} style={{ marginTop: '1rem' }}>
+          <div style={{ textAlign: 'center', padding: '32px' }}>
+            <Text style={{ fontSize: '13px', color: '#ef4444', display: 'block', marginBottom: '12px' }}>
+              {error}
+            </Text>
+            <Button 
+              size="small"
+              onClick={fetchNotifications}
+              style={{
+                background: '#3b82f6',
+                border: 'none',
+                borderRadius: '6px',
+                fontSize: '12px',
+                height: '28px',
+                padding: '0 16px'
+              }}
+            >
               Try Again
             </Button>
           </div>
         ) : notifications.length === 0 ? (
-                <Empty
-            description="No notifications yet"
-                  image={Empty.PRESENTED_IMAGE_SIMPLE}
-                />
-              ) : (
-                <List
-                  dataSource={notifications}
+          <Empty
+            description={
+              <Text style={{ fontSize: '13px', color: '#64748b' }}>
+                No notifications yet
+              </Text>
+            }
+            image={Empty.PRESENTED_IMAGE_SIMPLE}
+            style={{ padding: '32px 0' }}
+          />
+        ) : (
+          <List
+            dataSource={notifications}
             renderItem={(notification) => {
               const style = getNotificationStyle(notification.type)
               return (
-                    <List.Item
-                      onClick={async (e) => {
-                        e.stopPropagation()
-                        if (!notification.read) {
-                          console.log('🔔 User Notifications: Marking as read:', notification._id)
-                          try {
-                            const notificationId = notification._id || notification.id
-                            if (!notificationId) {
-                              console.error('❌ No notification ID found')
-                              return
-                            }
-                            await markAsRead(notificationId)
-                            console.log('✅ Notification marked as read')
-                            // Refresh notifications to get updated state
-                            setTimeout(() => {
-                              fetchNotifications()
-                            }, 500)
-                          } catch (error) {
-                            console.error('❌ Error marking notification as read:', error)
-                            console.error('Error details:', {
-                              message: error.message,
-                              response: error.response?.data,
-                              status: error.response?.status
-                            })
-                          }
-                        } else {
-                          console.log('ℹ️ Notification already read')
-                        }
-                      }}
-                      style={{
-                    backgroundColor: notification.read ? '#fff' : style.bgColor,
-                    borderLeft: `4px solid ${style.color}`,
-                    padding: '12px 16px',
+                <div
+                  onClick={async (e) => {
+                    e.stopPropagation()
+                    if (!notification.read) {
+                      try {
+                        const notificationId = notification._id || notification.id
+                        if (!notificationId) return
+                        await markAsRead(notificationId)
+                        setTimeout(() => fetchNotifications(), 500)
+                      } catch (error) {
+                        console.error('Error marking notification as read:', error)
+                      }
+                    }
+                  }}
+                  style={{
+                    background: notification.read ? '#fff' : style.bgColor,
+                    border: `1px solid ${notification.read ? '#e2e8f0' : style.color}`,
+                    borderLeft: `3px solid ${style.color}`,
+                    padding: '12px',
                     marginBottom: '8px',
                     borderRadius: '6px',
                     cursor: 'pointer',
-                    transition: 'all 0.2s ease',
+                    transition: 'all 0.2s',
                     opacity: notification.read ? 0.7 : 1
-                      }}
-                      actions={
-                        notification.type === 'follow_request' ? [
-                          // Accept and Decline buttons for follow requests
-                          <Space key="actions" size="small">
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.08)'
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.boxShadow = 'none'
+                  }}
+                >
+                  <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+                    {/* Avatar/Icon */}
+                    <div>
+                      {notification.type === 'follow_request' && notification.from ? (
+                        <Avatar 
+                          src={getUserAvatarUrl(notification.from)}
+                          icon={<UserOutlined />}
+                          size={48}
+                          style={{ cursor: 'pointer' }}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            window.location.href = `/profile/${notification.from._id}`
+                          }}
+                        >
+                          {getUserInitials(notification.from?.name || 'U')}
+                        </Avatar>
+                      ) : (
+                        <div style={{
+                          width: '48px',
+                          height: '48px',
+                          borderRadius: '6px',
+                          background: style.bgColor,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center'
+                        }}>
+                          <div style={{ color: style.color, fontSize: '20px' }}>
+                            {style.icon}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Content */}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      {/* Title */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
+                        {notification.type === 'follow_request' && notification.from ? (
+                          <Text 
+                            strong={!notification.read}
+                            style={{ 
+                              fontSize: '13px', 
+                              fontWeight: !notification.read ? 600 : 500,
+                              color: '#1e293b',
+                              cursor: 'pointer'
+                            }}
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              window.location.href = `/profile/${notification.from._id}`
+                            }}
+                          >
+                            {notification.from?.name || 'Unknown User'}
+                          </Text>
+                        ) : (
+                          <Text 
+                            strong={!notification.read}
+                            style={{ 
+                              fontSize: '13px', 
+                              fontWeight: !notification.read ? 600 : 500,
+                              color: '#1e293b'
+                            }}
+                          >
+                            {notification.title}
+                          </Text>
+                        )}
+                        {!notification.read && (
+                          <div style={{
+                            width: '6px',
+                            height: '6px',
+                            borderRadius: '50%',
+                            background: '#ef4444',
+                            flexShrink: 0
+                          }} />
+                        )}
+                      </div>
+
+                      {/* Message */}
+                      <Text style={{ 
+                        fontSize: '12px', 
+                        color: '#64748b',
+                        display: 'block',
+                        marginBottom: '6px',
+                        lineHeight: '1.4'
+                      }}>
+                        {notification.message}
+                      </Text>
+
+                      {/* Footer */}
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                          <Tag 
+                            color={style.color} 
+                            style={{ 
+                              margin: 0, 
+                              fontSize: '10px', 
+                              padding: '2px 6px',
+                              border: 'none',
+                              background: style.bgColor,
+                              color: style.color
+                            }}
+                          >
+                            {notification.type.replace('_', ' ')}
+                          </Tag>
+                          <Text style={{ fontSize: '11px', color: '#94a3b8' }}>
+                            {formatDate(notification.createdAt)}
+                          </Text>
+                        </div>
+
+                        {/* Actions */}
+                        <div>
+                          {notification.type === 'follow_request' ? (
+                            <Space size="small">
+                              <Button 
+                                type="primary"
+                                size="small"
+                                icon={<CheckOutlined />}
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  handleAcceptFollowRequest(notification)
+                                }}
+                                style={{
+                                  background: '#22c55e',
+                                  border: 'none',
+                                  borderRadius: '6px',
+                                  fontSize: '11px',
+                                  height: '24px',
+                                  padding: '0 10px'
+                                }}
+                              >
+                                Accept
+                              </Button>
+                              <Button 
+                                size="small"
+                                icon={<CloseOutlined />}
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  handleDeclineFollowRequest(notification)
+                                }}
+                                style={{
+                                  border: '1px solid #e2e8f0',
+                                  borderRadius: '6px',
+                                  fontSize: '11px',
+                                  height: '24px',
+                                  padding: '0 10px'
+                                }}
+                              >
+                                Decline
+                              </Button>
+                            </Space>
+                          ) : !notification.read && (
                             <Button 
-                              type="primary"
-                              size="small"
-                              icon={<CheckOutlined />}
-                              onClick={() => handleAcceptFollowRequest(notification)}
-                            >
-                              Accept
-                            </Button>
-                            <Button 
-                              size="small"
-                              icon={<CloseOutlined />}
-                              onClick={() => handleDeclineFollowRequest(notification)}
-                            >
-                              Decline
-                            </Button>
-                          </Space>
-                        ] : [
-                          // Mark as read for other notifications
-                          !notification.read && (
-                            <Button 
-                              key="mark-read"
                               type="text"
                               size="small" 
                               icon={<CheckOutlined />}
-                              onClick={() => markAsRead(notification._id)}
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                markAsRead(notification._id)
+                              }}
+                              style={{ 
+                                fontSize: '11px',
+                                height: '24px',
+                                padding: '0 8px'
+                              }}
                             >
                               Mark read
                             </Button>
-                          )
-                        ]
-                      }
-                    >
-                      <List.Item.Meta
-                        avatar={
-                          // Show requester's avatar for follow requests (Instagram style)
-                          notification.type === 'follow_request' && notification.from ? (
-                            <Avatar 
-                              src={getUserAvatarUrl(notification.from)}
-                              icon={<UserOutlined />}
-                              size={64}
-                              style={{ cursor: 'pointer' }}
-                              onClick={() => {
-                                // Navigate to user profile
-                                window.location.href = `/users/${notification.from._id}`
-                              }}
-                            >
-                              {getUserInitials(notification.from?.name || 'U')}
-                            </Avatar>
-                          ) : (
-                            <Avatar 
-                              icon={style.icon}
-                              style={{ backgroundColor: style.color }}
-                              size={48}
-                            />
-                          )
-                        }
-                        title={
-                          notification.type === 'follow_request' && notification.from ? (
-                            // Instagram-style title for follow requests
-                            <Space direction="vertical" size={0} style={{ width: '100%' }}>
-                              <Space>
-                                <Text 
-                                  strong={!notification.read}
-                                  style={{ fontSize: '14px', cursor: 'pointer' }}
-                                  onClick={() => {
-                                    window.location.href = `/users/${notification.from._id}`
-                                  }}
-                                >
-                                  {notification.from?.name || 'Unknown User'}
-                                </Text>
-                                {!notification.read && (
-                                  <Badge dot color="#f5222d" />
-                                )}
-                              </Space>
-                              <Text type="secondary" style={{ fontSize: '12px' }}>
-                                {notification.from?.email || notification.from?.username || ''}
-                              </Text>
-                            </Space>
-                          ) : (
-                            <Space>
-                              <Text strong={!notification.read}>
-                                {notification.title}
-                              </Text>
-                              {!notification.read && (
-                                <Badge dot color="#f5222d" />
-                              )}
-                            </Space>
-                          )
-                        }
-                        description={
-                      <Space direction="vertical" size="small" style={{ width: '100%' }}>
-                        {/* Message for follow requests */}
-                        {notification.type === 'follow_request' ? (
-                          <div style={{ marginTop: '8px' }}>
-                            <Text style={{ fontSize: '14px' }}>
-                              {notification.message || 'wants to follow you'}
-                            </Text>
-                          </div>
-                        ) : (
-                          <Text>{notification.message}</Text>
-                        )}
-                        
-                        {/* Show requester info for other notification types */}
-                        {notification.type !== 'follow_request' && notification.from && (
-                          <div style={{ 
-                            padding: '8px', 
-                            background: '#f5f5f5', 
-                            borderRadius: '6px',
-                            marginTop: '4px'
-                          }}>
-                            <Space>
-                              <Avatar 
-                                size="small"
-                                src={getUserAvatarUrl(notification.from)}
-                                icon={<UserOutlined />}
-                              >
-                                {getUserInitials(notification.from?.name || 'U')}
-                              </Avatar>
-                              <div>
-                                <Text strong style={{ fontSize: '13px', display: 'block' }}>
-                                  {notification.from?.name || 'Unknown User'}
-                                </Text>
-                                {notification.from?.email && (
-                                  <Text type="secondary" style={{ fontSize: '11px' }}>
-                                    {notification.from.email}
-                                  </Text>
-                                )}
-                              </div>
-                            </Space>
-                          </div>
-                        )}
-                        
-                        <Space>
-                          <Tag color={style.color} size="small">
-                            {notification.type.replace('_', ' ').toUpperCase()}
-                          </Tag>
-                          <Text type="secondary" style={{ fontSize: '12px' }}>
-                            {formatDate(notification.createdAt)}
-                          </Text>
-                        </Space>
-                        {notification.data && (
-                          <div style={{ fontSize: '12px', color: '#666' }}>
-                            {notification.data.productTitle && (
-                              <Text type="secondary">
-                                Product: {notification.data.productTitle}
-                              </Text>
-                            )}
-                            {notification.data.amount && (
-                              <Text type="secondary">
-                                Amount: ₹{notification.data.amount}
-                              </Text>
-                            )}
-                          </div>
-                        )}
-                      </Space>
-                        }
-                      />
-                    </List.Item>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               )
             }}
-                />
-              )}
-            </Card>
-      </div>
+          />
+        )}
+      </Card>
+    </div>
   )
 }
 

@@ -262,7 +262,7 @@ export const AuthProvider = ({ children }) => {
         return { 
           success: true, 
           user: mockUser,
-          redirectTo: '/dashboard'
+          redirectTo: '/feed'
         }
       }
       
@@ -303,7 +303,7 @@ export const AuthProvider = ({ children }) => {
         return { 
           success: true, 
           user: data.user,
-          redirectTo: data.user.role === 'admin' ? '/admin/dashboard' : '/dashboard'
+          redirectTo: data.user.role === 'admin' ? '/admin/dashboard' : '/feed'
         }
       } else {
         // If API returns success: false, fall back to mock login
@@ -666,7 +666,7 @@ export const AuthProvider = ({ children }) => {
         return { 
           success: true, 
           user: mockUser,
-          redirectTo: '/dashboard'
+          redirectTo: '/feed'
         }
       }
       
@@ -709,7 +709,7 @@ export const AuthProvider = ({ children }) => {
         return { 
           success: true, 
           user: data.user,
-          redirectTo: data.user.role === 'admin' ? '/admin/dashboard' : '/dashboard'
+          redirectTo: data.user.role === 'admin' ? '/admin/dashboard' : '/feed'
         }
       } else {
         throw new Error(data.message || 'Google login failed')

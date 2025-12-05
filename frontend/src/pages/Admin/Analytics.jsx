@@ -227,24 +227,35 @@ const Analytics = () => {
       }}>
         {/* Header */}
         <div style={{ marginBottom: AdminDesignSystem.spacing.xl }}>
-          <Title 
-            level={2} 
-            style={{ 
-              marginBottom: AdminDesignSystem.spacing.sm,
-              color: AdminDesignSystem.colors.text.primary,
-              fontWeight: AdminDesignSystem.typography.fontWeight.semibold,
-              fontSize: AdminDesignSystem.typography.fontSize.h2,
-            }}
-          >
-            <BarChartOutlined style={{ marginRight: AdminDesignSystem.spacing.sm, color: AdminDesignSystem.colors.primary }} />
-            Analytics Dashboard
-          </Title>
-          <Paragraph style={{ 
-            color: AdminDesignSystem.colors.text.secondary,
-            fontSize: AdminDesignSystem.typography.fontSize.body,
-          }}>
-            Monitor performance metrics, track growth, and analyze user behavior.
-          </Paragraph>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <div>
+              <Title 
+                level={2} 
+                style={{ 
+                  marginBottom: AdminDesignSystem.spacing.sm,
+                  color: AdminDesignSystem.colors.text.primary,
+                  fontWeight: AdminDesignSystem.typography.fontWeight.semibold,
+                  fontSize: AdminDesignSystem.typography.fontSize.h2,
+                }}
+              >
+                <BarChartOutlined style={{ marginRight: AdminDesignSystem.spacing.sm, color: AdminDesignSystem.colors.primary }} />
+                Analytics Dashboard
+              </Title>
+              <Paragraph style={{ 
+                color: AdminDesignSystem.colors.text.secondary,
+                fontSize: AdminDesignSystem.typography.fontSize.body,
+              }}>
+                Monitor performance metrics, track growth, and analyze user behavior.
+              </Paragraph>
+            </div>
+            <Button
+              type="default"
+              icon={<EyeOutlined />}
+              onClick={() => navigate('/admin/analytics/usage')}
+            >
+              View Usage Analytics
+            </Button>
+          </div>
         </div>
 
         {/* Time Range Selector */}

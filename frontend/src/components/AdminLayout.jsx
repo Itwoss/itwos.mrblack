@@ -34,6 +34,7 @@ const AdminLayout = ({ children }) => {
     if (path === '/admin/dashboard' || path === '/admin') return 'dashboard'
     if (path.includes('/admin/management')) return 'management'
     if (path.includes('/admin/orders')) return 'orders'
+    if (path.includes('/admin/analytics/usage')) return 'usage-analytics'
     if (path.includes('/admin/analytics')) return 'analytics'
     if (path.includes('/admin/trending/settings')) return 'trending-settings'
     if (path.includes('/admin/trending')) return 'trending'
@@ -42,6 +43,7 @@ const AdminLayout = ({ children }) => {
     if (path.includes('/admin/products')) return 'products'
     if (path.includes('/admin/payments')) return 'payments'
     if (path.includes('/admin/user-activities')) return 'activities'
+    if (path.includes('/admin/global-chat')) return 'global-chat'
     return 'dashboard'
   }
 
@@ -88,6 +90,11 @@ const AdminLayout = ({ children }) => {
       label: 'Analytics',
     },
     {
+      key: 'usage-analytics',
+      icon: <MonitorOutlined />,
+      label: 'Usage Analytics',
+    },
+    {
       key: 'trending',
       icon: <FireOutlined />,
       label: 'Trending Analytics',
@@ -111,6 +118,11 @@ const AdminLayout = ({ children }) => {
       key: 'activities',
       icon: <MonitorOutlined />,
       label: 'User Activities',
+    },
+    {
+      key: 'global-chat',
+      icon: <MessageOutlined />,
+      label: 'Global Chat',
     },
     {
       key: 'settings',
@@ -137,6 +149,9 @@ const AdminLayout = ({ children }) => {
       case 'analytics':
         navigate('/admin/analytics')
         break
+      case 'usage-analytics':
+        navigate('/admin/analytics/usage')
+        break
       case 'trending':
         navigate('/admin/trending')
         break
@@ -151,6 +166,9 @@ const AdminLayout = ({ children }) => {
         break
       case 'activities':
         navigate('/admin/user-activities')
+        break
+      case 'global-chat':
+        navigate('/admin/global-chat')
         break
       case 'settings':
         navigate('/admin/settings')

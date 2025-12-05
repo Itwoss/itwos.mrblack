@@ -729,14 +729,17 @@ router.get('/subscriptions', authenticateToken, requireAdmin, validatePagination
   }
 });
 
+const Settings = require('../models/Settings');
+
 // Get system settings
 router.get('/settings', authenticateToken, requireAdmin, async (req, res) => {
   try {
-    // This would typically come from a settings collection
-    // For now, return basic system info
+    const settings = await Settings.getSettings();
+    
     res.json({
       success: true,
-      settings: {
+      data: {
+        settings: settings.toObject(),
         systemInfo: {
           nodeVersion: process.version,
           platform: process.platform,
@@ -756,6 +759,60 @@ router.get('/settings', authenticateToken, requireAdmin, async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to get settings',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+    });
+  }
+});
+
+// Update system settings
+router.put('/settings', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const settings = await Settings.getSettings();
+    const adminId = req.user._id;
+
+    // Update settings fields
+    const {
+      siteName,
+      siteDescription,
+      maintenanceMode,
+      registrationEnabled,
+      emailNotifications,
+      chatEnabled,
+      maxFileSize,
+      allowedFileTypes,
+      emailSettings
+    } = req.body;
+
+    if (siteName !== undefined) settings.siteName = siteName;
+    if (siteDescription !== undefined) settings.siteDescription = siteDescription;
+    if (maintenanceMode !== undefined) settings.maintenanceMode = maintenanceMode;
+    if (registrationEnabled !== undefined) settings.registrationEnabled = registrationEnabled;
+    if (emailNotifications !== undefined) settings.emailNotifications = emailNotifications;
+    if (chatEnabled !== undefined) settings.chatEnabled = chatEnabled;
+    if (maxFileSize !== undefined) settings.maxFileSize = maxFileSize;
+    if (allowedFileTypes !== undefined) settings.allowedFileTypes = allowedFileTypes;
+    if (emailSettings !== undefined) {
+      if (emailSettings.smtpHost !== undefined) settings.emailSettings.smtpHost = emailSettings.smtpHost;
+      if (emailSettings.smtpPort !== undefined) settings.emailSettings.smtpPort = emailSettings.smtpPort;
+      if (emailSettings.smtpUser !== undefined) settings.emailSettings.smtpUser = emailSettings.smtpUser;
+      if (emailSettings.smtpPassword !== undefined) settings.emailSettings.smtpPassword = emailSettings.smtpPassword;
+    }
+
+    settings.updatedBy = adminId;
+    await settings.save();
+
+    res.json({
+      success: true,
+      message: 'Settings updated successfully',
+      data: {
+        settings: settings.toObject()
+      }
+    });
+  } catch (error) {
+    console.error('Update settings error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update settings',
       error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
     });
   }
